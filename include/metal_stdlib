@@ -139,7 +139,15 @@ template <typename T, int N> struct vec_sel<T, N, false> {
 #undef M2V_VEC_CONV
   };
 };
+// `vec` must stay a directly deducible alias: Apple's vec<T, N> is a class template, so kernels deduce through it
+// (nax.h's frag_get(thread frag<T>&, ...), uzu's ThreadVector<U>). `typename vec_sel<T, N>::type` is a non-deduced
+// context, which broke every such template. On clang 20+ bfloat is the arithmetic __bf16, so every instantiation is
+// the native vector and the alias can name it outright. (The clang 19 struct fallback keeps the vec_sel spelling.)
+#if defined(__clang__) && __clang_major__ >= 20
+template <typename T, int N> using vec = T __attribute__((ext_vector_type(N)));
+#else
 template <typename T, int N> using vec = typename vec_sel<T, N>::type;
+#endif
 template <typename T, int N> using packed_vec = vec<T, N>;
 typedef vec<short, 2> bool2;
 typedef vec<short, 3> bool3;
