@@ -105,6 +105,10 @@ template <typename T, int N, bool Native = __is_arithmetic(T)> struct vec_sel { 
 template <typename T, int N> struct vec_sel<T, N, false> {
   struct type {
     T v[N];
+    static constexpr int m2v_n = N;
+    METAL_FUNC type() = default;
+    METAL_FUNC type(T s) { for (int i = 0; i < N; i++) v[i] = s; }
+    template <typename E, typename = decltype(E{}[0])> METAL_FUNC type(E x) { for (int i = 0; i < N; i++) v[i] = T(x[i]); }
     METAL_FUNC T& operator[](int i) { return v[i]; }
     METAL_FUNC const T& operator[](int i) const { return v[i]; }
   };
@@ -134,6 +138,7 @@ struct bfloat {
   }
   template <typename U> METAL_FUNC bfloat(U v) : bfloat((float)v) {}
   METAL_FUNC operator float() const { return as_float((uint)bits << 16); }
+  METAL_FUNC operator float() const __constant { return as_float((uint)bits << 16); }
 };
 
 template <typename T, typename U> METAL_FUNC T as_type(U u) { return __builtin_bit_cast(T, u); }
