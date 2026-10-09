@@ -4354,7 +4354,7 @@ index acf8f632..e4bff7cd 100644
  [[package]]
  name = "zune-inflate"
 diff --git a/Cargo.toml b/Cargo.toml
-index 420503b9..560eb39a 100644
+index 420503b9..d5e1a626 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -243,3 +243,9 @@ lto = "thin"
@@ -4368,11 +4368,14 @@ index 420503b9..560eb39a 100644
 +mtl-rs = { path = "__M2V_COMPAT__/mtl-rs" }
 +objc2 = { path = "__M2V_COMPAT__/objc2" }
 diff --git a/crates/uzu-engine/Cargo.toml b/crates/uzu-engine/Cargo.toml
-index 56ec4b73..b82e1e75 100644
+index 56ec4b73..fea8395b 100644
 --- a/crates/uzu-engine/Cargo.toml
 +++ b/crates/uzu-engine/Cargo.toml
-@@ -30,9 +30,24 @@ metal = [
+@@ -28,11 +28,28 @@ metal = [
+     "dep:blake3",
+     "dep:xxhash-rust",
      "dep:metal",
++    "dep:lzfse",
  ]
  
 +# Linux/vulkan-host: the metal backend runs on the metal2vk host layer; the
@@ -4387,6 +4390,7 @@ index 56ec4b73..b82e1e75 100644
 +# Linux (the kernel compiler itself stays macOS-gated in build/main.rs).
 +rayon = { workspace = true, optional = true }
 +clang-ast = { workspace = true, optional = true }
++lzfse = { version = "0.2", optional = true }
 +depfile = { workspace = true, optional = true }
 +tempfile = { workspace = true, optional = true }
 +serde_json = { workspace = true, features = ["unbounded_depth"], optional = true }
@@ -4396,7 +4400,7 @@ index 56ec4b73..b82e1e75 100644
  anyhow.workspace = true
  walkdir.workspace = true
  derive_more.workspace = true
-@@ -44,16 +59,15 @@ prettyplease.workspace = true
+@@ -44,16 +61,15 @@ prettyplease.workspace = true
  itertools.workspace = true
  rhai.workspace = true
  
@@ -4420,7 +4424,7 @@ index 56ec4b73..b82e1e75 100644
  uzu-engine-macros.workspace = true
  bitflags.workspace = true
  derive_more = { workspace = true, features = ["debug"] }
-@@ -71,12 +85,6 @@ libm.workspace = true
+@@ -71,12 +87,6 @@ libm.workspace = true
  itertools.workspace = true
  parking_lot.workspace = true
  
@@ -4433,7 +4437,7 @@ index 56ec4b73..b82e1e75 100644
  [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
  xgrammar = { workspace = true, optional = true }
  schemars = { workspace = true, optional = true }
-@@ -92,7 +100,8 @@ is_close.workspace = true
+@@ -92,7 +102,8 @@ is_close.workspace = true
  ndarray.workspace = true
  rstest.workspace = true
  
@@ -4443,10 +4447,73 @@ index 56ec4b73..b82e1e75 100644
  objc2.workspace = true
  objc2-foundation.workspace = true
  
+diff --git a/crates/uzu-engine/build/common/caching.rs b/crates/uzu-engine/build/common/caching.rs
+index fe08d154..692bf746 100644
+--- a/crates/uzu-engine/build/common/caching.rs
++++ b/crates/uzu-engine/build/common/caching.rs
+@@ -1,4 +1,4 @@
+-#![cfg(all(feature = "metal", target_os = "macos"))]
++#![cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+ 
+ use std::{
+     fs,
+diff --git a/crates/uzu-engine/build/common/constraints.rs b/crates/uzu-engine/build/common/constraints.rs
+index b1b6f23c..7094e73b 100644
+--- a/crates/uzu-engine/build/common/constraints.rs
++++ b/crates/uzu-engine/build/common/constraints.rs
+@@ -1,6 +1,6 @@
+ use std::collections::{BTreeMap, BTreeSet};
+ 
+-#[cfg(all(feature = "metal", target_os = "macos"))]
++#[cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+ use rhai::EvalAltResult;
+ use rhai::{AST, Dynamic, Engine, Module, Scope};
+ 
+@@ -71,7 +71,7 @@ impl Constraints {
+     }
+ 
+     /// Test partial bindings, treating a missing variable as a constraint that may still become true.
+-    #[cfg(all(feature = "metal", target_os = "macos"))]
++    #[cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+     pub fn could_satisfy(
+         &self,
+         bindings: impl IntoIterator<Item = (impl AsRef<str>, impl AsRef<str>)>,
+diff --git a/crates/uzu-engine/build/common/mangling.rs b/crates/uzu-engine/build/common/mangling.rs
+index af2c8646..b9d680ce 100644
+--- a/crates/uzu-engine/build/common/mangling.rs
++++ b/crates/uzu-engine/build/common/mangling.rs
+@@ -1,4 +1,4 @@
+-#![cfg(all(feature = "metal", target_os = "macos"))]
++#![cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+ 
+ use std::iter::repeat_n;
+ 
+diff --git a/crates/uzu-engine/build/common/mod.rs b/crates/uzu-engine/build/common/mod.rs
+index f3430413..cedfac11 100644
+--- a/crates/uzu-engine/build/common/mod.rs
++++ b/crates/uzu-engine/build/common/mod.rs
+@@ -4,7 +4,7 @@ pub mod compiler;
+ pub mod constraints;
+ pub mod enum_paths;
+ pub mod envs;
+-#[cfg(all(feature = "metal", target_os = "macos"))]
++#[cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+ pub mod expr_rewrite;
+ pub mod gpu_types;
+ pub mod identifiers;
 diff --git a/crates/uzu-engine/build/main.rs b/crates/uzu-engine/build/main.rs
-index 85c1b93a..2c115795 100644
+index 85c1b93a..aea1219d 100644
 --- a/crates/uzu-engine/build/main.rs
 +++ b/crates/uzu-engine/build/main.rs
+@@ -7,7 +7,7 @@ use common::{compiler::Compiler, enum_paths::EnumPaths, envs, gpu_types::GpuType
+ 
+ mod cpu;
+ 
+-#[cfg(all(feature = "metal", target_os = "macos"))]
++#[cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+ mod metal;
+ 
+ fn main() -> anyhow::Result<ExitCode> {
 @@ -27,7 +27,8 @@ fn main() -> anyhow::Result<ExitCode> {
          println!("cargo::rustc-cfg=backend=\"cpu\"");
      }
@@ -4457,7 +4524,13 @@ index 85c1b93a..2c115795 100644
      if backend_metal {
          println!("cargo::rustc-cfg=backend=\"metal\"");
      }
-@@ -65,13 +66,19 @@ fn main() -> anyhow::Result<ExitCode> {
+@@ -60,18 +61,24 @@ fn main() -> anyhow::Result<ExitCode> {
+         compilers.push(Box::new(cpu::CpuCompiler::new()?));
+     }
+ 
+-    #[cfg(all(feature = "metal", target_os = "macos"))]
++    #[cfg(all(feature = "metal", any(target_os = "macos", feature = "vulkan-host")))]
+     if backend_metal {
          compilers.push(Box::new(metal::MetalCompiler::new()?));
      }
  
@@ -4480,6 +4553,1992 @@ index 85c1b93a..2c115795 100644
  
      debug_log!("backend build end");
  
+diff --git a/crates/uzu-engine/build/metal/compiler.rs b/crates/uzu-engine/build/metal/compiler.rs
+index 85f17ef1..6f03dc5c 100644
+--- a/crates/uzu-engine/build/metal/compiler.rs
++++ b/crates/uzu-engine/build/metal/compiler.rs
+@@ -15,7 +15,7 @@ use xxhash_rust::xxh3::xxh3_64;
+ use super::{
+     ast::MetalKernelInfo,
+     bindgen::bindgen_global,
+-    toolchain::MetalToolchain,
++    MetalToolchain,
+     wrapper::{KernelWrappers, VariantWrapper, wrappers},
+ };
+ use crate::{
+@@ -211,11 +211,13 @@ impl MetalCompiler {
+             let footers = shard_footers(&kernel_wrappers);
+             num_shards = footers.len();
+ 
++            #[cfg(all(feature = "vulkan-host", not(target_os = "macos")))]
++            let lib_ext = "m2vlib";
++            #[cfg(not(all(feature = "vulkan-host", not(target_os = "macos"))))]
++            let lib_ext = "metallib";
+             let metallib_files: Vec<PathBuf> = match num_shards {
+-                1 => vec![output_base_path.with_extension("metallib")],
+-                num_shards => {
+-                    (0..num_shards).map(|i| output_base_path.with_extension(format!("shard{i}.metallib"))).collect()
+-                },
++                1 => vec![output_base_path.with_extension(lib_ext)],
++                num_shards => (0..num_shards).map(|i| output_base_path.with_extension(format!("shard{i}.{lib_ext}"))).collect(),
+             };
+ 
+             let metallib_maybe_compressed_files: Vec<PathBuf> = metallib_files
+diff --git a/crates/uzu-engine/build/metal/compression.rs b/crates/uzu-engine/build/metal/compression.rs
+index e93a4771..cdc66c67 100644
+--- a/crates/uzu-engine/build/metal/compression.rs
++++ b/crates/uzu-engine/build/metal/compression.rs
+@@ -1,39 +1,66 @@
+-use std::ptr::null_mut;
+-
+-const COMPRESSION_LZFSE: i32 = 0x801;
+ const LZFSE_MAX_OVERHEAD: usize = 12;
+ 
+-#[link(name = "compression")]
+-unsafe extern "C" {
+-    fn compression_encode_buffer(
+-        dst_buffer: *mut u8,
+-        dst_size: usize,
+-        src_buffer: *const u8,
+-        src_size: usize,
+-        scratch_buffer: *mut u8,
+-        algorithm: i32,
+-    ) -> usize;
++type SizeHeader = u32;
++
++#[cfg(target_os = "apple")]
++mod imp {
++    use std::ptr::null_mut;
++
++    const COMPRESSION_LZFSE: i32 = 0x801;
++
++    #[link(name = "compression")]
++    unsafe extern "C" {
++        fn compression_encode_buffer(
++            dst_buffer: *mut u8,
++            dst_size: usize,
++            src_buffer: *const u8,
++            src_size: usize,
++            scratch_buffer: *mut u8,
++            algorithm: i32,
++        ) -> usize;
++    }
++
++    pub fn compress(src: &[u8]) -> Vec<u8> {
++        let max_output_body_size = src.len() + super::LZFSE_MAX_OVERHEAD;
++        let mut output = Vec::with_capacity(size_of::<super::SizeHeader>() + max_output_body_size);
++        output.extend((src.len() as super::SizeHeader).to_le_bytes());
++
++        unsafe {
++            let output_body_size = compression_encode_buffer(
++                output.as_mut_ptr().byte_add(size_of::<super::SizeHeader>()),
++                max_output_body_size,
++                src.as_ptr(),
++                src.len(),
++                null_mut(),
++                COMPRESSION_LZFSE,
++            );
++            assert!(output_body_size != 0, "compression failed");
++            output.set_len(size_of::<super::SizeHeader>() + output_body_size);
++        };
++
++        output
++    }
+ }
+ 
+-type SizeHeader = u32;
++// slice/host: the Linux/vulkan-host build script compresses with the lzfse
++// crate (same LZFSE stream the runtime decode reads).
++#[cfg(not(target_os = "apple"))]
++mod imp {
++    pub fn compress(src: &[u8]) -> Vec<u8> {
++        let max_output_body_size = src.len() + super::LZFSE_MAX_OVERHEAD;
++        let mut output = Vec::with_capacity(size_of::<super::SizeHeader>() + max_output_body_size);
++        output.extend((src.len() as super::SizeHeader).to_le_bytes());
++
++        let written =
++            lzfse::encode_buffer(src, &mut output[size_of::<super::SizeHeader>()..]).expect("compression failed");
++        unsafe {
++            output.set_len(size_of::<super::SizeHeader>() + written);
++        }
++
++        output
++    }
++}
+ 
+ pub fn compress(src: &[u8]) -> Vec<u8> {
+-    let max_output_body_size = src.len() + LZFSE_MAX_OVERHEAD;
+-    let mut output = Vec::with_capacity(size_of::<SizeHeader>() + max_output_body_size);
+-    output.extend((src.len() as SizeHeader).to_le_bytes());
+-
+-    unsafe {
+-        let output_body_size = compression_encode_buffer(
+-            output.as_mut_ptr().byte_add(size_of::<SizeHeader>()),
+-            max_output_body_size,
+-            src.as_ptr(),
+-            src.len(),
+-            null_mut(),
+-            COMPRESSION_LZFSE,
+-        );
+-        assert!(output_body_size != 0, "compression failed");
+-        output.set_len(size_of::<SizeHeader>() + output_body_size);
+-    };
+-
+-    output
++    imp::compress(src)
+ }
+diff --git a/crates/uzu-engine/build/metal/mod.rs b/crates/uzu-engine/build/metal/mod.rs
+index 62e76339..731742f8 100644
+--- a/crates/uzu-engine/build/metal/mod.rs
++++ b/crates/uzu-engine/build/metal/mod.rs
+@@ -4,8 +4,17 @@ mod compiler;
+ mod compression;
+ mod enum_path_rewrite;
+ mod gpu_types;
+-mod toolchain;
+ mod variant_combinations;
+ mod wrapper;
+ 
++#[cfg(not(all(feature = "vulkan-host", not(target_os = "macos"))))]
++mod toolchain;
++#[cfg(all(feature = "vulkan-host", not(target_os = "macos")))]
++mod toolchain_m2v;
++
++#[cfg(not(all(feature = "vulkan-host", not(target_os = "macos"))))]
++pub(crate) use toolchain::MetalToolchain;
++#[cfg(all(feature = "vulkan-host", not(target_os = "macos")))]
++pub(crate) use toolchain_m2v::MetalToolchain;
++
+ pub use compiler::MetalCompiler;
+diff --git a/crates/uzu-engine/build/metal/toolchain_m2v.rs b/crates/uzu-engine/build/metal/toolchain_m2v.rs
+new file mode 100644
+index 00000000..354b6fc4
+--- /dev/null
++++ b/crates/uzu-engine/build/metal/toolchain_m2v.rs
+@@ -0,0 +1,1823 @@
++//! Linux/vulkan-host kernel toolchain (slice/host-bindgen).
++//!
++//! Replaces the macOS `xcrun metal` step with the metal2vk chain while reusing
++//! uzu's AST analysis, wrapper and bindgen pipeline unchanged:
++//!
++//! ```text
++//! footer.metal (DSL wrappers) --transform--> OpenCL C++ (metal_stdlib shim)
++//!   --clang--> LLVM IR --strip--> clspv (patched: __m2v_spec_* spec constants)
++//!   --SPIR-V--> reflection --> .m2vlib (per-kernel modules)
++//! ```
++//!
++//! Tools come from the environment: CLANG (default `clang`), CLSPV (default
++//! `$HOME/scratch/metal2vk/clspv/build/bin/clspv`) and M2V_ROOT (required; the
++//! metal2vk checkout holding the `metal_stdlib` shim in `include/`). A missing
++//! clspv degrades to empty library bytes so policy-only code still builds; a
++//! missing clang or M2V_ROOT is a hard build error.
++
++use std::{
++    collections::{BTreeMap, BTreeSet},
++    env, fs,
++    io::Write,
++    path::{Path, PathBuf},
++    process::Command,
++    sync::Mutex,
++};
++
++use anyhow::{anyhow, bail, Context};
++use serde::{Deserialize, Serialize};
++
++use super::ast::{MetalAstKind, MetalAstNode, MetalKernelInfo};
++
++const SPEC_PREFIX: &str = "__m2v_spec_";
++const SPEC_ID_BASE: u32 = 1000;
++const CAP_COOPERATIVE_MATRIX_KHR: u32 = 6013;
++
++#[derive(Debug, Clone, Serialize)]
++struct SpvRangeSer {
++    offset: u64,
++    len: u64,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct BufBindSer {
++    arg: u32,
++    binding: u32,
++    set: u32,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct PushWordSer {
++    arg: u32,
++    offset: u32,
++    size: u32,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct PushSer {
++    size: u32,
++    words: Vec<PushWordSer>,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct ConstSer {
++    index: u32,
++    spec_id: u32,
++    #[serde(rename = "type")]
++    ty: &'static str,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct TgSer {
++    arg: u32,
++    spec_id: u32,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct FuncSer {
++    name: String,
++    entry: String,
++    spv: SpvRangeSer,
++    workgroup_size: [u32; 3],
++    workgroup_size_spec_ids: Option<[u32; 3]>,
++    buffers: Vec<BufBindSer>,
++    push: PushSer,
++    constants: Vec<ConstSer>,
++    threadgroup: Vec<TgSer>,
++    uses_coopmat: bool,
++}
++
++#[derive(Debug, Clone, Serialize)]
++struct M2vLibSer {
++    functions: Vec<FuncSer>,
++}
++
++#[derive(Debug, Serialize)]
++struct DiagRecord<'a> {
++    run: u64,
++    source: &'a str,
++    kernel: &'a str,
++    translated: bool,
++    diagnostic: Option<&'a str>,
++}
++
++/// One reflected kernel from the NonSemantic.ClspvReflection section.
++#[derive(Debug, Default, Clone)]
++struct Reflected {
++    entry: String,
++    workgroup_size: Option<[u32; 3]>,
++    wg_spec_ids: Option<[u32; 3]>,
++    buffers: Vec<(u32, u32, u32)>, // (ordinal, binding, set)
++    pod: Vec<(u32, u32, u32)>,     // (ordinal, offset, size)
++    threadgroup: Vec<(u32, u32)>,  // (ordinal, spec_id)
++    uses_coopmat: bool,
++}
++
++#[derive(Debug, Clone)]
++struct SlotInfo {
++    index: u32,
++    m2v_type: &'static str,
++}
++
++#[derive(Debug)]
++pub struct MetalToolchain {
++    clang: PathBuf,
++    clspv: Option<PathBuf>,
++    spirv_val: Option<PathBuf>,
++    shim_include: PathBuf,
++    include_dir: PathBuf,
++    out_dir: PathBuf,
++    opt_flags: Vec<String>,
++    cache_key: [u8; blake3::OUT_LEN],
++    diag: DiagMutex,
++    /// Sources whose MSL constructs needed a sanitized front-end copy
++    /// (original path -> sanitized copy next to it).
++    sanitized: Mutex<BTreeMap<PathBuf, PathBuf>>,
++    /// Lazily built mirror of the kernel root: headers with their
++    /// macro-hostile spellings rewritten, sources written on demand. Lives
++    /// for the whole build-script run so clang's relative includes resolve
++    /// inside the mirror.
++    mirror: Mutex<Option<tempfile::TempDir>>,
++    /// GPU type short names -> `uzu::<module>::<Name>` (from the shared
++    /// gpu_types sources; this clang prints record/enum types as written,
++    /// while the macOS metal compiler prints them qualified).
++    uzu_types: BTreeMap<String, String>,
++}
++
++/// `Mutex` is not `Debug` when the guard payload is not; the build derives
++/// `Debug` on `MetalCompiler`, so keep this newtype trivially `Debug`.
++#[derive(Debug)]
++struct DiagMutex(Mutex<(u64, Option<fs::File>)>);
++
++impl MetalToolchain {
++    pub fn new(_modules_cache_path: PathBuf, include_dir: PathBuf) -> anyhow::Result<Self> {
++        let out_dir = PathBuf::from(env::var("OUT_DIR").context("missing OUT_DIR")?);
++
++        let clang = match env::var_os("CLANG") {
++            Some(c) => PathBuf::from(c),
++            None => PathBuf::from("clang"),
++        };
++
++        let clspv = match env::var_os("CLSPV") {
++            Some(c) => {
++                let p = PathBuf::from(c);
++                p.is_file().then_some(p)
++            },
++            None => env::var("HOME")
++                .ok()
++                .map(|home| PathBuf::from(home).join("scratch/metal2vk/clspv/build/bin/clspv"))
++                .filter(|p| p.is_file()),
++        }
++        .and_then(|p| {
++            let ok = probe_m2v_clspv(&p);
++            eprintln!("m2v clspv {}: probe {}", p.display(), if ok { "ok" } else { "failed" });
++            ok.then_some(p)
++        });
++
++        let spirv_val = env::var_os("SPIRV_VAL").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("spirv-val"));
++        let spirv_val = Command::new(&spirv_val).arg("--version").output().map(|o| o.status.success()).unwrap_or(false).then_some(spirv_val);
++
++        let m2v_root = PathBuf::from(env::var("M2V_ROOT").context(
++            "M2V_ROOT is not set: point it at a metal2vk checkout (the directory holding include/metal_stdlib)",
++        )?);
++        let shim_include = m2v_root.join("include");
++        if !shim_include.join("metal_stdlib").is_file() {
++            bail!("M2V_ROOT={} has no include/metal_stdlib shim", m2v_root.display());
++        }
++
++        // uzu compiles with the optimisation recipe the metal2vk compile lanes
++        // validated: -O2 (no clspv-visible byte-GEP canonicalisation) with the
++        // inliner opened up so wrapper bodies reach the kernel entry.
++        let opt_flags = vec![
++            "-O2".to_string(),
++            "-fno-slp-vectorize".to_string(),
++            "-fno-vectorize".to_string(),
++            "-mllvm".to_string(),
++            "-inline-threshold=100000".to_string(),
++        ];
++
++        let cache_key = {
++            let mut hasher = blake3::Hasher::new();
++            hasher.update(b"m2v-toolchain-v7\0");
++            hasher.update(run_output(&clang, &["--version"]).as_bytes());
++            hasher.update(b"\0");
++            hasher.update(clspv.as_ref().map(|p| run_output(p, &["--version"])).unwrap_or_else(|| "clspv-missing".into()).as_bytes()).update(b"\0");
++            // Distinguish "binary present but the m2v marker probe failed"
++            // (empty-library fallback results were cached under that state)
++            // from a usable clspv.
++            hasher.update(if clspv.is_some() { b"m2v-clspv-configured" } else { b"m2v-clspv-unconfigured" });
++            if let Some(meta) = clspv.as_ref().and_then(|p| fs::metadata(p).ok()) {
++                hasher.update(&meta.len().to_le_bytes());
++                let secs = meta.modified().ok().and_then(|st| st.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs());
++                if let Some(secs) = secs {
++                    hasher.update(&secs.to_le_bytes());
++                }
++            }
++            hasher.update(b"\0");
++            for flag in &opt_flags {
++                hasher.update(flag.as_bytes());
++                hasher.update(b"\0");
++            }
++            hasher.finalize().into()
++        };
++
++        let uzu_types = scan_uzu_gpu_types(&include_dir);
++
++        // Diagnostics: one JSONL file per OUT_DIR, tagged with a run id so
++        // stale lines from earlier builds are ignorable.
++        let run = {
++            let run_path = out_dir.join("m2v-kernels.run");
++            let next = fs::read_to_string(&run_path).ok().and_then(|s| s.trim().parse::<u64>().ok()).unwrap_or(0) + 1;
++            fs::write(&run_path, next.to_string()).context("cannot write m2v-kernels.run")?;
++            next
++        };
++
++        Ok(Self {
++            clang,
++            clspv,
++            spirv_val,
++            shim_include,
++            include_dir,
++            out_dir,
++            opt_flags,
++            cache_key,
++            diag: DiagMutex(Mutex::new((run, None))),
++            sanitized: Mutex::new(BTreeMap::new()),
++            mirror: Mutex::new(None),
++            uzu_types: uzu_types,
++        })
++    }
++
++    pub fn cache_key(&self) -> &[u8; blake3::OUT_LEN] {
++        &self.cache_key
++    }
++
++    fn kernel_root(&self) -> &Path {
++        self.include_dir.parent().unwrap_or(Path::new("."))
++    }
++
++    fn mirror_root(&self) -> Option<PathBuf> {
++        self.mirror
++            .lock()
++            .unwrap_or_else(|p| p.into_inner())
++            .as_ref()
++            .map(|dir| dir.path().to_path_buf())
++    }
++
++    /// Copy the kernel root into a private mirror once per run, rewriting
++    /// macro-hostile spellings in headers. Only sources that failed their
++    /// first analyze pass ever need it, so the common path pays nothing.
++    fn ensure_mirror(&self) -> anyhow::Result<PathBuf> {
++        let mut guard = self.mirror.lock().unwrap_or_else(|p| p.into_inner());
++        if let Some(dir) = guard.as_ref() {
++            return Ok(dir.path().to_path_buf());
++        }
++        let dir = tempfile::TempDir::new().context("cannot create mirror directory")?;
++        let root = self.kernel_root().to_path_buf();
++        let fixed = copy_tree_fixed(&root, dir.path()).context("cannot build kernel mirror")?;
++        let path = dir.path().to_path_buf();
++        eprintln!("m2v mirror at {} ({} headers rewritten)", path.display(), fixed);
++        if env::var_os("M2V_KEEP_MIRROR").is_some() {
++            std::mem::forget(dir);
++        } else {
++            *guard = Some(dir);
++        }
++        Ok(path)
++    }
++
++    /// Write `content` at `src`'s kernel-root-relative path inside the mirror
++    /// and return the mirror path. Relative includes from the analyzed source
++    /// then resolve against the fixed mirror headers.
++    fn mirror_write(&self, src: &Path, content: &str) -> anyhow::Result<PathBuf> {
++        let root = self.ensure_mirror()?;
++        let rel = src
++            .strip_prefix(self.kernel_root())
++            .with_context(|| format!("{} is not under the kernel root", src.display()))?;
++        let dst = root.join(rel);
++        if let Some(parent) = dst.parent() {
++            fs::create_dir_all(parent).with_context(|| format!("cannot create {}", parent.display()))?;
++        }
++        fs::write(&dst, content).with_context(|| format!("cannot write {}", dst.display()))?;
++        Ok(dst)
++    }
++
++    fn common_includes(&self, cmd: &mut Command) {
++        cmd.arg("-I").arg(&self.shim_include);
++        cmd.arg("-I").arg(self.kernel_root());
++        cmd.arg("-I").arg(&self.include_dir);
++    }
++
++    fn clang_baseline_args(&self) -> Vec<String> {
++        vec![
++            "--target=spir".into(),
++            "-x".into(),
++            "cl".into(),
++            "-cl-std=clc++2021".into(),
++            "-Xclang".into(),
++            "-finclude-default-header".into(),
++            "-cl-ext=-__opencl_c_generic_address_space".into(),
++            "-fno-strict-return".into(),
++            "-w".into(),
++        ]
++    }
++
++    /// Rewrite OpenCL address-space spellings in a clang `-ast-dump=json` dump
++    /// back to the Metal ones uzu's AST parser matches on, and drop the
++    /// implicit `__private`/`__generic` object qualifiers clang prints.
++    fn rewrite_ast_type_strings(&self, json: &mut String) {
++        for key in ["qualType", "desugaredQualType"] {
++            let needle = format!("\"{key}\": \"");
++            let mut search_from = 0;
++            while let Some(rel) = json[search_from..].find(&needle) {
++                let value_start = search_from + rel + needle.len();
++                let Some(value_len) = json[value_start..].find('"') else { break };
++                let value_end = value_start + value_len;
++                // MSL's `constant` address space is implicitly const; this
++                // clang does not add the qualifier, so restore it: uzu's
++                // parser matches `const constant <scalar> &` / `*`.
++                let mut rewritten = json[value_start..value_end]
++                    .replace("const __constant", "const constant")
++                    .replace("__constant", "const constant")
++                    .replace("__global", "device")
++                    .replace("__local", "threadgroup")
++                    .replace("__private ", "")
++                    .replace(" __private", "")
++                    .replace("__private", "");
++                rewritten = qualify_uzu_types(&rewritten, &self.uzu_types);
++                json.replace_range(value_start..value_end, &rewritten);
++                search_from = value_start + rewritten.len();
++            }
++        }
++    }
++
++    /// clang prints macro-produced tokens with `spellingLoc` pointing at the
++    /// macro definition and `expansionLoc` at the use site. uzu slices kernel
++    /// sources with the offsets, so the use-site location must win: replace
++    /// every differing `spellingLoc` content with its sibling `expansionLoc`.
++    fn normalize_ast_locations(json: &mut String) {
++        let mut edits: Vec<(usize, usize, String)> = Vec::new();
++        let mut search = 0;
++        while let Some(rel) = json[search..].find("\"expansionLoc\": {") {
++            let needle_start = search + rel;
++            let exp_open = needle_start + "\"expansionLoc\": ".len();
++            let Some(exp_len) = match_braced(&json[exp_open..]) else { break };
++            let exp_content = json[exp_open + 1..exp_open + 1 + exp_len - 2].to_string();
++
++            // The sibling spellingLoc closes right before this object.
++            let prefix = &json[..needle_start];
++            let Some(sp_rel) = prefix.rfind("\"spellingLoc\": {") else {
++                search = exp_open + exp_len;
++                continue;
++            };
++            let sp_open = sp_rel + "\"spellingLoc\": ".len();
++            let Some(sp_len) = match_braced(&json[sp_open..]) else { break };
++            // Only a comma + whitespace may sit between the siblings.
++            let gap = &json[sp_open + sp_len..needle_start];
++            if !(gap.len() >= 2 && gap.starts_with(',') && gap[1..].bytes().all(|b| b.is_ascii_whitespace())) {
++                search = exp_open + exp_len;
++                continue;
++            }
++            let sp_content = &json[sp_open + 1..sp_open + 1 + sp_len - 2];
++            if sp_content != exp_content {
++                edits.push((sp_open + 1, sp_open + 1 + sp_len - 2, exp_content));
++            }
++            search = exp_open + exp_len;
++        }
++        for (start, end, replacement) in edits.into_iter().rev() {
++            json.replace_range(start..end, &replacement);
++        }
++    }
++
++    pub fn analyze(
++        &self,
++        path: impl AsRef<Path>,
++    ) -> anyhow::Result<(impl Iterator<Item = MetalKernelInfo>, impl Iterator<Item = Box<str>>)> {
++        let path = path.as_ref();
++
++        let depfile_path = tempfile::NamedTempFile::new().context("cannot create temporary file")?;
++
++        let mut cmd = Command::new(&self.clang);
++        cmd.args(self.clang_baseline_args());
++        self.common_includes(&mut cmd);
++        cmd.arg("-DDSL_ANALYZE")
++            .arg(path)
++            .arg("-fsyntax-only")
++            .args(["-MMD", "-MF"])
++            .arg(depfile_path.path())
++            .args(["-Xclang", "-ast-dump=json"])
++            .stdout(std::process::Stdio::piped())
++            .stderr(std::process::Stdio::piped());
++
++        let mut analyze_output = cmd.output().context(format!("cannot execute clang {}", self.clang.display()))?;
++        let mut analyze_path: PathBuf = path.to_path_buf();
++
++        // First-pass failures retry once against a mirror copy: headers with
++        // macro-hostile spellings rewritten, source text additionally passed
++        // through the MSL sanitizer. The analyzed copy is self-consistent
++        // (the AST parser slices the file it was produced from), and the
++        // depfile's mirror paths map back to the originals for hashing.
++        if !analyze_output.status.success() {
++            let raw = fs::read_to_string(path).context("cannot read source file")?;
++            let sanitized = sanitize_msl(&raw).unwrap_or(raw);
++            let mirror_path = self.mirror_write(path, &sanitized).context("cannot prepare mirror copy")?;
++
++            let mut cmd = Command::new(&self.clang);
++            cmd.args(self.clang_baseline_args());
++            self.common_includes(&mut cmd);
++            cmd.arg("-DDSL_ANALYZE")
++                .arg(&mirror_path)
++                .arg("-fsyntax-only")
++                .args(["-MMD", "-MF"])
++                .arg(depfile_path.path())
++                .args(["-Xclang", "-ast-dump=json"])
++                .stdout(std::process::Stdio::piped())
++                .stderr(std::process::Stdio::piped());
++            analyze_output = cmd.output().context("cannot execute clang")?;
++            analyze_path = mirror_path;
++            self.sanitized
++                .lock()
++                .unwrap_or_else(|p| p.into_inner())
++                .insert(path.to_path_buf(), analyze_path.clone());
++            if !analyze_output.status.success() {
++                bail!("clang analyzer failed: {}", String::from_utf8_lossy(&analyze_output.stderr));
++            }
++        }
++
++        let source_contents = fs::read_to_string(&analyze_path).context("cannot read source file")?;
++
++        let mut json = String::from_utf8(analyze_output.stdout).context("ast dump is not utf-8")?;
++        self.rewrite_ast_type_strings(&mut json);
++        Self::normalize_ast_locations(&mut json);
++
++        let mut deserializer = serde_json::Deserializer::from_str(&json);
++        deserializer.disable_recursion_limit();
++        let ast_root = MetalAstNode::deserialize(&mut deserializer).context("cannot deserialize ast dump")?;
++
++        if !matches!(&ast_root.kind, MetalAstKind::TranslationUnitDecl) {
++            bail!(
++                "unexpected kind of ast root: MetalAstKind::TranslationUnitDecl expected, but {:?} found",
++                ast_root.kind
++            );
++        }
++
++        let kernel_infos = ast_root
++            .inner
++            .into_iter()
++            .filter_map(|node| MetalKernelInfo::from_ast_node_and_source(node, &source_contents).transpose())
++            .collect::<anyhow::Result<Vec<_>>>()
++            .context("cannot parse kernel infos from AST")?;
++
++        let depfile_contents = fs::read_to_string(depfile_path.path()).context("cannot read depfile")?;
++        let depfile_contents = match self.mirror_root() {
++            Some(mirror) => {
++                let kernel_root = self.kernel_root().to_string_lossy().into_owned();
++                depfile_contents.replace(&mirror.to_string_lossy().into_owned(), &kernel_root)
++            },
++            None => depfile_contents,
++        };
++
++        let mut dependencies = depfile::parse(&depfile_contents)
++            .map_err(|e| anyhow::anyhow!("cannot parse depfile: {e}"))?
++            .iter()
++            .flat_map(|(_, d)| d)
++            .map(|f| f.as_ref().into())
++            .collect::<Vec<_>>();
++        if analyze_path != path {
++            dependencies.push(path.to_string_lossy().into_owned().into_boxed_str().into());
++        }
++
++        Ok((kernel_infos.into_iter(), dependencies.into_iter()))
++    }
++
++    fn record_diag(&self, source: &str, kernel: &str, translated: bool, diagnostic: Option<&str>) {
++        let mut guard = self.diag.0.lock().unwrap_or_else(|p| p.into_inner());
++        let (run, file) = &mut *guard;
++        if file.is_none() {
++            *file = fs::OpenOptions::new()
++                .create(true)
++                .append(true)
++                .open(self.out_dir.join("m2v-kernels.json"))
++                .ok();
++        }
++        if let Some(f) = file.as_mut() {
++            let record = DiagRecord { run: *run, source, kernel, translated, diagnostic };
++            if let Ok(line) = serde_json::to_string(&record) {
++                let _ = writeln!(f, "{line}");
++            }
++        }
++    }
++
++    /// Compile one shard's generated Metal footer into an `.m2vlib` at
++    /// `output`. Per-kernel translation failures are recorded in
++    /// `OUT_DIR/m2v-kernels.json` and leave the kernel out of the library
++    /// (the runtime then fails that kernel by name); only structural errors
++    /// (missing clang) fail the build.
++    pub fn compile(
++        &self,
++        source: impl AsRef<Path>,
++        footer_path: impl AsRef<Path>,
++        output: impl AsRef<Path>,
++    ) -> anyhow::Result<Option<Box<str>>> {
++        let source = source.as_ref();
++        let footer_path = footer_path.as_ref();
++        let output = output.as_ref();
++
++        let source_rel = source
++            .strip_prefix(self.kernel_root())
++            .map(|p| p.to_string_lossy().into_owned())
++            .unwrap_or_else(|_| source.to_string_lossy().into_owned());
++
++        let footer_text = fs::read_to_string(footer_path).context("cannot read generated footer")?;
++        let (transformed, slots) = self.transform_footer(&footer_text).context("cannot transform footer")?;
++
++        let sanitized_source = self
++            .sanitized
++            .lock()
++            .unwrap_or_else(|p| p.into_inner())
++            .get(source)
++            .cloned();
++        let front_source: &Path = sanitized_source.as_deref().unwrap_or(source);
++        let Some(clspv) = self.clspv.clone() else {
++            // Empty-library mode: valid container, zero functions. The Rust
++            // side compiles; pipeline creation for any kernel errors by name.
++            fs::write(output, pack_m2vlib(Vec::new())?).with_context(|| format!("cannot write {}", output.display()))?;
++            let kernel_names = footer_kernel_names(&footer_text);
++            for name in &kernel_names {
++                self.record_diag(&source_rel, name, false, Some("clspv not found (set CLSPV); no SPIR-V"));
++            }
++            let warning = format!(
++                "{source_rel}: {} kernels got no SPIR-V because clspv is not configured (set CLSPV)",
++                kernel_names.len()
++            );
++            return Ok(Some(warning.into_boxed_str().into()));
++        };
++
++        let transformed_path = footer_path.with_extension("m2v.cl");
++        fs::write(&transformed_path, &transformed).context("cannot write transformed footer")?;
++
++        let stem = output.file_stem().and_then(|s| s.to_str()).unwrap_or("shard").to_string();
++        let work = output.parent().context("output has no parent")?.to_path_buf();
++        let ll_path = work.join(format!("{stem}.ll"));
++        let spv_path = work.join(format!("{stem}.spv"));
++
++        // Compile against a copy whose function-constant slots are lowered
++        // to the __m2v_spec_N macros the transformed footer binds. The copy
++        // lives in the kernel mirror so its relative includes resolve against
++        // the mirrored (fixed) headers.
++        let lowered = lower_function_constant_slots(&fs::read_to_string(front_source).context("cannot read front source")?);
++        let front_path = self.mirror_write(source, &lowered).context("cannot write lowered front copy")?;
++
++        let mut funcs: Vec<FuncSer> = Vec::new();
++        let mut modules: Vec<Vec<u8>> = Vec::new();
++
++        let compiled = self.compile_module(&transformed_path, Some(&front_path), &ll_path, &spv_path, clspv.as_path());
++        let spv_bytes = compiled.ok().and_then(|_| fs::read(&spv_path).ok()).unwrap_or_default();
++
++        let mut fallback_diag: Option<String> = None;
++        if !spv_bytes.is_empty() {
++            if !self.validate(&spv_path) {
++                fallback_diag = Some("module failed spirv-val".to_string());
++            } else {
++                match reflect_spv(&spv_bytes) {
++                    Ok(refl) if !refl.is_empty() => {
++                        for r in refl.into_values() {
++                            modules.push(spv_bytes.clone());
++                            funcs.push(self.function_desc(&r, &slots));
++                            self.record_diag(&source_rel, &r.entry, true, None);
++                        }
++                    },
++                    Ok(_) => fallback_diag = Some("clspv produced no reflected kernels".into()),
++                    Err(e) => fallback_diag = Some(format!("reflection failed: {e}")),
++                }
++            }
++        } else {
++            fallback_diag = Some("clspv produced no module".into());
++        }
++
++        let had_fallback = fallback_diag.is_some();
++        if let Some(_why) = fallback_diag {
++            // Whole-shard compile did not yield a usable module: retry each
++            // kernel wrapper on its own so one untranslatable kernel does not
++            // hide its siblings.
++            fs::remove_file(&spv_path).ok();
++            self.fallback_per_kernel(&source_rel, &transformed, &front_path, &slots, &work, &stem, clspv.as_path(), &mut funcs, &mut modules);
++        }
++        eprintln!("m2v compile {source_rel}/{stem}: funcs={} fallback={}", funcs.len(), had_fallback);
++
++        let entries: Vec<(&FuncSer, &[u8])> = funcs.iter().zip(modules.iter().map(|m| m.as_slice())).collect();
++        fs::write(output, pack_m2vlib(entries)?).with_context(|| format!("cannot write {}", output.display()))?;
++        Ok(None)
++    }
++
++    fn validate(&self, spv: &Path) -> bool {
++        let Some(val) = &self.spirv_val else { return true };
++        Command::new(val)
++            .args(["--target-env", "vulkan1.3"])
++            .arg(spv)
++            .stdout(std::process::Stdio::null())
++            .stderr(std::process::Stdio::null())
++            .status()
++            .map(|s| s.success())
++            .unwrap_or(false)
++    }
++
++    fn compile_module(
++        &self,
++        cl_source: &Path,
++        include_source: Option<&Path>,
++        ll: &Path,
++        spv: &Path,
++        clspv: &Path,
++    ) -> Result<(), String> {
++        let mut cmd = Command::new(&self.clang);
++        cmd.args(self.clang_baseline_args());
++        cmd.args(&self.opt_flags);
++        cmd.arg("-cl-kernel-arg-info");
++        self.common_includes(&mut cmd);
++        if let Some(src) = include_source {
++            // The front copy lives in the mirror; putting the mirror first on
++            // the include path makes every header resolve to the same
++            // (rewritten) copy - without it, quoted includes pick mirror
++            // files while -I picks the originals and clang sees both.
++            let mirror = self.ensure_mirror().map_err(|e| e.to_string())?;
++            cmd.arg("-I").arg(mirror);
++            // The DSL footer's function-constant slots sit at the TOP of the
++            // front source, before the kernel's own `#include <metal_stdlib>`;
++            // force the shim in first so its types (uint32_t, vec macros) are
++            // visible to those lines, like the Metal compiler's built-in
++            // prelude does.
++            cmd.arg("-include").arg(self.shim_include.join("metal_stdlib"));
++            cmd.arg("-include").arg(src);
++        }
++        cmd.arg(cl_source);
++        cmd.args(["-S", "-emit-llvm"]).arg("-o").arg(ll);
++
++        let out = cmd.output().map_err(|e| format!("cannot execute clang: {e}"))?;
++        if !out.status.success() || !ll.is_file() {
++            return Err(first_diag_lines(&String::from_utf8_lossy(&out.stderr)));
++        }
++        strip_llvm_incompat(ll).map_err(|e| format!("cannot strip llvm metadata: {e}"))?;
++
++        let co = Command::new(clspv)
++            .args(["-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5"])
++            .arg(ll)
++            .arg("-o")
++            .arg(spv)
++            .output()
++            .map_err(|e| format!("cannot execute clspv: {e}"))?;
++        if !spv.is_file() {
++            return Err(first_diag_lines(&String::from_utf8_lossy(&co.stderr)));
++        }
++        Ok(())
++    }
++
++    /// Whole-shard compile failed: retry each kernel wrapper on its own so a
++    /// single untranslatable kernel does not hide its siblings.
++    fn fallback_per_kernel(
++        &self,
++        source_rel: &str,
++        transformed: &str,
++        front_source: &Path,
++        slots: &[SlotInfo],
++        work: &Path,
++        stem: &str,
++        clspv: &Path,
++        funcs: &mut Vec<FuncSer>,
++        modules: &mut Vec<Vec<u8>>,
++    ) {
++        let preamble = slot_preamble(transformed);
++        for (idx, chunk) in split_variants(transformed).into_iter().enumerate() {
++            let Some(name) = chunk.entry_name() else { continue };
++            let ll = work.join(format!("{stem}.v{idx}.ll"));
++            let spv = work.join(format!("{stem}.v{idx}.spv"));
++            let cl_path = work.join(format!("{stem}.v{idx}.cl"));
++            if fs::write(&cl_path, format!("{preamble}{}", chunk.text)).is_err() {
++                continue;
++            }
++            let diag;
++            match self.compile_module(&cl_path, Some(front_source), &ll, &spv, clspv) {
++                Ok(()) => match reflect_spv(&fs::read(&spv).unwrap_or_default()) {
++                    Ok(refl) if !refl.is_empty() => {
++                        for r in refl.into_values() {
++                            modules.push(fs::read(&spv).unwrap_or_default());
++                            funcs.push(self.function_desc(&r, slots));
++                            self.record_diag(source_rel, &r.entry, true, None);
++                        }
++                        let _ = fs::remove_file(&cl_path);
++                        continue;
++                    },
++                    Ok(_) => diag = "no reflected kernels".into(),
++                    Err(e) => diag = format!("reflection failed: {e}"),
++                },
++                Err(e) => diag = e,
++            }
++            self.record_diag(source_rel, &name, false, Some(&diag));
++            let _ = fs::remove_file(&cl_path);
++            let _ = fs::remove_file(&ll);
++            let _ = fs::remove_file(&spv);
++        }
++    }
++
++    fn function_desc(&self, r: &Reflected, slots: &[SlotInfo]) -> FuncSer {
++        FuncSer {
++            name: r.entry.clone(),
++            entry: r.entry.clone(),
++            spv: SpvRangeSer { offset: 0, len: 0 }, // patched by pack_m2vlib
++            workgroup_size: r.workgroup_size.unwrap_or([1, 1, 1]),
++            workgroup_size_spec_ids: r.wg_spec_ids,
++            buffers: r
++                .buffers
++                .iter()
++                .map(|(arg, binding, set)| BufBindSer { arg: *arg, binding: *binding, set: *set })
++                .collect(),
++            push: PushSer {
++                size: r.pod.iter().map(|(_, o, s)| o + s).max().unwrap_or(0),
++                words: r
++                    .pod
++                    .iter()
++                    .map(|(arg, offset, size)| PushWordSer { arg: *arg, offset: *offset, size: *size })
++                    .collect(),
++            },
++            constants: slots
++                .iter()
++                .map(|s| ConstSer { index: s.index, spec_id: SPEC_ID_BASE + s.index, ty: s.m2v_type })
++                .collect(),
++            threadgroup: r
++                .threadgroup
++                .iter()
++                .map(|(arg, spec_id)| TgSer { arg: *arg, spec_id: *spec_id })
++                .collect(),
++            uses_coopmat: r.uses_coopmat,
++        }
++    }
++
++    /// Turn the DSL wrapper footer (Metal attributes) into OpenCL C++ the shim
++    /// and clspv accept, and collect the function-constant slots. The wrapper
++    /// source is one line per signature/statement, so the transform is
++    /// line-oriented.
++    fn transform_footer(&self, footer: &str) -> anyhow::Result<(String, Vec<SlotInfo>)> {
++        let mut text = String::with_capacity(footer.len() + 8192);
++        let mut slots: Vec<SlotInfo> = Vec::new();
++
++        for line in footer.lines() {
++            let trimmed = line.trim_start();
++
++            // function-constant slot declarations -> __m2v_spec_<N> globals
++            if let Some(rest) = trimmed.strip_prefix("constant ") {
++                if let Some((clty, m2vty, index)) = parse_slot_line(rest) {
++                    slots.push(SlotInfo { index, m2v_type: m2vty });
++                    text.push_str(&format!("constant volatile {clty} {SPEC_PREFIX}{index} = 0;\n"));
++                    // The body still refers to the slot by its original name
++                    // (directly or through wrapper #defines); keep it alive.
++                    if let Some(name) = slot_decl_name(rest) {
++                        text.push_str(&format!("#define {name} {SPEC_PREFIX}{index}\n"));
++                    }
++                    continue;
++                }
++            }
++
++            // Kernel entry line: attributes + parameters.
++            if trimmed.starts_with("[[kernel") {
++                let line = rewrite_kernel_line(line)?;
++                let (line, builtins) = convert_builtins(&line);
++                let line = strip_param_attrs(&line);
++                text.push_str(&line.trim_end());
++                text.push('\n');
++                for def in builtins {
++                    text.push_str(&format!("  {def}\n"));
++                }
++                continue;
++            }
++
++            // Buffer/threadgroup parameter attributes can also appear on their
++            // own continuation lines if the signature was wrapped.
++            if trimmed.contains("[[buffer(") || trimmed.contains("[[threadgroup(") {
++                let (line, _) = convert_builtins(&strip_param_attrs(line));
++                text.push_str(line.trim_end());
++                text.push('\n');
++                continue;
++            }
++
++            // is_function_constant_defined(x) -> true (the spec constant or its
++            // 0 default carries the value).
++            if trimmed.contains("is_function_constant_defined(") {
++                text.push_str(&replace_call(&line, "is_function_constant_defined", "true"));
++                text.push('\n');
++                continue;
++            }
++
++            // Threadgroup arrays declared in kernel bodies need __local.
++            let looks_shared = line.starts_with("  ")
++                && !trimmed.starts_with('#')
++                && !trimmed.starts_with("__")
++                && !trimmed.contains('(')
++                && trimmed.contains('[')
++                && trimmed.ends_with(';');
++            text.push_str(line);
++            text.push('\n');
++            if looks_shared {
++                let start = text.len() - line.len() - 1;
++                text.replace_range(start..start + 2, "  __local ");
++            }
++        }
++
++        Ok((text, slots))
++    }
++}
++
++/// The fixed-size vector names whose constructor macros
++/// (`#define uint4(...) m2v::mk<uint4>(__VA_ARGS__)`) live in
++/// `include/m2v_vec_ctors.h`.
++const MACRO_VEC_NAMES: &[&str] = &[
++    "char2", "char3", "char4", "char8", "char16", "uchar2", "uchar3", "uchar4", "uchar8", "uchar16",
++    "short2", "short3", "short4", "short8", "short16", "ushort2", "ushort3", "ushort4", "ushort8",
++    "ushort16", "int2", "int3", "int4", "int8", "int16", "uint2", "uint3", "uint4", "uint8",
++    "uint16", "long2", "long3", "long4", "long8", "long16", "ulong2", "ulong3", "ulong4",
++    "ulong8", "ulong16", "float2", "float3", "float4", "float8", "float16", "half2", "half3",
++    "half4", "half8", "half16",
++];
++
++/// Rewrite reference-to-array parameters of the macro'd vector types:
++/// `const thread uint4 (&words)[WORDS]` -> `const thread
++/// m2v::vec_array_ref<uint4, WORDS> words`. The ctor macro would otherwise
++/// consume the parenthesized declarator and the header fails to parse.
++/// Returns `None` when nothing matched.
++fn fix_vector_array_refs(text: &str) -> Option<String> {
++    let bytes = text.as_bytes();
++    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
++    let mut spans: Vec<(usize, usize, String)> = Vec::new();
++    let mut i = 0;
++    while i < bytes.len() {
++        if !is_ident(bytes[i]) {
++            i += 1;
++            continue;
++        }
++        let start = i;
++        while i < bytes.len() && is_ident(bytes[i]) {
++            i += 1;
++        }
++        let word = &text[start..i];
++        if !MACRO_VEC_NAMES.contains(&word) {
++            continue;
++        }
++        let mut j = i;
++        while j < bytes.len() && bytes[j].is_ascii_whitespace() {
++            j += 1;
++        }
++        if bytes.get(j) != Some(&b'(') {
++            continue;
++        }
++        let mut k = j + 1;
++        while k < bytes.len() && bytes[k].is_ascii_whitespace() {
++            k += 1;
++        }
++        if bytes.get(k) != Some(&b'&') {
++            continue;
++        }
++        k += 1;
++        while k < bytes.len() && bytes[k].is_ascii_whitespace() {
++            k += 1;
++        }
++        let nstart = k;
++        while k < bytes.len() && is_ident(bytes[k]) {
++            k += 1;
++        }
++        if k == nstart {
++            continue;
++        }
++        let mut m = k;
++        while m < bytes.len() && bytes[m].is_ascii_whitespace() {
++            m += 1;
++        }
++        if bytes.get(m) != Some(&b')') {
++            continue;
++        }
++        m += 1;
++        while m < bytes.len() && bytes[m].is_ascii_whitespace() {
++            m += 1;
++        }
++        if bytes.get(m) != Some(&b'[') {
++            continue;
++        }
++        let mut depth = 0i32;
++        let mut e = m;
++        while e < bytes.len() {
++            match bytes[e] {
++                b'[' => depth += 1,
++                b']' => {
++                    depth -= 1;
++                    if depth == 0 {
++                        break;
++                    }
++                },
++                _ => {},
++            }
++            e += 1;
++        }
++        if e >= bytes.len() {
++            continue;
++        }
++        let expr = text[m + 1..e].trim();
++        if expr.chars().all(|c| c.is_ascii_digit()) {
++            // `&name[0]`-style pointer argument, not a declarator.
++            continue;
++        }
++        let name = &text[nstart..k];
++        spans.push((start, e + 1, format!("m2v::vec_array<{word}, {expr}>& {name}")));
++        i = e + 1;
++    }
++    if spans.is_empty() {
++        return None;
++    }
++    let mut out = String::with_capacity(text.len());
++    let mut last = 0;
++    for (s, e, r) in spans {
++        out.push_str(&text[last..s]);
++        out.push_str(&r);
++        last = e;
++    }
++    out.push_str(&text[last..]);
++    Some(out)
++}
++
++/// Copy `src`'s file tree to `dst`, rewriting macro-hostile header spellings.
++/// Returns the number of headers changed.
++fn copy_tree_fixed(src: &Path, dst: &Path) -> anyhow::Result<usize> {
++    let mut rewritten = 0;
++    for entry in fs::read_dir(src).with_context(|| format!("cannot read {}", src.display()))? {
++        let entry = entry.with_context(|| format!("cannot read entry in {}", src.display()))?;
++        let from = entry.path();
++        let to = dst.join(entry.file_name());
++        if from.is_dir() {
++            fs::create_dir_all(&to).with_context(|| format!("cannot create {}", to.display()))?;
++            rewritten += copy_tree_fixed(&from, &to)?;
++        } else if from.extension().and_then(|e| e.to_str()) == Some("h") {
++            let text = fs::read_to_string(&from).with_context(|| format!("cannot read {}", from.display()))?;
++            let mut fixed = fix_vector_array_refs(&text).unwrap_or(text);
++            if !fixed.ends_with('\n') {
++                fixed.push('\n');
++            }
++            // clang treats differently spelled paths (constructed with `..`)
++            // as distinct files even for `#pragma once` headers, so spellings
++            // like `common/../../../generated/x.h` and `generated/x.h`
++            // double-define types. A macro guard dedupes regardless of path.
++            let key = blake3::hash(from.to_string_lossy().as_bytes()).to_hex()[..16].to_uppercase();
++            let guarded = format!("#ifndef M2V_ONCE_{key}\n#define M2V_ONCE_{key}\n{fixed}#endif\n");
++            fs::write(&to, guarded).with_context(|| format!("cannot write {}", to.display()))?;
++            rewritten += 1;
++        } else {
++            fs::copy(&from, &to).with_context(|| format!("cannot copy to {}", to.display()))?;
++        }
++    }
++    Ok(rewritten)
++}
++
++/// Neutralise the MSL constructs the OpenCL C++ front end rejects, keeping
++/// every kernel signature intact. Returns `None` when nothing applicable was
++/// found (so the retry only happens for sources that need it):
++///
++/// - in-class `static const constant T N;` (declaration of an
++///   out-of-line-defined constant-address-space static member) loses the
++///   address space so the declaration parses;
++/// - `constexpr constant T Qual::N{..};` out-of-line definitions are dropped;
++/// - `static constant constexpr T N = ..;` members become plain declarations.
++/// Kernel bodies that referenced the dropped values fail at translation with
++/// the real diagnostic.
++fn sanitize_msl(text: &str) -> Option<String> {
++    let mut changed = false;
++    let mut out = String::with_capacity(text.len());
++
++    // R1/R3 are line-level.
++    for line in text.lines() {
++        let t = line.trim_start();
++        if t.starts_with("static const constant ") && t.ends_with(';') && !t.contains('=') {
++            out.push_str(&line.replacen("static const constant ", "static const ", 1));
++            out.push('\n');
++            changed = true;
++            continue;
++        }
++        if t.starts_with("static constant constexpr ") {
++            // "static constant constexpr T NAME = EXPR;" -> "static T NAME;"
++            let head = t.find('=').map(|pos| &t[..pos]).unwrap_or(t);
++            let mut toks = head.split_whitespace();
++            toks.next(); // "static"
++            toks.next(); // "constant"
++            toks.next(); // "constexpr"
++            let ty = toks.next().unwrap_or("");
++            let name = toks.next().unwrap_or("");
++            let decl = format!("static {ty} {name};");
++            let indent = &line[..line.len() - t.len()];
++            out.push_str(indent);
++            out.push_str(&decl);
++            out.push('\n');
++            changed = true;
++            continue;
++        }
++        out.push_str(line);
++        out.push('\n');
++    }
++    let rest = out;
++
++    // R2: brace/semicolon-balanced scan for qualified out-of-line definitions.
++    let mut rebuilt = String::with_capacity(rest.len());
++    let mut scan = 0;
++    while let Some(rel) = rest[scan..].find("constexpr constant ") {
++        let start = scan + rel;
++        let after = &rest[start + "constexpr constant ".len()..];
++        let qualified = after.find("::").map(|q| {
++            let before = &after[..q];
++            !before.contains(';') && !before.contains('{') && !before.contains('}')
++        });
++        match qualified {
++            Some(true) => {
++                let end = statement_end(after);
++                rebuilt.push_str(&rest[scan..start]);
++                rebuilt.push_str("// m2v: dropped out-of-line constant-address-space static member definition\n");
++                scan = start + "constexpr constant ".len() + end;
++                changed = true;
++            },
++            _ => {
++                let keep_end = scan + rel + "constexpr constant ".len();
++                rebuilt.push_str(&rest[scan..keep_end]);
++                scan = keep_end;
++            },
++        }
++    }
++    rebuilt.push_str(&rest[scan..]);
++
++    // R4: vector-alias constructor calls to brace init (length-preserving).
++    let aliases = vec_aliases(&rebuilt);
++    let (rebuilt, ctor_rewrote) = match brace_vec_ctor_calls(&rebuilt, &aliases) {
++        Some(rewritten) => (rewritten, true),
++        None => (rebuilt, false),
++    };
++
++    (changed || ctor_rewrote).then_some(rebuilt)
++}
++
++/// Aliases of the shim's vector types (`using X = vec<T, N>;`). Their
++/// multi-argument functional-cast constructors need rewriting (see
++/// [`brace_vec_ctor_calls`]).
++fn vec_aliases(text: &str) -> BTreeSet<String> {
++    let mut out = BTreeSet::new();
++    for line in text.lines() {
++        let t = line.trim_start();
++        if !t.starts_with("using ") {
++            continue;
++        }
++        let Some(eq) = t.find('=') else { continue };
++        let name = t["using ".len()..eq].trim();
++        let valid = !name.is_empty()
++            && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
++            && t[eq..].contains("vec<");
++        if valid {
++            out.insert(name.to_string());
++        }
++    }
++    out
++}
++
++/// Position of the `)` closing the `(` at `open`.
++fn matching_paren(text: &str, open: usize) -> Option<usize> {
++    let mut depth = 0i32;
++    for (i, b) in text.bytes().enumerate().skip(open) {
++        match b {
++            b'(' => depth += 1,
++            b')' => {
++                depth -= 1;
++                if depth == 0 {
++                    return Some(i);
++                }
++            },
++            _ => {},
++        }
++    }
++    None
++}
++
++/// clang rejects multi-argument functional casts to the shim's native
++/// ext_vector types (`Alias(a, b, c, d)` -> "excess elements in scalar
++/// initializer") while brace init works and matches Metal's element-wise
++/// constructor. `(` -> `{` is byte-length-preserving, so AST offsets keep
++/// matching the original source and uzu's offset-based slicing stays valid.
++/// One-lane widening calls (`vec<float,1>(a, b)` -> first argument) remain a
++/// translation-stage failure with the real diagnostic.
++fn brace_vec_ctor_calls(text: &str, aliases: &BTreeSet<String>) -> Option<String> {
++    if aliases.is_empty() {
++        return None;
++    }
++    let bytes = text.as_bytes();
++    let is_ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
++    let mut swaps: Vec<usize> = Vec::new();
++    for alias in aliases {
++        let mut from = 0;
++        while let Some(rel) = text[from..].find(alias.as_str()) {
++            let start = from + rel;
++            let after = start + alias.len();
++            let bounded = (start == 0 || !is_ident(bytes[start - 1]))
++                && (after == bytes.len() || !is_ident(bytes[after]));
++            let mut i = after;
++            while i < bytes.len() && bytes[i].is_ascii_whitespace() {
++                i += 1;
++            }
++            if bounded && i < bytes.len() && bytes[i] == b'(' {
++                if let Some(close) = matching_paren(text, i) {
++                    swaps.push(i);
++                    swaps.push(close);
++                }
++            }
++            from = after;
++        }
++    }
++    if swaps.is_empty() {
++        return None;
++    }
++    swaps.sort_unstable();
++    swaps.dedup();
++    let mut out = String::with_capacity(text.len());
++    let mut last = 0;
++    for pos in swaps {
++        out.push_str(&text[last..pos]);
++        out.push(if bytes[pos] == b'(' { '{' } else { '}' });
++        last = pos + 1;
++    }
++    out.push_str(&text[last..]);
++    Some(out)
++}
++
++/// The DSL footer's `constant T NAME [[function_constant(N)]];` slots cannot
++/// compile in the OpenCL front end, and the pipeline binds their values
++/// through the `__m2v_spec_N` globals in the transformed footer. Rewrites
++/// each slot to a macro over the matching global. The compile front copy has
++/// no offset contract (only the analyzed copy is sliced), so macros are free
++/// here.
++fn lower_function_constant_slots(text: &str) -> String {
++    let mut out = String::with_capacity(text.len());
++    for line in text.lines() {
++        let t = line.trim_start();
++        if t.starts_with("constant ") && t.contains("[[function_constant(") {
++            let name = t.split_whitespace().nth(2);
++            let n = t.split("[[function_constant(").nth(1).and_then(|r| r.split(')').next());
++            if let (Some(name), Some(n)) = (name, n) {
++                if n.chars().all(|c| c.is_ascii_digit()) && t.trim_end().ends_with(");") {
++                    out.push_str("#define ");
++                    out.push_str(name);
++                    out.push_str(" __m2v_spec_");
++                    out.push_str(n);
++                    out.push('\n');
++                    continue;
++                }
++            }
++        }
++        out.push_str(&const_qualify_constant_refs(line));
++        out.push('\n');
++    }
++    out
++}
++
++/// The file-level function-constant machinery of a transformed footer: the
++/// `__m2v_spec_N` globals, their slot-name defines and the typed wrappers.
++/// The per-kernel fallback compiles one variant chunk on its own, so the
++/// chunk needs this header to resolve the slot names its body uses.
++fn slot_preamble(transformed: &str) -> String {
++    let mut pre = String::new();
++    for line in transformed.lines() {
++        let t = line.trim_start();
++        let keep = t.is_empty()
++            || t.starts_with("constant ")
++            || (t.starts_with("#define ")
++                && (t.contains("__m2v_spec_") || t.contains("__dsl_specialize") || t.contains("__dsl_typed_")));
++        if !keep {
++            break;
++        }
++        pre.push_str(line);
++        pre.push('\n');
++    }
++    pre
++}
++
++/// Metal's `constant` address space is const for objects but clang's OpenCL
++/// front end does not const-qualify references: front templates taking
++/// `constant T&` parameters reject the footer's `const constant T&`
++/// arguments ("would lose const qualifier"). Add the explicit const on the
++/// translate-side copy only - the analyzed copy keeps Metal's exact text.
++fn const_qualify_constant_refs(line: &str) -> String {
++    const NEEDLE: &str = "constant ";
++    let mut out = String::with_capacity(line.len() + 8);
++    let mut rest = line;
++    while let Some(pos) = rest.find(NEEDLE) {
++        let after = &rest[pos + NEEDLE.len()..];
++        let ident_len = after
++            .chars()
++            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
++            .count();
++        let tail = &after[ident_len..];
++        let ws_len = tail.len() - tail.trim_start().len();
++        let is_ref = tail.trim_start().starts_with('&');
++        // Skip `__constant` spellings and parameters already const-qualified.
++        let already = rest[..pos].ends_with("const ") || rest[..pos].ends_with("__");
++        out.push_str(&rest[..pos]);
++        if !already && ident_len > 0 && is_ref {
++            out.push_str("const constant ");
++            out.push_str(&after[..ident_len]);
++            out.push('&');
++            rest = &tail[ws_len + 1..];
++        } else {
++            out.push_str(NEEDLE);
++            rest = after;
++        }
++    }
++    out.push_str(rest);
++    out
++}
++
++/// Offset of the `;` closing the statement starting at `s[0]`, honouring `{}`.
++fn statement_end(s: &str) -> usize {
++    let mut depth = 0usize;
++    for (i, b) in s.bytes().enumerate() {
++        match b {
++            b'{' => depth += 1,
++            b'}' => depth -= 1,
++            b';' if depth == 0 => return i + 1,
++            _ => {},
++        }
++    }
++    s.len()
++}
++
++/// Prefix GPU type names with their `uzu::` namespace path at identifier
++/// boundaries (the macOS metal AST dump prints them qualified).
++fn qualify_uzu_types(text: &str, names: &BTreeMap<String, String>) -> String {
++    if names.is_empty() {
++        return text.to_string();
++    }
++    let bytes = text.as_bytes();
++    let ident = |b: u8| b.is_ascii_alphanumeric() || b == b'_';
++    let is_delim = |i: usize| i == 0 || i >= bytes.len() || !ident(bytes[i]);
++    let mut out = String::with_capacity(text.len());
++    let mut i = 0;
++    while i < bytes.len() {
++        if ident(bytes[i]) {
++            let start = i;
++            while i < bytes.len() && ident(bytes[i]) {
++                i += 1;
++            }
++            let word = &text[start..i];
++            match names.get(word) {
++                Some(q) if is_delim(start.wrapping_sub(1)) && is_delim(i) && !text[..start].ends_with("::") => {
++                    out.push_str(q);
++                },
++                _ => out.push_str(word),
++            }
++        } else {
++            let ch = text[i..].chars().next().unwrap();
++            out.push(ch);
++            i += ch.len_utf8();
++        }
++    }
++    out
++}
++
++/// Length of the braced group starting at `s[0] == '{'`, braces included.
++fn match_braced(s: &str) -> Option<usize> {
++    let bytes = s.as_bytes();
++    debug_assert_eq!(bytes[0], b'{');
++    let mut depth = 0usize;
++    for (i, b) in bytes.iter().enumerate() {
++        match b {
++            b'{' => depth += 1,
++            b'}' => {
++                depth -= 1;
++                if depth == 0 {
++                    return Some(i + 1);
++                }
++            },
++            _ => {},
++        }
++    }
++    None
++}
++
++/// Probe whether the clspv binary supports the metal2vk spec-constant
++/// protocol. An unpatched clspv rejects `--m2v-spec-constants` and exits
++/// nonzero, which we treat as "not configured" so the build cannot silently
++/// produce kernels whose function constants are not specialised.
++fn probe_m2v_clspv(p: &Path) -> bool {
++    Command::new(p)
++        .arg("--m2v-spec-constants")
++        .output()
++        .map(|o| {
++            if o.status.success() {
++                return true;
++            }
++            // Without input files even a patched clspv exits nonzero ("must
++            // provide an input"); only an unpatched one rejects the flag
++            // itself.
++            !String::from_utf8_lossy(&o.stderr).contains("Unknown command line argument '--m2v-spec-constants'")
++        })
++        .unwrap_or(false)
++}
++
++/// Collect the shared GPU type names declared in
++/// `src/backends/common/gpu_types/*.rs`: `pub struct/enum <Name>` keyed by the
++/// file stem (the uzu C++ namespace path is `uzu::<stem>::<Name>`).
++fn scan_uzu_gpu_types(include_dir: &Path) -> BTreeMap<String, String> {
++    let manifest = env::var("CARGO_MANIFEST_DIR").map(PathBuf::from).ok();
++    let Some(manifest) = manifest else { return BTreeMap::new() };
++    let dir = manifest.join("src/backends/common/gpu_types");
++    let mut out = BTreeMap::new();
++    let Ok(entries) = fs::read_dir(&dir) else { return out };
++    for entry in entries.flatten() {
++        let path = entry.path();
++        if path.extension().and_then(|e| e.to_str()) != Some("rs") || path.file_stem().map(|s| s == "mod").unwrap_or(false) {
++            continue;
++        }
++        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else { continue };
++        let Ok(text) = fs::read_to_string(&path) else { continue };
++        for line in text.lines() {
++            let t = line.trim_start();
++            let Some(rest) = t.strip_prefix("pub struct ").or_else(|| t.strip_prefix("pub enum ")) else { continue };
++            let name: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
++            if !name.is_empty() {
++                out.insert(name.clone(), format!("uzu::{stem}::{name}"));
++            }
++        }
++    }
++    let _ = include_dir;
++    out
++}
++
++fn run_output(tool: &Path, args: &[&str]) -> String {
++    Command::new(tool)
++        .args(args)
++        .output()
++        .map(|o| {
++            let mut s = String::from_utf8_lossy(&o.stdout).into_owned();
++            s.push_str(&String::from_utf8_lossy(&o.stderr));
++            s
++        })
++        .unwrap_or_default()
++}
++
++fn first_diag_lines(stderr: &str) -> String {
++    let lines: Vec<&str> = stderr
++        .lines()
++        .map(str::trim)
++        .filter(|l| !l.is_empty())
++        .collect();
++    // The include stack ("In file included from ...") is preamble; the first
++    // `error:` line carries the real cause.
++    let start = lines
++        .iter()
++        .position(|l| l.contains("error:"))
++        .or_else(|| lines.iter().position(|l| !l.starts_with("In file included from")));
++    let Some(start) = start else {
++        return "unknown diagnostic".to_string();
++    };
++    lines[start..std::cmp::min(start + 3, lines.len())].join(" | ")
++}
++
++/// Parse `uint32_t __dsl_specialize_x [[function_constant(3)]];`-style slot
++/// declarations into (clspv type, m2vlib type, index).
++fn parse_slot_line(rest: &str) -> Option<(&'static str, &'static str, u32)> {
++    let idx_start = rest.find("[[function_constant(")? + "[[function_constant(".len();
++    let idx_end = rest[idx_start..].find(')')? + idx_start;
++    let index: u32 = rest[idx_start..idx_end].parse().ok()?;
++    let ty = rest.split_whitespace().next()?;
++    let (clty, m2vty) = match ty {
++        "bool" => ("uint", "bool"),
++        "uint32_t" | "uint" => ("uint", "u32"),
++        "int32_t" | "int" => ("int", "i32"),
++        "float" => ("float", "f32"),
++        _ => return None,
++    };
++    Some((clty, m2vty, index))
++}
++
++fn footer_kernel_names(footer: &str) -> Vec<String> {
++    footer
++        .lines()
++        .filter_map(|l| {
++            let t = l.trim_start();
++            // Both the raw DSL footer (`[[kernel ...]] void NAME(`) and the
++            // transformed OpenCL footer (`__kernel __attribute__((...)) void
++            // NAME(`) spell the entry name after `void `.
++            let after = if t.starts_with("[[kernel") || t.starts_with("__kernel") {
++                t.find(" void ").map(|p| &t[p + " void ".len()..]).unwrap_or(t)
++            } else {
++                return None;
++            };
++            Some(after.split(|c: char| c == '(' || c == ',' || c.is_whitespace()).next().unwrap_or("unknown").to_string())
++        })
++        .filter(|s| !s.is_empty() && s != "unknown")
++        .collect()
++}
++
++struct VariantChunk {
++    text: String,
++}
++
++impl VariantChunk {
++    fn entry_name(&self) -> Option<String> {
++        footer_kernel_names(&self.text).into_iter().next()
++    }
++}
++
++/// Split a transformed footer into per-variant translation units: shared
++/// preamble plus one kernel wrapper each.
++fn split_variants(text: &str) -> Vec<VariantChunk> {
++    let mut preamble = String::new();
++    let mut pending = String::new();
++    let mut chunks: Vec<String> = Vec::new();
++
++    for line in text.lines() {
++        let t = line.trim_start();
++        if t.starts_with("[[kernel") || t.starts_with("__kernel") {
++            let mut chunk = std::mem::take(&mut preamble);
++            chunk.push_str(&std::mem::take(&mut pending));
++            chunk.push_str(line);
++            chunk.push('\n');
++            chunks.push(chunk);
++            continue;
++        }
++        if t.starts_with("constant ") || t.starts_with('#') {
++            preamble.push_str(line);
++            preamble.push('\n');
++        } else if !chunks.is_empty() {
++            // continuation of the current variant (body, undefs)
++            pending.push_str(line);
++            pending.push('\n');
++            if let Some(last) = chunks.last_mut() {
++                last.push_str(line);
++                last.push('\n');
++            }
++        }
++    }
++    chunks.into_iter().map(|text| VariantChunk { text }).collect()
++}
++
++/// `[[kernel, max_total_threads_per_threadgroup(EXPR)]] void name(` ->
++/// `__kernel __attribute__((reqd_work_group_size(EXPR, 1, 1))) void name(`.
++fn rewrite_kernel_line(line: &str) -> anyhow::Result<String> {
++    let Some(pos) = line.find("[[kernel, max_total_threads_per_threadgroup(") else {
++        // plain [[kernel]] attribute
++        return Ok(line.replacen("[[kernel]]", "__kernel", 1));
++    };
++    let expr_start = pos + "[[kernel, max_total_threads_per_threadgroup(".len();
++    let close = line[expr_start..]
++        .find("]] void ")
++        .ok_or_else(|| anyhow!("malformed kernel attribute in footer"))?
++        + expr_start;
++    // EXPR ends with ")" right before "]]"
++    let expr = &line[expr_start..close - 1];
++    let mut out = String::with_capacity(line.len() + 48);
++    out.push_str(&line[..pos]);
++    out.push_str(&format!("__kernel __attribute__((reqd_work_group_size({expr}, 1, 1))) void "));
++    out.push_str(&line[close + "]] void ".len()..]);
++    Ok(out)
++}
++
++/// Remove `[[buffer(..)]]`, `[[threadgroup(..)]]`, `[[function_constant(..)]]`
++/// parameter attribute groups (including combined lists like
++/// `[[buffer(0), function_constant(cond)]]`), prefixing bare threadgroup
++/// items with `__local `, and collapse the empty parameter slots the
++/// removals leave behind (`f(a, )`, `a,,b`).
++fn strip_param_attrs(line: &str) -> String {
++    const MARKERS: [&str; 3] = ["[[buffer(", "[[threadgroup(", "[[function_constant("];
++    let mut out = line.to_string();
++    while let Some(pos) = MARKERS.iter().filter_map(|m| out.find(m)).min() {
++        let Some(close_rel) = out[pos..].find("]]") else { break };
++        let close = pos + close_rel + 2;
++        let threadgroup = out[pos..].starts_with("[[threadgroup(");
++        let item_start = out[..pos].rfind(['(', ',']).map(|i| i + 1).unwrap_or(0);
++        let item = out[item_start..pos].trim();
++        // Metal types carry the qualifier themselves (the shim maps
++        // `threadgroup` -> `__local`); only a bare item needs the prefix.
++        let prefix = if threadgroup
++            && !item.is_empty()
++            && !item.contains("threadgroup")
++            && !item.contains("__local")
++        {
++            "__local "
++        } else {
++            ""
++        };
++        out.replace_range(pos..close, "");
++        if !prefix.is_empty() {
++            out.insert_str(item_start, prefix);
++        }
++    }
++    collapse_param_commas(&mut out);
++    out
++}
++
++/// Remove empty parameter slots left behind by attribute stripping:
++/// `", )"` -> `")"`, `",,"` -> `","`, `"(,"` -> `"("`. Every replacement
++/// strictly shortens the text, so a stable length ends the loop.
++fn collapse_param_commas(out: &mut String) {
++    loop {
++        let before = out.len();
++        while let Some(p) = out.find(", )") {
++            out.replace_range(p..p + 3, ")");
++        }
++        while let Some(p) = out.find(",)") {
++            out.replace_range(p..p + 2, ")");
++        }
++        while let Some(p) = out.find(",,") {
++            out.replace_range(p..p + 2, ",");
++        }
++        while let Some(p) = out.find("(, ") {
++            out.replace_range(p..p + 3, "(");
++        }
++        if out.len() == before {
++            return;
++        }
++    }
++}
++
++/// The declared identifier of a `constant T NAME [[function_constant(N)];`
++/// slot line (the text after the `constant ` prefix).
++fn slot_decl_name(rest: &str) -> Option<&str> {
++    let name = rest.split_whitespace().nth(1)?;
++    let first = name.chars().next()?;
++    let ident = (first.is_ascii_alphabetic() || first == '_')
++        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
++    ident.then_some(name)
++}
++
++/// Replace DSL built-in parameter items with OpenCL builtin locals; returns
++/// the definitions to inject at the top of the kernel body.
++fn convert_builtins(line: &str) -> (String, Vec<&'static str>) {
++    const BUILTINS: &[(&str, &str)] = &[
++        (
++            "[[thread_position_in_grid]]",
++            "uint3 __dsl_axis_idx = uint3((uint)get_global_id(0), (uint)get_global_id(1), (uint)get_global_id(2));",
++        ),
++        (
++            "[[threadgroup_position_in_grid]]",
++            "uint3 __dsl_group_idx = uint3((uint)get_group_id(0), (uint)get_group_id(1), (uint)get_group_id(2));",
++        ),
++        (
++            "[[thread_position_in_threadgroup]]",
++            "uint3 __dsl_thread_idx = uint3((uint)get_local_id(0), (uint)get_local_id(1), (uint)get_local_id(2));",
++        ),
++        ("[[thread_index_in_simdgroup]]", "uint __dsl_simd_lane_idx = (uint)get_sub_group_local_id();"),
++        ("[[simdgroup_index_in_threadgroup]]", "uint __dsl_simd_group_idx = (uint)get_sub_group_id();"),
++        ("[[threads_per_simdgroup]]", "uint __dsl_simd_group_size = (uint)get_sub_group_size();"),
++        (
++            "[[simdgroups_per_threadgroup]]",
++            "uint __dsl_simd_groups_per_threadgroup = (uint)((get_local_size(0) * get_local_size(1) * get_local_size(2)) / get_sub_group_size());",
++        ),
++    ];
++
++    let mut out = line.to_string();
++    let mut injected: Vec<&'static str> = Vec::new();
++    for (attr, def) in BUILTINS {
++        while let Some(pos) = out.find(attr) {
++            let close = out[pos..].find("]]").map(|i| pos + i + 2).unwrap_or(pos);
++            let mut item_start = out[..pos].rfind(['(', ',']).map(|i| i + 1).unwrap_or(0);
++            let mut end = close;
++            if out[close..].starts_with(", ") {
++                end = close + 2;
++            } else if out[..item_start].ends_with(", ") {
++                item_start -= 2;
++            }
++            out.replace_range(item_start..end, "");
++            if !injected.contains(def) {
++                injected.push(def);
++            }
++        }
++    }
++    (out, injected)
++}
++
++/// `cond(expr)` -> `replacement` (parenthesis-balanced).
++fn replace_call(line: &str, name: &str, replacement: &str) -> String {
++    let mut out = String::with_capacity(line.len());
++    let mut rest = line;
++    while let Some(pos) = rest.find(&format!("{name}(")) {
++        out.push_str(&rest[..pos]);
++        let mut i = pos + name.len() + 1;
++        let bytes = rest.as_bytes();
++        let mut depth = 1;
++        while i < bytes.len() && depth > 0 {
++            match bytes[i] {
++                b'(' => depth += 1,
++                b')' => depth -= 1,
++                _ => {},
++            }
++            i += 1;
++        }
++        out.push_str(replacement);
++        rest = &rest[i..];
++    }
++    out.push_str(rest);
++    out
++}
++
++/// Drop the LLVM constructs clspv's LLVM rejects (alias-scope metadata from
++/// the inliner and the associated scope-decl calls); the same passes the
++/// metal2vk compile lanes run as sed.
++fn strip_llvm_incompat(path: &Path) -> anyhow::Result<()> {
++    let src = fs::read_to_string(path).context("cannot read ll")?;
++    let mut out = String::with_capacity(src.len());
++    for line in src.lines() {
++        if line.contains("llvm.experimental.noalias.scope.decl") {
++            continue;
++        }
++        out.push_str(&strip_alias_scope(line));
++        out.push('\n');
++    }
++    fs::write(path, out).context("cannot write ll")?;
++    Ok(())
++}
++
++fn strip_alias_scope(line: &str) -> String {
++    const NEEDLES: [&[u8]; 2] = [b", !alias.scope !", b", !noalias !"];
++    let bytes = line.as_bytes();
++    let mut out = String::with_capacity(line.len());
++    let mut i = 0;
++    while i < bytes.len() {
++        if let Some(n) = NEEDLES.iter().find(|n| bytes[i..].starts_with(n)) {
++            let mut j = i + n.len();
++            while j < bytes.len() && bytes[j].is_ascii_digit() {
++                j += 1;
++            }
++            if j > i + n.len() {
++                i = j;
++                continue;
++            }
++        }
++        out.push(bytes[i] as char);
++        i += 1;
++    }
++    out
++}
++
++/// Pack (function desc, SPIR-V module) pairs into a `.m2vlib` container:
++/// "M2VL", u32 LE version 1, u32 LE json length, UTF-8 JSON, then 4-byte
++/// aligned SPIR-V modules; each function's spv range covers its own module.
++fn pack_m2vlib(entries: Vec<(&FuncSer, &[u8])>) -> anyhow::Result<Vec<u8>> {
++    const HEADER: u64 = 12;
++    let mut json_len: u64 = 2; // "{}"
++    for _ in 0..16 {
++        let spv_off = (HEADER + json_len + 3) & !3;
++        let mut funcs: Vec<FuncSer> = Vec::with_capacity(entries.len());
++        let mut cursor = spv_off;
++        for (f, module) in &entries {
++            let mut f = (*f).clone();
++            f.spv = SpvRangeSer { offset: cursor, len: module.len() as u64 };
++            cursor = (cursor + module.len() as u64 + 3) & !3;
++            funcs.push(f);
++        }
++        let blob = serde_json::to_vec(&M2vLibSer { functions: funcs }).context("cannot serialize m2vlib json")?;
++        if blob.len() as u64 == json_len {
++            let mut out = Vec::with_capacity(cursor as usize);
++            out.extend_from_slice(b"M2VL");
++            out.extend_from_slice(&1u32.to_le_bytes());
++            out.extend_from_slice(&(blob.len() as u32).to_le_bytes());
++            out.extend_from_slice(&blob);
++            out.resize(spv_off as usize, 0);
++            for (_, module) in &entries {
++                out.extend_from_slice(module);
++                let aligned = (out.len() + 3) & !3;
++                out.resize(aligned, 0);
++            }
++            return Ok(out);
++        }
++        json_len = blob.len() as u64;
++    }
++    bail!("m2vlib json length did not converge")
++}
++
++/// Minimal SPIR-V binary reflection: entry points, capabilities and the
++/// NonSemantic.ClspvReflection records the host layer needs.
++fn reflect_spv(spv: &[u8]) -> anyhow::Result<BTreeMap<u32, Reflected>> {
++    if spv.len() < 20 || &spv[0..4] != b"\x03\x02\x23\x07" {
++        bail!("not a SPIR-V module");
++    }
++    let words: Vec<u32> = spv
++        .chunks_exact(4)
++        .map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]]))
++        .collect();
++
++    let mut strings: BTreeMap<u32, String> = BTreeMap::new();
++    let mut consts: BTreeMap<u32, u32> = BTreeMap::new();
++    let mut caps: Vec<u32> = Vec::new();
++    let mut refl_import: Option<u32> = None;
++    let mut kernels: BTreeMap<u32, Reflected> = BTreeMap::new();
++    let mut wg_spec_ids: Option<[u32; 3]> = None;
++
++    let mut i = 5;
++    while i < words.len() {
++        let (opcode, wc) = (words[i] & 0xffff, words[i] >> 16);
++        if wc == 0 {
++            bail!("zero word count at word {i}");
++        }
++        let end = i + wc as usize;
++        if end > words.len() {
++            bail!("truncated instruction at word {i}");
++        }
++        let ops = &words[i + 1..end];
++        match opcode {
++            5 => {
++                // OpString: result id, literal UTF-8
++                let bytes: Vec<u8> = ops.get(1..).unwrap_or(&[]).iter().flat_map(|w| w.to_le_bytes()).collect();
++                strings.insert(ops[0], String::from_utf8_lossy(&bytes).trim_end_matches('\0').to_string());
++            },
++            17 => caps.push(ops[0]),
++            11 => {
++                // OpExtInstImport
++                let bytes: Vec<u8> = ops.get(1..).unwrap_or(&[]).iter().flat_map(|w| w.to_le_bytes()).collect();
++                if String::from_utf8_lossy(&bytes).starts_with("NonSemantic.ClspvReflection") {
++                    refl_import = Some(ops[0]);
++                }
++            },
++            43 => {
++                // OpConstant: type, result, literal words
++                if ops.len() >= 2 {
++                    consts.insert(ops[1], ops.get(2).copied().unwrap_or(0));
++                }
++            },
++            12 => {
++                // OpExtInst: result type, result, set, op, operands...
++                if ops.len() > 3 && Some(ops[2]) == refl_import {
++                    reflect_op(ops[3], &ops[4..], &consts, &strings, &mut kernels, &mut wg_spec_ids);
++                }
++            },
++            _ => {},
++        }
++        i = end;
++    }
++    let uses_coopmat = caps.contains(&CAP_COOPERATIVE_MATRIX_KHR);
++    for k in kernels.values_mut() {
++        k.uses_coopmat = uses_coopmat;
++        k.wg_spec_ids = wg_spec_ids;
++    }
++    Ok(kernels)
++}
++
++fn reflect_op(
++    op: u32,
++    rest: &[u32],
++    consts: &BTreeMap<u32, u32>,
++    strings: &BTreeMap<u32, String>,
++    kernels: &mut BTreeMap<u32, Reflected>,
++    wg_spec_ids: &mut Option<[u32; 3]>,
++) {
++    let num = |tok: u32| -> Option<u32> { consts.get(&tok).copied() };
++    match op {
++        1 => {
++            // Kernel: kernel func id, name string
++            let name = strings.get(&rest[1]).cloned().unwrap_or_else(|| format!("kernel_{}", rest[0]));
++            kernels.entry(rest[0]).or_default().entry = name;
++        },
++        3 | 4 => {
++            // ArgumentStorageBuffer / ArgumentUniform: kernel, ordinal, set, binding
++            if let Some(k) = kernels.get_mut(&rest[0]) {
++                if let (Some(o), Some(s), Some(b)) = (num(rest[1]), num(rest[2]), num(rest[3])) {
++                    k.buffers.push((o, b, s));
++                }
++            }
++        },
++        5 | 6 => {
++            // ArgumentPodStorageBuffer / PodUniform: kernel, ordinal, set, binding, offset, size
++            if let Some(k) = kernels.get_mut(&rest[0]) {
++                if let (Some(o), Some(s), Some(b)) = (num(rest[1]), num(rest[2]), num(rest[3])) {
++                    k.buffers.push((o, b, s));
++                }
++            }
++        },
++        7 => {
++            // ArgumentPodPushConstant: kernel, ordinal, offset, size
++            if let Some(k) = kernels.get_mut(&rest[0]) {
++                if let (Some(o), Some(off), Some(sz)) = (num(rest[1]), num(rest[2]), num(rest[3])) {
++                    k.pod.push((o, off, sz));
++                }
++            }
++        },
++        11 => {
++            // ArgumentWorkgroup: kernel, ordinal, spec id, elem size
++            if let Some(k) = kernels.get_mut(&rest[0]) {
++                if let (Some(o), Some(sid)) = (num(rest[1]), num(rest[2])) {
++                    k.threadgroup.push((o, sid));
++                }
++            }
++        },
++        12 => {
++            // SpecConstantWorkgroupSize: x, y, z
++            if let (Some(x), Some(y), Some(z)) = (num(rest[0]), num(rest[1]), num(rest[2])) {
++                *wg_spec_ids = Some([x, y, z]);
++            }
++        },
++        24 => {
++            // PropertyRequiredWorkgroupSize: kernel, x, y, z
++            if let Some(k) = kernels.get_mut(&rest[0]) {
++                if let (Some(x), Some(y), Some(z)) = (num(rest[1]), num(rest[2]), num(rest[3])) {
++                    k.workgroup_size = Some([x, y, z]);
++                }
++            }
++        },
++        _ => {},
++    }
++}
 diff --git a/crates/uzu-engine/src/backends/metal/context.rs b/crates/uzu-engine/src/backends/metal/context.rs
 index 90ee23b3..bfc79160 100644
 --- a/crates/uzu-engine/src/backends/metal/context.rs
@@ -4589,6 +6648,45 @@ index 41ace14b..39b4cfc6 100644
 +}
 +
 +pub use imp::decompress;
+diff --git a/crates/uzu-engine/src/backends/metal/heaps.rs b/crates/uzu-engine/src/backends/metal/heaps.rs
+index beda9b56..72eb22d8 100644
+--- a/crates/uzu-engine/src/backends/metal/heaps.rs
++++ b/crates/uzu-engine/src/backends/metal/heaps.rs
+@@ -99,7 +99,7 @@ impl MetalHeaps {
+         while remaining > 0
+             && let Some(mut nonfull_heap) = inner.nonfull_heaps.peek_mut()
+         {
+-            let heap_ptr = Retained::as_ptr(&nonfull_heap.heap) as usize;
++            let heap_ptr = ProtocolObject::host_addr(&nonfull_heap.heap);
+             let free_ranges = inner.free_ranges.get_mut(&heap_ptr).unwrap();
+ 
+             while remaining > 0
+@@ -144,7 +144,7 @@ impl MetalHeaps {
+             if allocated_pages < self.pages_per_heap {
+                 inner
+                     .free_ranges
+-                    .insert(Retained::as_ptr(&heap) as usize, once(allocated_pages..self.pages_per_heap).collect());
++                    .insert(ProtocolObject::host_addr(&heap), once(allocated_pages..self.pages_per_heap).collect());
+                 inner.nonfull_heaps.push(MetalHeapsInnerNonfull {
+                     heap,
+                     num_free_pages: self.pages_per_heap - allocated_pages,
+@@ -165,14 +165,14 @@ impl MetalHeaps {
+         let mut inner_locked = self.inner.lock();
+         let inner = &mut *inner_locked;
+ 
+-        match inner.free_ranges.entry(Retained::as_ptr(heap) as usize) {
++        match inner.free_ranges.entry(ProtocolObject::host_addr(heap)) {
+             Entry::Occupied(mut entry) => {
+                 entry.get_mut().insert(range.into());
+                 let mut nonfull = std::mem::take(&mut inner.nonfull_heaps).into_vec();
+                 let nonfull_idx = nonfull
+                     .iter()
+                     .enumerate()
+-                    .find(|(_, h)| (Retained::as_ptr(&h.heap) as usize) == *entry.key())
++                    .find(|(_, h)| ProtocolObject::host_addr(&h.heap) == *entry.key())
+                     .unwrap()
+                     .0;
+                 if entry.get().first().unwrap() == &(0..self.pages_per_heap) {
 diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
 index 653c31f4..fbfe8e63 100644
 --- a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
@@ -4612,21 +6710,24 @@ index 653c31f4..fbfe8e63 100644
          constants: Option<&MTLFunctionConstantValues>,
      ) -> Result<Retained<ProtocolObject<dyn MTLComputePipelineState>>, MetalError> {
 diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
-index 93142098..f9355534 100644
+index 93142098..dcea58bf 100644
 --- a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
 +++ b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
-@@ -1,83 +1,37 @@
+@@ -1,83 +1,25 @@
 -use core::mem::transmute;
 -use std::ffi::CString;
 -
--use metal::{MTLDevice, MTLGPUFamily};
++#[cfg(target_os = "macos")]
+ use metal::{MTLDevice, MTLGPUFamily};
 -use obfstr::obfstr;
 -use objc2::{
 -    Message,
 -    ffi::objc_msgSend,
 -    runtime::{NSObjectProtocol, ProtocolObject, Sel},
 -};
-+use metal::{MTLDevice, MTLDeviceExt, MTLGPUFamily};
++#[cfg(not(target_os = "macos"))]
++use metal::MTLDeviceExt;
++#[cfg(target_os = "macos")]
 +use objc2::{Message, NSObjectProtocol, runtime::ProtocolObject};
  
  use super::GpuFamilyExt;
@@ -4672,6 +6773,35 @@ index 93142098..f9355534 100644
 -        fallback
 -    }
 -}
+-
+-pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol + Sized {
+-    /// Number of GPU shader cores.
+-    fn gpu_core_count(&self) -> u32 {
+-        optional_selector_value(self, obfstr!("gpuCoreCount"), 8)
+-    }
+-
+-    /// Whether the GPU has a Matrix eXtension Unit (neural accelerator for compute).
+-    /// True on M5+ (Gen18+), false on M1-M4.
+-    fn supports_mxu(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsMXU"), false)
+-    }
+-
+-    /// Whether the GPU supports placement sparse resources.
+-    fn supports_placement_sparse_resources(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsPlacementSparse"), false)
+-    }
+-
+-    /// Newest Apple GPU family the device supports.
+-    fn newest_supported_apple_gpu_family(&self) -> MTLGPUFamily {
+-        MTLGPUFamily::all_cases()
+-            .into_iter()
+-            .rev()
+-            .find(|family| self.supports_family(*family))
+-            .expect("unsupported Metal device: uzu requires an Apple GPU")
+-    }
+-}
+-
+-impl DeviceExt for ProtocolObject<dyn MTLDevice> {}
 +// On Apple hosts the private device selectors (gpuCoreCount, supportsMXU,
 +// supportsPlacementSparse) are read through raw objc_msgSend behind obfuscated
 +// names. The m2v host layer answers the same queries from device properties, so
@@ -4679,40 +6809,27 @@ index 93142098..f9355534 100644
 +// family (M1-class), no MXU, no placement sparse (uzu takes its dense path).
 +#[cfg(target_os = "macos")]
 +include!("device_extensions_apple.rs");
- 
--pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol + Sized {
++
 +#[cfg(not(target_os = "macos"))]
-+pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol {
-     /// Number of GPU shader cores.
-     fn gpu_core_count(&self) -> u32 {
--        optional_selector_value(self, obfstr!("gpuCoreCount"), 8)
-+        MTLDeviceExt::gpu_core_count(self)
-     }
- 
--    /// Whether the GPU has a Matrix eXtension Unit (neural accelerator for compute).
--    /// True on M5+ (Gen18+), false on M1-M4.
-+    /// MXU is an M5-generation feature; every host part reports false.
-     fn supports_mxu(&self) -> bool {
--        optional_selector_value(self, obfstr!("supportsMXU"), false)
-+        MTLDeviceExt::supports_mxu(self)
-     }
- 
--    /// Whether the GPU supports placement sparse resources.
-     fn supports_placement_sparse_resources(&self) -> bool {
--        optional_selector_value(self, obfstr!("supportsPlacementSparse"), false)
-+        MTLDeviceExt::supports_placement_sparse_resources(self)
-     }
- 
-     /// Newest Apple GPU family the device supports.
-     fn newest_supported_apple_gpu_family(&self) -> MTLGPUFamily {
--        MTLGPUFamily::all_cases()
--            .into_iter()
--            .rev()
--            .find(|family| self.supports_family(*family))
--            .expect("unsupported Metal device: uzu requires an Apple GPU")
-+        MTLDeviceExt::newest_supported_apple_gpu_family(self)
-     }
- }
- 
++/// The m2v host layer answers uzu's private device selectors from device
++/// properties (see the compat crate's `MTLDeviceExt`), so the Linux trait is
++/// a pure alias: no method of its own, hence no ambiguity at call sites.
++pub trait DeviceExt: MTLDeviceExt {}
++
 +#[cfg(not(target_os = "macos"))]
- impl DeviceExt for ProtocolObject<dyn MTLDevice> {}
++impl<T: MTLDeviceExt + ?Sized> DeviceExt for T {}
+diff --git a/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs b/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
+index 919245b5..462e821a 100644
+--- a/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
++++ b/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
+@@ -1,8 +1,8 @@
+ use std::time::{Duration, Instant};
+ 
+ use metal::{
+-    MTL4ComputeCommandEncoder, MTL4CounterHeap, MTL4CounterHeapDescriptor, MTL4CounterHeapExt, MTL4CounterHeapType,
+-    MTL4TimestampGranularity, MTLDevice, MTLDeviceExt,
++    MTL4ComputeCommandEncoder, MTL4ComputeCommandEncoderExt, MTL4CounterHeap, MTL4CounterHeapDescriptor,
++    MTL4CounterHeapExt, MTL4CounterHeapType, MTL4TimestampGranularity, MTLDevice, MTLDeviceExt,
+ };
+ use objc2::{rc::Retained, runtime::ProtocolObject};
+ 

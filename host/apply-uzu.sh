@@ -4,10 +4,12 @@
 #
 # The patch carries a __M2V_COMPAT__ placeholder for the compat-crate directory;
 # it is substituted here with the absolute path of the compat dir that ships
-# next to this script (metal2vk/host/compat). After applying, run:
-#   cargo check -p uzu-engine --features metal,vulkan-host
-# It proceeds until the macOS-generated kernel bindings are missing
-# (include!(OUT_DIR/metal.rs)) - see metal2vk host/STATUS.md.
+# next to this script (metal2vk/host/compat). The build script's Linux/vulkan-host
+# toolchain then translates the .metal kernels through metal2vk itself; point it
+# at a metal2vk checkout with M2V_ROOT and set CLANG/CLSPV (see host/DESIGN.md).
+# After applying, run:
+#   M2V_ROOT=/path/to/metal2vk CLSPV=/path/to/clspv \
+#     cargo check -p uzu-engine --no-default-features --features metal,vulkan-host
 set -e
 UZU="$1"
 HOST_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -205,8 +205,12 @@ impl MTL4SpecializedFunctionDescriptor {
         // record the real function there so the compiler can read it back.
         self.base.f.lock().specialized = function_descriptor.map(|d| Box::new(d.snapshot()));
     }
-    pub fn set_constant_values(&self, constant_values: Option<&Retained<MTLFunctionConstantValues>>) {
-        self.base.f.lock().specialized_constants = constant_values.cloned();
+    pub fn set_constant_values(&self, constant_values: Option<&MTLFunctionConstantValues>) {
+        self.base.f.lock().specialized_constants = constant_values.map(|values| {
+            Retained::new(MTLFunctionConstantValues {
+                constants: Mutex::new(values.constants.lock().clone()),
+            })
+        });
     }
 }
 
