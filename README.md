@@ -160,8 +160,8 @@ little about the lowering; the tiled `Gemm` is the real comparison and is the op
 ### Bulk sweep
 
 `sweep/` runs every uzu `.metal` file and every TensorFold Zig `.metal` file (609 entry points: kernel variants and host_name instantiations) through
-the shim, clang, clspv and spirv-val and keeps a per-kernel table. With this shim 346 of 609 entries produce valid Vulkan SPIR-V (56.8%; main's shim
-gave 225, 36.9%). The ranked list of what still blocks the rest and the first clspv or spirv-val message of every failing entry are in
+the shim, clang, clspv and spirv-val and keeps a per-kernel table. On the typed-GEP route (clang 19) this shim gives valid Vulkan SPIR-V for 323
+of 609 entries (53.0%; main's shim gave 232, 38.1%). The ranked list of what still blocks the rest and the first clspv or spirv-val message of every failing entry are in
 `sweep/results/` (`FEATURES.md`, `FAILURES.md`, `table.tsv`). `sweep/README.md` says how to rerun it.
 
 ## Working on it
