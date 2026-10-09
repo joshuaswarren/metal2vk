@@ -11,9 +11,15 @@ template <typename E, typename S> METAL_FUNC metal::enable_if_t<!is_ext<S>::valu
 template <typename E, typename W> METAL_FUNC metal::enable_if_t<is_ext<W>::value> put(E* t, int& n, W v) {
   for (int i = 0; i < (int)__builtin_vectorelements(W); i++) t[n++] = (E)v[i];
 }
+template <typename S0, typename...> METAL_FUNC S0 mk_first(S0 s0, ...) { return s0; }
 template <typename V, typename... S> METAL_FUNC V mk(S... s) {
   if constexpr (sizeof...(S) == 1) return mk1<V>(s...);
-  else if constexpr ((!is_ext<S>::value && ...)) return V{(elem_t<V>)s...};
+  else if constexpr ((int)__builtin_vectorelements(V) == 1) {
+    // Metal's one-lane vectors take the first argument of a widening ctor.
+    V r{};
+    r[0] = (elem_t<V>)m2v::mk_first(s...);
+    return r;
+  }
   else {
     elem_t<V> t[sizeof...(S) * 16];
     int n = 0;
