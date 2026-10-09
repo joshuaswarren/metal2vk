@@ -13,6 +13,7 @@ template <typename E, typename W> METAL_FUNC metal::enable_if_t<is_ext<W>::value
 }
 template <typename V, typename... S> METAL_FUNC V mk(S... s) {
   if constexpr (sizeof...(S) == 1) return mk1<V>(s...);
+  else if constexpr ((!is_ext<S>::value && ...)) return V{(elem_t<V>)s...};
   else {
     elem_t<V> t[sizeof...(S) * 16];
     int n = 0;
