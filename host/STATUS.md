@@ -44,23 +44,21 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
 
 ## GPU receipts (chips labelled)
 
-- G13C = Apple M1 Max (jw16), driver Honeykrisp 1.4.354.
-  `host/receipts/jw16-G13C/run-jw16.txt`: **PASS add_kernel_end_to_end**
+- G13C = Apple M1 Max Linux host, driver Honeykrisp 1.4.354.
+  `host/receipts/G13C/run-g13c.txt`: **PASS add_kernel_end_to_end**
   (4096 elements, 22 µs GPU span), through the full chain
   add.cl → clspv (pinned f2b01dd6 + coopmat patch) → m2v-reflect.py →
-  make-m2vlib.py → m2v-host → verification. Run under gpu-turn.
-- G14C = Apple M2 Max (jwm2): clspv built from source there, unit tests
-  12/12, but the receipt run is **still owed** — its gpu-turn queue was held
-  for a 120-min slot from another lane during the window.
-- Owed GPU runs (queue contention + the jw16 stop order, 15:50Z):
-  1. jw16 G13C: `push_constant_kernel_end_to_end` PASS line (the run was
-     killed at its 10-min cap while test 2 was in flight; test 1 passed).
-     Submit as a guard-queue entry after "jw16 H48 done".
-  2. jw16 G13C: Zig demo PASS (binary not yet built/linked there).
-  3. jw16 G13C: rerun with push descriptors ON (without
-     M2V_NO_PUSH_DESCRIPTOR=1) to confirm the M2 segv reproduces on G13C.
-  4. jw14m2-linux G14C: full gpu-run.sh (tests + Zig demo) when its queue is
-     empty.
+  make-m2vlib.py → m2v-host → verification. Run through the host GPU queue wrapper, one submit under 5 s.
+- G14C = Apple M2 Max Linux host: clspv built from source there, unit tests
+  12/12; the receipt run is **still owed** (driver segfault under
+  investigation, see the notes below).
+- Owed GPU receipts:
+  1. G13C: `push_constant_kernel_end_to_end` PASS line (the run was killed at
+     its turn cap while test 2 was in flight; test 1 passed).
+  2. G13C: Zig demo PASS (binary not yet built/linked there).
+  3. G13C: rerun with push descriptors ON (without M2V_NO_PUSH_DESCRIPTOR=1)
+     to confirm the G14C segv reproduces on G13C.
+  4. G14C: full gpu-run.sh (tests + Zig demo).
 - Driver notes from the bring-up (all reproduced via gdb on the probe):
   honeykrisp segfaults at vkCmdDispatch when no pipeline is bound (fixed by
   binding at dispatch), when the pipeline layout does not describe the
@@ -71,9 +69,10 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
 
 ## GPU-free test results
 
-- Build CT (x86_64): `cargo test -p m2v-host` → 15/15 pass (12 unit, 2 GPU
+- Build host (x86_64): `cargo test -p m2v-host` → 15/15 pass (12 unit, 2 GPU
   tests + 1 probe skipping without M2V_GPU), `cargo check` clean.
-- Apple silicon lab hosts (aarch64): same unit tests 12/12 on jw16 and jwm2.
+- Apple silicon lab hosts (aarch64): same unit tests 12/12 on both
+  lab hosts (G13C and G14C).
 - Zig demo compiles against the generated header (0.17.0, aarch64).
 
 ## Gaps
