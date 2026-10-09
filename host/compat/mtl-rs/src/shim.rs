@@ -28,11 +28,11 @@ use objc2::{NSObjectProtocol, ProtocolObject, Retained};
 // ---------------------------------------------------------------------------
 
 pub struct DeviceShim {
-    pub(crate) dev: Arc<m2v_host::Device>,
+    pub(crate) dev: Arc<metal2vk::Device>,
     pub(crate) name: String,
     pub(crate) gpu_core_count: u32,
     pub(crate) allocated: Arc<AtomicUsize>,
-    main_queue: Mutex<Option<Arc<m2v_host::Queue>>>,
+    main_queue: Mutex<Option<Arc<metal2vk::Queue>>>,
 }
 
 unsafe impl NSObjectProtocol for DeviceShim {}
@@ -83,7 +83,7 @@ unsafe impl MTLDevice for DeviceShim {
     }
 
     fn host_new_library_with_data(&self, data: &[u8]) -> Result<Retained<ProtocolObject<dyn MTLLibrary>>, MetalError> {
-        let lib = m2v_host::Library::from_bytes(&self.dev, data)?;
+        let lib = metal2vk::Library::from_bytes(&self.dev, data)?;
         Ok({
                                         let arc: Arc<ProtocolObject<dyn MTLLibrary>> =
                     Arc::new(ProtocolObject::from_inner(LibraryShim { lib }));
@@ -170,7 +170,7 @@ unsafe impl MTLDevice for DeviceShim {
 impl DeviceShim {
     /// One VkQueue backs every Metal queue in the process; submits from all
     /// Metal queues serialize through it in commit order.
-    fn main_queue(&self) -> Arc<m2v_host::Queue> {
+    fn main_queue(&self) -> Arc<metal2vk::Queue> {
         Arc::clone(
             self.main_queue
                 .lock()
@@ -180,7 +180,7 @@ impl DeviceShim {
 }
 
 static DEFAULT_DEVICE: LazyLock<Option<Retained<ProtocolObject<dyn MTLDevice>>>> = LazyLock::new(|| {
-    let dev = m2v_host::Device::new().ok()?;
+    let dev = metal2vk::Device::new().ok()?;
     let name = dev.name().to_owned();
     let info = dev.info().clone();
     Some({
@@ -222,7 +222,7 @@ fn now_ns() -> u64 {
 // ---------------------------------------------------------------------------
 
 pub struct BufferShim {
-    pub(crate) buf: Arc<m2v_host::Buffer>,
+    pub(crate) buf: Arc<metal2vk::Buffer>,
     len: usize,
     allocated: Arc<AtomicUsize>,
 }
@@ -247,13 +247,13 @@ unsafe impl MTLBuffer for BufferShim {
     fn gpu_address(&self) -> u64 {
         self.buf.gpu_address()
     }
-    fn host_buffer(&self) -> &Arc<m2v_host::Buffer> {
+    fn host_buffer(&self) -> &Arc<metal2vk::Buffer> {
         &self.buf
     }
 }
 
 pub struct LibraryShim {
-    pub(crate) lib: Arc<m2v_host::Library>,
+    pub(crate) lib: Arc<metal2vk::Library>,
 }
 
 unsafe impl NSObjectProtocol for LibraryShim {}
@@ -262,13 +262,13 @@ unsafe impl MTLLibrary for LibraryShim {
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         default_device_handle()
     }
-    fn host_library(&self) -> &Arc<m2v_host::Library> {
+    fn host_library(&self) -> &Arc<metal2vk::Library> {
         &self.lib
     }
 }
 
 pub struct PipelineShim {
-    pub(crate) pipeline: Arc<m2v_host::Pipeline>,
+    pub(crate) pipeline: Arc<metal2vk::Pipeline>,
 }
 
 unsafe impl NSObjectProtocol for PipelineShim {}
@@ -278,13 +278,13 @@ unsafe impl MTLComputePipelineState for PipelineShim {
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         default_device_handle()
     }
-    fn host_pipeline(&self) -> &Arc<m2v_host::Pipeline> {
+    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline> {
         &self.pipeline
     }
 }
 
 pub struct EventShim {
-    pub(crate) event: Arc<m2v_host::Event>,
+    pub(crate) event: Arc<metal2vk::Event>,
 }
 
 unsafe impl NSObjectProtocol for EventShim {}
@@ -293,7 +293,7 @@ unsafe impl MTLEvent for EventShim {
     fn device(&self) -> Option<Retained<ProtocolObject<dyn MTLDevice>>> {
         Some(default_device_handle())
     }
-    fn host_event(&self) -> &Arc<m2v_host::Event> {
+    fn host_event(&self) -> &Arc<metal2vk::Event> {
         &self.event
     }
 }
@@ -346,7 +346,7 @@ unsafe impl MTL4CommandAllocator for AllocatorShim {
 /// Every Metal queue shares the device's one compute queue: submits serialize in
 /// commit order and timeline events keep the sparse-vs-main ordering honest.
 pub struct QueueShim {
-    pub(crate) queue: Arc<m2v_host::Queue>,
+    pub(crate) queue: Arc<metal2vk::Queue>,
 }
 
 unsafe impl NSObjectProtocol for QueueShim {}
@@ -367,7 +367,7 @@ unsafe impl MTL4CommandQueue for QueueShim {
     }
     fn add_residency_set(&self, _residency_set: &ProtocolObject<dyn MTLResidencySet>) {}
     fn remove_residency_set(&self, _residency_set: &ProtocolObject<dyn MTLResidencySet>) {}
-    fn shim_queue(&self) -> &Arc<m2v_host::Queue> {
+    fn shim_queue(&self) -> &Arc<metal2vk::Queue> {
         &self.queue
     }
 }
@@ -422,7 +422,7 @@ pub(crate) fn argument_table_state(
 // ---------------------------------------------------------------------------
 
 pub struct CommandBufferShim {
-    pub(crate) slot: Arc<Mutex<Option<m2v_host::CommandBuffer>>>,
+    pub(crate) slot: Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
     pub(crate) label: Mutex<Option<String>>,
 }
 
@@ -437,7 +437,7 @@ unsafe impl MTL4CommandBuffer for CommandBufferShim {
     fn compute_command_encoder(&self) -> Option<Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>>> {
         Some(encoder_for_slot(&self.slot))
     }
-    fn host_slot(&self) -> &Arc<Mutex<Option<m2v_host::CommandBuffer>>> {
+    fn host_slot(&self) -> &Arc<Mutex<Option<metal2vk::CommandBuffer>>> {
         &self.slot
     }
     fn shim_label(&self) -> Option<String> {
@@ -450,16 +450,16 @@ unsafe impl MTL4CommandBuffer for CommandBufferShim {
 
 pub(crate) enum RecordedOp {
     Barrier,
-    SetPipeline(Arc<m2v_host::Pipeline>),
+    SetPipeline(Arc<metal2vk::Pipeline>),
     SetThreadgroupLength { index: u32, bytes: u32 },
-    Copy { src: Arc<m2v_host::Buffer>, src_offset: u64, dst: Arc<m2v_host::Buffer>, dst_offset: u64, size: u64 },
-    Fill { dst: Arc<m2v_host::Buffer>, range: Range<u64>, value: u8 },
+    Copy { src: Arc<metal2vk::Buffer>, src_offset: u64, dst: Arc<metal2vk::Buffer>, dst_offset: u64, size: u64 },
+    Fill { dst: Arc<metal2vk::Buffer>, range: Range<u64>, value: u8 },
     DispatchThreads([u32; 3], [u32; 3]),
     DispatchThreadgroups([u32; 3], [u32; 3]),
     DispatchIndirect(MTLGPUAddress, [u32; 3]),
     PushDebugGroup(String),
     PopDebugGroup,
-    WriteTimestamp { pool: Arc<Mutex<m2v_host::TimestampPool>>, index: u32 },
+    WriteTimestamp { pool: Arc<Mutex<metal2vk::TimestampPool>>, index: u32 },
     SetTable(Option<Arc<Mutex<TableState>>>),
 }
 
@@ -467,7 +467,7 @@ pub(crate) enum RecordedOp {
 /// session (`begin` .. `end`) at `end_encoding`; the argument table is applied
 /// before each dispatch (Metal 4 argument-table commit order).
 pub struct ComputeEncoderShim {
-    slot: Arc<Mutex<Option<m2v_host::CommandBuffer>>>,
+    slot: Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
     ops: Mutex<Vec<RecordedOp>>,
     flushed: AtomicBool,
 }
@@ -650,19 +650,19 @@ impl Drop for ComputeEncoderShim {
     }
 }
 
-fn apply_table(encoder: &mut m2v_host::Encoder, table: &Option<Arc<Mutex<TableState>>>) {
+fn apply_table(encoder: &mut metal2vk::Encoder, table: &Option<Arc<Mutex<TableState>>>) {
     let Some(state) = table else { return };
     for (index, address) in state.lock().entries.iter().copied() {
         encoder.set_address(index, address).unwrap_or_else(|e| encode_failed("set_address", e));
     }
 }
 
-fn encode_failed(what: &str, error: m2v_host::Error) -> ! {
+fn encode_failed(what: &str, error: metal2vk::Error) -> ! {
     panic!("m2v-host: {what} failed: {error}")
 }
 
 pub(crate) fn encoder_for_slot(
-    slot: &Arc<Mutex<Option<m2v_host::CommandBuffer>>>,
+    slot: &Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
 ) -> Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>> {
     {
                                     let arc: Arc<ProtocolObject<dyn MTL4ComputeCommandEncoder>> =
@@ -681,17 +681,17 @@ pub(crate) fn encoder_for_slot(
 // ---------------------------------------------------------------------------
 
 pub(crate) fn queue_commit(
-    queue: &Arc<m2v_host::Queue>,
+    queue: &Arc<metal2vk::Queue>,
     command_buffers: &[&ProtocolObject<dyn MTL4CommandBuffer>],
     options: &MTL4CommitOptions,
 ) {
     let guards: Vec<_> = command_buffers.iter().map(|c| c.as_inner().host_slot().lock()).collect();
-    let refs: Vec<&m2v_host::CommandBuffer> = guards
+    let refs: Vec<&metal2vk::CommandBuffer> = guards
         .iter()
         .map(|guard| guard.as_ref().expect("m2v-host: committing a command buffer that is still encoding"))
         .collect();
     let handlers = options.handlers.lock().clone();
-    let on_complete: Option<Box<dyn FnOnce(m2v_host::Completion) + Send>> = if handlers.is_empty() {
+    let on_complete: Option<Box<dyn FnOnce(metal2vk::Completion) + Send>> = if handlers.is_empty() {
         None
     } else {
         Some(Box::new(move |completion| {
@@ -706,7 +706,7 @@ pub(crate) fn queue_commit(
 }
 
 pub struct FeedbackShim {
-    pub(crate) completion: m2v_host::Completion,
+    pub(crate) completion: metal2vk::Completion,
 }
 
 unsafe impl NSObjectProtocol for FeedbackShim {}
@@ -728,7 +728,7 @@ unsafe impl MTL4CommitFeedback for FeedbackShim {
 // ---------------------------------------------------------------------------
 
 pub struct CompilerShim {
-    pub(crate) dev: Arc<m2v_host::Device>,
+    pub(crate) dev: Arc<metal2vk::Device>,
 }
 
 unsafe impl NSObjectProtocol for CompilerShim {}
@@ -780,7 +780,7 @@ unsafe impl MTL4Compiler for CompilerShim {
 // ---------------------------------------------------------------------------
 
 pub struct CounterHeapShim {
-    pub(crate) pool: Arc<Mutex<m2v_host::TimestampPool>>,
+    pub(crate) pool: Arc<Mutex<metal2vk::TimestampPool>>,
     pub(crate) count: usize,
     pub(crate) r#type: MTL4CounterHeapType,
 }
@@ -794,7 +794,7 @@ unsafe impl MTL4CounterHeap for CounterHeapShim {
     fn r#type(&self) -> MTL4CounterHeapType {
         self.r#type
     }
-    fn pool_handle(&self) -> &Arc<Mutex<m2v_host::TimestampPool>> {
+    fn pool_handle(&self) -> &Arc<Mutex<metal2vk::TimestampPool>> {
         &self.pool
     }
 }
@@ -823,22 +823,22 @@ pub(crate) fn constant_value_bytes(value: NonNull<c_void>, ty: MTLDataType) -> V
 impl MTLFunctionConstantValues {
     /// Convert the recorded constants into host pipeline specializations, in
     /// constant-index order.
-    pub(crate) fn host_constants(&self) -> Vec<(u32, m2v_host::ConstantValue)> {
+    pub(crate) fn host_constants(&self) -> Vec<(u32, metal2vk::ConstantValue)> {
         let mut constants = self.constants.lock().clone();
         constants.sort_by_key(|c| c.index);
         constants
             .into_iter()
             .map(|c| {
                 let value = match c.ty {
-                    MTLDataType::Bool => m2v_host::ConstantValue::Bool(c.bytes[0] != 0),
+                    MTLDataType::Bool => metal2vk::ConstantValue::Bool(c.bytes[0] != 0),
                     MTLDataType::Float => {
-                        m2v_host::ConstantValue::F32(f32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
+                        metal2vk::ConstantValue::F32(f32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
                     },
                     MTLDataType::Int => {
-                        m2v_host::ConstantValue::I32(i32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
+                        metal2vk::ConstantValue::I32(i32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
                     },
                     MTLDataType::UInt => {
-                        m2v_host::ConstantValue::U32(u32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
+                        metal2vk::ConstantValue::U32(u32::from_le_bytes(c.bytes.as_slice().try_into().unwrap()))
                     },
                     other => panic!("unsupported function constant type {other:?}"),
                 };

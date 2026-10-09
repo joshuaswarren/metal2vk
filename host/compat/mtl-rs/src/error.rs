@@ -21,8 +21,8 @@ impl fmt::Display for MetalError {
 
 impl std::error::Error for MetalError {}
 
-impl From<m2v_host::Error> for MetalError {
-    fn from(error: m2v_host::Error) -> Self {
+impl From<metal2vk::Error> for MetalError {
+    fn from(error: metal2vk::Error) -> Self {
         Self::new(error.to_string())
     }
 }

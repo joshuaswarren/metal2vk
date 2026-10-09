@@ -13,6 +13,6 @@ path = "src/lib.rs"
 
 [dependencies]
 objc2 = { path = "../objc2" }
-m2v-host = { path = "../../m2v-host" }
+metal2vk = { package = "m2v-host", path = "../../m2v-host" }
 bitflags = "2"
 parking_lot = "0.12"

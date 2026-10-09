@@ -299,7 +299,7 @@ pub unsafe trait MTLBuffer: MTLAllocation {
 
     /// Shim-internal: the host buffer this wraps.
     #[doc(hidden)]
-    fn host_buffer(&self) -> &Arc<m2v_host::Buffer>;
+    fn host_buffer(&self) -> &Arc<metal2vk::Buffer>;
 }
 
 unsafe impl<P: MTLBuffer + ?Sized> MTLBuffer for ProtocolObject<P>{
@@ -312,7 +312,7 @@ unsafe impl<P: MTLBuffer + ?Sized> MTLBuffer for ProtocolObject<P>{
     fn gpu_address(&self) -> u64 {
         self.as_inner().gpu_address()
     }
-    fn host_buffer(&self) -> &Arc<m2v_host::Buffer> {
+    fn host_buffer(&self) -> &Arc<metal2vk::Buffer> {
         self.as_inner().host_buffer()
     }
 }
@@ -364,14 +364,14 @@ pub unsafe trait MTLLibrary: NSObjectProtocol + Send + Sync {
 
     /// Shim-internal: the host library.
     #[doc(hidden)]
-    fn host_library(&self) -> &Arc<m2v_host::Library>;
+    fn host_library(&self) -> &Arc<metal2vk::Library>;
 }
 
 unsafe impl<P: MTLLibrary + ?Sized> MTLLibrary for ProtocolObject<P>{
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         shim::default_device_handle()
     }
-    fn host_library(&self) -> &Arc<m2v_host::Library> {
+    fn host_library(&self) -> &Arc<metal2vk::Library> {
         self.as_inner().host_library()
     }
 }
@@ -382,14 +382,14 @@ pub unsafe trait MTLComputePipelineState: MTLAllocation {
 
     /// Shim-internal: the host pipeline.
     #[doc(hidden)]
-    fn host_pipeline(&self) -> &Arc<m2v_host::Pipeline>;
+    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline>;
 }
 
 unsafe impl<P: MTLComputePipelineState + ?Sized> MTLComputePipelineState for ProtocolObject<P>{
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         shim::default_device_handle()
     }
-    fn host_pipeline(&self) -> &Arc<m2v_host::Pipeline> {
+    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline> {
         self.as_inner().host_pipeline()
     }
 }
@@ -404,14 +404,14 @@ pub unsafe trait MTLEvent: NSObjectProtocol + Send + Sync {
 
     /// Shim-internal: the host timeline semaphore.
     #[doc(hidden)]
-    fn host_event(&self) -> &Arc<m2v_host::Event>;
+    fn host_event(&self) -> &Arc<metal2vk::Event>;
 }
 
 unsafe impl<P: MTLEvent + ?Sized> MTLEvent for ProtocolObject<P>{
     fn device(&self) -> Option<Retained<ProtocolObject<dyn MTLDevice>>> {
         Some(shim::default_device_handle())
     }
-    fn host_event(&self) -> &Arc<m2v_host::Event> {
+    fn host_event(&self) -> &Arc<metal2vk::Event> {
         self.as_inner().host_event()
     }
 }
@@ -471,7 +471,7 @@ pub unsafe trait MTL4CommandQueue: NSObjectProtocol + Send + Sync {
 
     /// Shim-internal: the host queue behind this handle.
     #[doc(hidden)]
-    fn shim_queue(&self) -> &Arc<m2v_host::Queue>;
+    fn shim_queue(&self) -> &Arc<metal2vk::Queue>;
 }
 
 unsafe impl<P: MTL4CommandQueue + ?Sized> MTL4CommandQueue for ProtocolObject<P>{
@@ -490,7 +490,7 @@ unsafe impl<P: MTL4CommandQueue + ?Sized> MTL4CommandQueue for ProtocolObject<P>
     fn remove_residency_set(&self, residency_set: &ProtocolObject<dyn MTLResidencySet>) {
         self.as_inner().remove_residency_set(residency_set)
     }
-    fn shim_queue(&self) -> &Arc<m2v_host::Queue> {
+    fn shim_queue(&self) -> &Arc<metal2vk::Queue> {
         self.as_inner().shim_queue()
     }
 }
@@ -545,7 +545,7 @@ pub unsafe trait MTL4CommandBuffer: NSObjectProtocol + Send + Sync {
     /// Shim-internal: the shared slot holding the host command buffer between
     /// encoding end and submit.
     #[doc(hidden)]
-    fn host_slot(&self) -> &Arc<Mutex<Option<m2v_host::CommandBuffer>>>;
+    fn host_slot(&self) -> &Arc<Mutex<Option<metal2vk::CommandBuffer>>>;
     /// Shim-internal: labels live on the shim (Ext dispatch path).
     #[doc(hidden)]
     fn shim_label(&self) -> Option<String>;
@@ -564,7 +564,7 @@ unsafe impl<P: MTL4CommandBuffer + ?Sized> MTL4CommandBuffer for ProtocolObject<
     fn compute_command_encoder(&self) -> Option<Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>>> {
         Some(shim::encoder_for_slot(self.as_inner().host_slot()))
     }
-    fn host_slot(&self) -> &Arc<Mutex<Option<m2v_host::CommandBuffer>>> {
+    fn host_slot(&self) -> &Arc<Mutex<Option<metal2vk::CommandBuffer>>> {
         self.as_inner().host_slot()
     }
     fn shim_label(&self) -> Option<String> {
@@ -617,7 +617,7 @@ unsafe impl<P: MTL4CommandAllocator + ?Sized> MTL4CommandAllocator for ProtocolO
 // ---------------------------------------------------------------------------
 
 /// `MTL4CommandEncoder` protocol. Every barrier form maps to one full
-/// compute/transfer memory barrier (`m2v_host::Encoder::barrier`).
+/// compute/transfer memory barrier (`metal2vk::Encoder::barrier`).
 pub unsafe trait MTL4CommandEncoder: NSObjectProtocol {
     fn barrier_after_queue_stages_before_stages_visibility_options(
         &self,
@@ -940,7 +940,7 @@ pub unsafe trait MTL4CounterHeap: NSObjectProtocol + Send + Sync {
 
     /// Shim-internal.
     #[doc(hidden)]
-    fn pool_handle(&self) -> &Arc<Mutex<m2v_host::TimestampPool>>;
+    fn pool_handle(&self) -> &Arc<Mutex<metal2vk::TimestampPool>>;
 }
 
 unsafe impl<P: MTL4CounterHeap + ?Sized> MTL4CounterHeap for ProtocolObject<P>{
@@ -950,7 +950,7 @@ unsafe impl<P: MTL4CounterHeap + ?Sized> MTL4CounterHeap for ProtocolObject<P>{
     fn r#type(&self) -> MTL4CounterHeapType {
         self.as_inner().r#type()
     }
-    fn pool_handle(&self) -> &Arc<Mutex<m2v_host::TimestampPool>> {
+    fn pool_handle(&self) -> &Arc<Mutex<metal2vk::TimestampPool>> {
         self.as_inner().pool_handle()
     }
 }
