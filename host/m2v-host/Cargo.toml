@@ -6,6 +6,7 @@ license = "MIT"
 description = "Metal-style device/queue/pipeline/dispatch layer over Vulkan 1.3, with a C ABI"
 
 [lib]
+name = "metal2vk"
 crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]

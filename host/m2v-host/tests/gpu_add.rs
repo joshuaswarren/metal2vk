@@ -2,7 +2,7 @@
 //! SKIP, exits 0) unless M2V_GPU=1 and M2V_LIB point at a lab host with the
 //! Vulkan driver; `cargo test` on the build CT takes the skip path.
 
-use m2v_host::{Device, Library};
+use metal2vk::{Device, Library};
 
 fn setup() -> Option<(
     std::sync::Arc<Device>,

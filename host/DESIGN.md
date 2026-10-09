@@ -25,7 +25,7 @@ host/uzu-linux.patch       the cfg-swap patch for a uzu checkout (Cargo.toml + b
 
 ## Core Rust API (m2v-host)  -- the contract between the core and the compat crate
 
-All handles are `Arc<...>`; errors are `m2v_host::Error` (Display = message, plus `VkResult` where relevant).
+All handles are `Arc<...>`; errors are `metal2vk::Error` (Display = message, plus `VkResult` where relevant).
 
 ```rust
 Device::new() -> Result<Arc<Device>>            // first Vulkan device with a compute queue; env M2V_DEVICE=<index>

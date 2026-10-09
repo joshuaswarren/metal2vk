@@ -1,7 +1,8 @@
 //! metal2vk host layer: a Metal-style device/queue/pipeline/dispatch model over Vulkan 1.3.
 //!
 //! Contract: see `host/DESIGN.md`. All handles are `Arc<...>`; errors are [`Error`].
-//! The same model is exposed to C through `m2v_host::capi` (see `include/metal2vk.h`).
+//! The same model is exposed to C through `metal2vk::capi` (see `include/metal2vk.h`);
+//! the cdylib/staticlib link name is `metal2vk` (`-lmetal2vk`).
 
 mod addrmap;
 pub mod capi;
