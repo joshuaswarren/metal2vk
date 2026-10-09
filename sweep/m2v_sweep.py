@@ -209,6 +209,43 @@ def norm_decls(text):
     return VEC_DECL.sub(lambda m: f"m2v_V_{m.group(1)}{m.group(2)}{m.group(3)}({m.group(4)}", text)
 
 
+CONST_MEMBER_DECL = re.compile(r"\bstatic\s+const\s+constant\s+(\w+)\s+(\w+)\s*;")
+IDENTITY_DECL = re.compile(r"\bstatic\s+constant\s+constexpr\s+(\w+)\s+identity\s*=\s*(.*?);", re.S)
+OP_IDENTITY = re.compile(r"\bOp::identity\b(?!\s*\()")
+SHARED_OPERAND = re.compile(r"\? shared\[")
+
+
+def uzu_compat(text):
+    """Accommodate Metal spellings that C++ for OpenCL rejects outright (uzu sources are fixed):
+    - a static constant class member declared without an initializer and defined constexpr at namespace scope
+      (Logit::LOWEST): OpenCL requires constant-address-space variables to be initialized at the declaration, and the
+      in-class declaration of a self-typed member cannot carry one; emitting the value as initialized data also leaves
+      a StorageBuffer initializer that spirv-val rejects. Turn the pair into a constexpr static member function: every
+      read becomes a compile-time immediate and nothing is stored.
+    - constexpr identity members of the reduce helpers (`static constant constexpr T identity = ...`, including
+      SimdReduceMaxLogit::identity = Logit::LOWEST): a constant-address-space class object cannot be initialized or
+      copied through the implicitly generated, unqualified constructors, and a constant-qualified class lvalue cannot
+      be cast to a plain rvalue either. Turn the definitions into constexpr static member functions returning the
+      initializer expression; the values still fold to immediates.
+    - the reduce ternary `? shared[i] : Op::identity()` for class-element types: class operands in different address
+      spaces have no composite type in C++ for OpenCL (builtins take the lvalue-to-rvalue path). Cast the threadgroup
+      operand to a plain value_type rvalue; for builtin elements that is the conversion the conditional already made.
+    (The softmax sink-seed conditional and construction through aliases of builtin vector types, accommodated here in
+    an earlier round, compile as-is on current main and are no longer rewritten.)"""
+    m = CONST_MEMBER_DECL.search(text)
+    if m:
+        typ, name = m.group(1), m.group(2)
+        defm = re.search(r"constexpr\s+constant\s+%s\s+%s::%s\s*\{(.*?)\};" % (typ, typ, name), text, re.S)
+        if defm:
+            text = text.replace(m.group(0), "static constexpr %s %s();" % (typ, name), 1)
+            text = text.replace(defm.group(0), "constexpr %s %s::%s() { return {%s}; }" % (typ, typ, name, defm.group(1)), 1)
+            text = re.sub(r"\b%s::%s\b(?!\s*\()" % (typ, name), "%s::%s()" % (typ, name), text)
+    text = IDENTITY_DECL.sub(lambda m: "static constexpr %s identity() { return %s; }" % (m.group(1), m.group(2)), text)
+    text = OP_IDENTITY.sub("Op::identity()", text)
+    text = SHARED_OPERAND.sub("? (typename Op::value_type)shared[", text)
+    return text
+
+
 def split_decl(decl):
     """'const device T* input' -> (type, name, dims)."""
     m = re.match(r"^(.*?)(\w+)\s*((?:\[[^\]]*\]\s*)*)$", decl.strip(), re.S)
@@ -1399,7 +1436,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     pre += "".join(HOST_SYMBOL_TEXT[g] for g in syms)
     if mentions_mpp(src_path, include_dirs):
         pre += '#include "MetalPerformancePrimitives/MetalPerformancePrimitives.h"\n'
-    cl.write_text(pre + VEC_ALIASES + norm_decls(strip_annotate(src)) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
+    cl.write_text(pre + VEC_ALIASES + uzu_compat(norm_decls(strip_annotate(src))) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
     ll = d / "ll" / (tag + ".ll")
     ll.parent.mkdir(parents=True, exist_ok=True)
     cmd = [CLANG, "--target=spir", "-x", "cl", "-cl-std=clc++2021", "-Xclang", "-finclude-default-header",
