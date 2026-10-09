@@ -111,15 +111,30 @@ for case in cases:
                 tpc, tpr = (M + bm - 1) // bm, (N + bn - 1) // bn
                 params = struct.pack("<13I?3xf", M, N, K, K, K, 0, 0, 0, 0, N, tpc, tpr, K // bk, False, 1.0)
                 dummy = np.zeros(4, np.uint32)
-                bufs = [w("gm_a.bin", A), w("gm_b.bin", B), w("gm_c.bin", np.zeros((M, N), np.float32))]
-                bufs += [w(f"gm_dummy{i}.bin", dummy) for i in range(8)]  # scales, biases, zero_points, output_bias, rht, a_int8, a_scales, a_group_sums
-                bufs += [w("gm_params.bin", np.frombuffer(params.ljust(64, b"\0"), np.uint8)), w("gm_counts.bin", np.array([tpr, tpc, 1], np.uint32))]
-                # scalar arguments after the buffers: transform_bits, alignment_bits (clspv push constants after the 16 byte offsets block)
-                align = 0
-                push = struct.pack("<4I", 0, 0, 0, 0) + struct.pack("<2I", 0, align)
+                refl = json.load(open(os.path.join(spvdir, "gemm.json")))
+                kern = next(k for k in refl["kernels"] if k["name"] == entry)
+                # argument ordinals of Gemm: 0 a, 1 b, 2 d, 3 scales, 4 biases, 5 zero_points, 6 output_bias, 7 rht_factors, 8 a_int8,
+                # 9 a_scales, 10 a_group_sums, 11 params, 12 counts, 13 transform_bits, 14 alignment_bits
+                files = {0: w("gm_a.bin", A), 1: w("gm_b.bin", B), 2: w("gm_c.bin", np.zeros((M, N), np.float32)),
+                         11: w("gm_params.bin", np.frombuffer(params.ljust(64, b"\0"), np.uint8)),
+                         12: w("gm_counts.bin", np.array([tpr, tpc, 1], np.uint32))}
+                binds = sorted((a for a in kern["args"] if a["kind"] in ("storage_buffer", "uniform_buffer")), key=lambda a: a["binding"])
+                bufs = [files.get(a["ordinal"]) or w(f"gm_dummy{a['ordinal']}.bin", dummy) for a in binds]
+                c_index = next(i for i, a in enumerate(binds) if a["ordinal"] == 2)
+                pods = {13: 0, 14: 0}  # transform_bits, alignment_bits
+                regions = refl.get("push_constant_regions", {})
+                size = max([r["offset"] + r["size"] for r in regions.values()] + [a["offset"] + a["size"] for a in kern["args"] if a["kind"] == "pod_push_constant"])
+                push_buf = bytearray(size)
+                if "PushConstantNumWorkgroups" in regions:
+                    o = regions["PushConstantNumWorkgroups"]["offset"]
+                    push_buf[o:o + 12] = struct.pack("<3I", tpr, tpc, 1)
+                for a in kern["args"]:
+                    if a["kind"] == "pod_push_constant":
+                        push_buf[a["offset"]:a["offset"] + 4] = struct.pack("<I", pods[a["ordinal"]])
+                push = bytes(push_buf)
                 grid = (tpr, tpc, 1)
                 t, info = timed(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push)
-                run(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push, 1, dump=f"2:{os.path.join(out, 'gm_res.bin')}")
+                run(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push, 1, dump=f"{c_index}:{os.path.join(out, 'gm_res.bin')}")
                 got = np.fromfile(os.path.join(out, "gm_res.bin"), np.float32).reshape(M, N).astype(np.float64)
                 ref = A.astype(np.float64) @ B.astype(np.float64).T
                 err = float(np.max(np.abs(got - ref)) / (np.max(np.abs(ref)) + 1e-9))

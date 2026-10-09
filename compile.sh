@@ -47,4 +47,6 @@ for c in $CASES; do
   "$CLSPV" -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 "$OUT/$c.ll" -o "$OUT/$c.spv" 2>&1 \
     | grep -v "^warning: \(overriding the module target\|Linking two modules\)" | grep -v "^$" | head -"${LINES_MAX:-20}"
   [ -s "$OUT/$c.spv" ] && spirv-val --target-env vulkan1.3 "$OUT/$c.spv" 2>&1 | head -5 && echo "spirv-val rc=$? size=$(stat -c %s "$OUT/$c.spv")"
+  # clspv drops unused arguments, so bindings and push offsets differ per module: write the reflection next to the module
+  [ -s "$OUT/$c.spv" ] && python3 "$H/m2v-reflect.py" "$OUT/$c.spv" > "$OUT/$c.json" 2> /dev/null
 done
