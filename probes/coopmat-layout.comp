@@ -1,0 +1,27 @@
+#version 460
+#extension GL_KHR_cooperative_matrix : require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_KHR_shader_subgroup_basic : require
+// Layout probe: element i of lane L is stored with value L*16+i; the stored matrix then shows which (row, col) it
+// occupies. Compare with Apple's simdgroup_matrix lane map used by uzu's SimdgroupMMA::get_lane_coordinates.
+layout(local_size_x = 32) in;
+layout(set = 0, binding = 0) buffer Acc { float acc[]; };
+layout(set = 0, binding = 1) buffer UseA { float usea[]; };
+layout(set = 0, binding = 2) buffer UseB { float useb[]; };
+
+void main() {
+  coopmat<float, gl_ScopeSubgroup, 8, 8, gl_MatrixUseAccumulator> c;
+  for (uint i = 0; i < c.length(); ++i) c[i] = float(gl_SubgroupInvocationID * 16 + i);
+  coopMatStore(c, acc, 0, 8, gl_CooperativeMatrixLayoutRowMajor);
+  coopmat<float, gl_ScopeSubgroup, 8, 8, gl_MatrixUseA> a;
+  for (uint i = 0; i < a.length(); ++i) a[i] = float(gl_SubgroupInvocationID * 16 + i);
+  coopMatStore(a, usea, 0, 8, gl_CooperativeMatrixLayoutRowMajor);
+  coopmat<float, gl_ScopeSubgroup, 8, 8, gl_MatrixUseB> b;
+  for (uint i = 0; i < b.length(); ++i) b[i] = float(gl_SubgroupInvocationID * 16 + i);
+  coopMatStore(b, useb, 0, 8, gl_CooperativeMatrixLayoutRowMajor);
+  if (gl_SubgroupInvocationID == 0) {
+    acc[64] = float(c.length());
+    usea[64] = float(a.length());
+    useb[64] = float(b.length());
+  }
+}

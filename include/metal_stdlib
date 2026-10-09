@@ -1,0 +1,261 @@
+// metal_stdlib shim: lets Metal Shading Language compute kernels compile as C++ for OpenCL, for clspv (Vulkan SPIR-V).
+//  - address spaces device/threadgroup/constant/thread map to OpenCL's __global/__local/__constant/__private
+//  - simd_* map to sub_group_* (subgroup size 32, the Apple GPU simdgroup width)
+//  - simdgroup_matrix<T,8,8> has Apple's per-lane layout (2 elements per lane); simdgroup_multiply_accumulate is lowered
+//    by the patched clspv to VK_KHR_cooperative_matrix (same layout on Honeykrisp), or emulated with shuffles when
+//    M2V_NO_COOPMAT is defined.
+#pragma once
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
+
+#define device __global
+#define threadgroup __local
+#define constant __constant
+// `thread` expands to nothing: with the generic address space disabled (-cl-ext=-__opencl_c_generic_address_space) an
+// unqualified object, pointer or `this` is private, which is what Metal's `thread` means; an explicit __private on a
+// constructor or method makes it unusable for unqualified temporaries.
+#define thread
+#define METAL_FUNC inline __attribute__((always_inline))
+#ifndef FLT_MAX
+#define FLT_MAX 3.402823466e+38f
+#endif
+#define M2V_SUBGROUP 32
+
+typedef char int8_t;
+typedef unsigned char uint8_t;
+typedef short int16_t;
+typedef unsigned short uint16_t;
+typedef int int32_t;
+typedef unsigned int uint32_t;
+typedef long int64_t;
+typedef unsigned long uint64_t;
+
+namespace metal {
+
+// ---- type traits (the subset Metal's stdlib exposes and uzu uses) ----
+template <typename T, T v> struct integral_constant {
+  static constexpr T value = v;
+  using value_type = T;
+  constexpr operator T() const { return v; }
+};
+template <bool B> using bool_constant = integral_constant<bool, B>;
+using true_type = bool_constant<true>;
+using false_type = bool_constant<false>;
+template <typename A, typename B> struct is_same : false_type {};
+template <typename A> struct is_same<A, A> : true_type {};
+template <typename A, typename B> constexpr bool is_same_v = is_same<A, B>::value;
+template <bool C, typename T = void> struct enable_if {};
+template <typename T> struct enable_if<true, T> { using type = T; };
+template <bool C, typename T = void> using enable_if_t = typename enable_if<C, T>::type;
+template <bool C, typename A, typename B> struct conditional { using type = A; };
+template <typename A, typename B> struct conditional<false, A, B> { using type = B; };
+template <bool C, typename A, typename B> using conditional_t = typename conditional<C, A, B>::type;
+template <typename T> struct remove_reference { using type = T; };
+template <typename T> struct remove_reference<T&> { using type = T; };
+template <typename T> struct remove_reference<T&&> { using type = T; };
+template <typename T> using remove_reference_t = typename remove_reference<T>::type;
+template <typename T> struct remove_const { using type = T; };
+template <typename T> struct remove_const<const T> { using type = T; };
+template <typename T> using remove_const_t = typename remove_const<T>::type;
+template <typename T> struct remove_cv { using type = T; };
+template <typename T> struct remove_cv<const T> { using type = T; };
+template <typename T> struct remove_cv<volatile T> { using type = T; };
+template <typename T> using remove_cv_t = typename remove_cv<T>::type;
+template <typename T> struct is_integral : bool_constant<__is_integral(T)> {};
+template <typename T> struct is_floating_point : bool_constant<__is_floating_point(T)> {};
+template <typename T> struct is_signed : bool_constant<(T(-1) < T(0))> {};
+template <typename T> struct is_unsigned : bool_constant<!(T(-1) < T(0))> {};
+template <typename T> constexpr bool is_integral_v = is_integral<T>::value;
+template <typename T> constexpr bool is_floating_point_v = is_floating_point<T>::value;
+template <typename T> constexpr bool is_signed_v = is_signed<T>::value;
+template <typename T> constexpr bool is_unsigned_v = is_unsigned<T>::value;
+template <typename T, T... Is> struct integer_sequence { using value_type = T; };
+template <typename T, T N> using make_integer_sequence = __make_integer_seq<integer_sequence, T, N>;
+template <size_t... Is> using index_sequence = integer_sequence<size_t, Is...>;
+template <size_t N> using make_index_sequence = make_integer_sequence<size_t, N>;
+
+template <typename T> struct numeric_limits;
+#define M2V_LIMITS(T, MAXV, MINV, LOWV)                                                                                \
+  template <> struct numeric_limits<T> {                                                                               \
+    static constexpr T max() { return MAXV; }                                                                          \
+    static constexpr T min() { return MINV; }                                                                          \
+    static constexpr T lowest() { return LOWV; }                                                                       \
+  };
+M2V_LIMITS(half, (half)65504.0f, (half)6.103515625e-05f, (half)-65504.0f)
+M2V_LIMITS(int, 2147483647, -2147483647 - 1, -2147483647 - 1)
+M2V_LIMITS(unsigned int, 4294967295u, 0u, 0u)
+M2V_LIMITS(short, 32767, -32768, -32768)
+M2V_LIMITS(unsigned short, 65535, 0, 0)
+M2V_LIMITS(char, 127, -128, -128)
+M2V_LIMITS(unsigned char, 255, 0, 0)
+M2V_LIMITS(long, 9223372036854775807l, (-9223372036854775807l - 1), (-9223372036854775807l - 1))
+M2V_LIMITS(unsigned long, 18446744073709551615ul, 0ul, 0ul)
+template <> struct numeric_limits<float> {
+  static constexpr float max() { return 3.402823466e+38f; }
+  static constexpr float min() { return 1.175494351e-38f; }
+  static constexpr float lowest() { return -3.402823466e+38f; }
+  static constexpr float infinity() { return __builtin_inff(); }
+  static constexpr float quiet_NaN() { return __builtin_nanf(""); }
+  static constexpr float epsilon() { return 1.1920929e-07f; }
+};
+
+// ---- vectors: native ext_vector for arithmetic element types, a plain struct otherwise (bfloat) ----
+template <typename T, int N, bool Native = __is_arithmetic(T)> struct vec_sel { using type = T __attribute__((ext_vector_type(N))); };
+template <typename T, int N> struct vec_sel<T, N, false> {
+  struct type {
+    T v[N];
+    METAL_FUNC T& operator[](int i) { return v[i]; }
+    METAL_FUNC const T& operator[](int i) const { return v[i]; }
+  };
+};
+template <typename T, int N> using vec = typename vec_sel<T, N>::type;
+template <typename T, int N> using packed_vec = vec<T, N>;
+typedef vec<short, 2> bool2;
+typedef vec<short, 3> bool3;
+typedef vec<short, 4> bool4;
+typedef vec<char, 4> packed_char4;
+typedef vec<unsigned char, 4> packed_uchar4;
+typedef vec<short, 4> packed_short4;
+typedef vec<int, 4> packed_int4;
+typedef vec<uint, 4> packed_uint4;
+typedef vec<float, 2> packed_float2;
+typedef vec<float, 4> packed_float4;
+typedef vec<half, 2> packed_half2;
+typedef vec<half, 4> packed_half4;
+
+// ---- bfloat16 as a storage type with exact widening, round-to-nearest-even narrowing ----
+struct bfloat {
+  ushort bits;
+  METAL_FUNC bfloat() : bits(0) {}
+  METAL_FUNC bfloat(float f) {
+    const uint u = as_uint(f);
+    bits = (ushort)((u + 0x7fffu + ((u >> 16) & 1u)) >> 16);
+  }
+  template <typename U> METAL_FUNC bfloat(U v) : bfloat((float)v) {}
+  METAL_FUNC operator float() const { return as_float((uint)bits << 16); }
+};
+
+template <typename T, typename U> METAL_FUNC T as_type(U u) { return __builtin_bit_cast(T, u); }
+
+enum mem_flags { mem_none = 0, mem_device = 1, mem_threadgroup = 2, mem_threadgroup_imageblock = 4 };
+METAL_FUNC void threadgroup_barrier(mem_flags f) { barrier((f & mem_device) ? CLK_GLOBAL_MEM_FENCE : CLK_LOCAL_MEM_FENCE); }
+METAL_FUNC void simdgroup_barrier(mem_flags) { sub_group_barrier(CLK_LOCAL_MEM_FENCE); }
+
+// ---- scalar math ----
+template <typename T> METAL_FUNC T abs(T x) { return x < T(0) ? -x : x; }
+template <> METAL_FUNC float abs<float>(float x) { return fabs(x); }
+template <typename T> METAL_FUNC T fma(T a, T b, T c) { return ::fma(a, b, c); }
+template <typename T> METAL_FUNC T copysign(T a, T b) { return ::copysign(a, b); }
+template <typename T> METAL_FUNC T max(T a, T b) { return a > b ? a : b; }
+template <typename T> METAL_FUNC T min(T a, T b) { return a < b ? a : b; }
+template <typename T> METAL_FUNC T clamp(T x, T lo, T hi) { return x < lo ? lo : (x > hi ? hi : x); }
+template <typename V> METAL_FUNC auto dot(V a, V b) { return ::dot(a, b); }
+#define M2V_MATH1(N) template <typename T> METAL_FUNC T N(T x) { return ::N(x); }
+M2V_MATH1(exp) M2V_MATH1(exp2) M2V_MATH1(log) M2V_MATH1(log2) M2V_MATH1(sqrt) M2V_MATH1(rsqrt) M2V_MATH1(tanh)
+M2V_MATH1(sin) M2V_MATH1(cos) M2V_MATH1(floor) M2V_MATH1(ceil) M2V_MATH1(round) M2V_MATH1(trunc) M2V_MATH1(fabs)
+template <typename T> METAL_FUNC T pow(T x, T y) { return ::pow(x, y); }
+template <typename T> METAL_FUNC bool isnan(T x) { return ::isnan(x); }
+template <typename T> METAL_FUNC bool isinf(T x) { return ::isinf(x); }
+
+namespace fast {
+METAL_FUNC float exp(float x) { return native_exp(x); }
+METAL_FUNC float exp2(float x) { return native_exp2(x); }
+METAL_FUNC float log(float x) { return native_log(x); }
+METAL_FUNC float log2(float x) { return native_log2(x); }
+METAL_FUNC float sqrt(float x) { return native_sqrt(x); }
+METAL_FUNC float rsqrt(float x) { return native_rsqrt(x); }
+METAL_FUNC float tanh(float x) { return ::tanh(x); }
+METAL_FUNC float sin(float x) { return native_sin(x); }
+METAL_FUNC float cos(float x) { return native_cos(x); }
+METAL_FUNC float pow(float x, float y) { return ::pow(x, y); }
+} // namespace fast
+namespace precise {
+METAL_FUNC float exp(float x) { return ::exp(x); }
+METAL_FUNC float log(float x) { return ::log(x); }
+METAL_FUNC float sqrt(float x) { return ::sqrt(x); }
+METAL_FUNC float rsqrt(float x) { return ::rsqrt(x); }
+METAL_FUNC float tanh(float x) { return ::tanh(x); }
+METAL_FUNC float pow(float x, float y) { return ::pow(x, y); }
+} // namespace precise
+
+// ---- simdgroup (subgroup) operations ----
+METAL_FUNC float simd_sum(float x) { return sub_group_reduce_add(x); }
+METAL_FUNC float simd_max(float x) { return sub_group_reduce_max(x); }
+METAL_FUNC float simd_min(float x) { return sub_group_reduce_min(x); }
+METAL_FUNC int simd_sum(int x) { return sub_group_reduce_add(x); }
+METAL_FUNC uint simd_sum(uint x) { return sub_group_reduce_add(x); }
+METAL_FUNC int simd_max(int x) { return sub_group_reduce_max(x); }
+METAL_FUNC uint simd_max(uint x) { return sub_group_reduce_max(x); }
+METAL_FUNC float simd_prefix_inclusive_sum(float x) { return sub_group_scan_inclusive_add(x); }
+METAL_FUNC float simd_prefix_exclusive_sum(float x) { return sub_group_scan_exclusive_add(x); }
+METAL_FUNC uint simd_prefix_inclusive_sum(uint x) { return sub_group_scan_inclusive_add(x); }
+METAL_FUNC uint simd_prefix_exclusive_sum(uint x) { return sub_group_scan_exclusive_add(x); }
+// shuffles on scalars use the subgroup builtins; vector types go element by element
+#define M2V_SHUF(NAME, BUILTIN, ARG)                                                                                   \
+  template <typename T> METAL_FUNC enable_if_t<__is_arithmetic(T), T> NAME(T x, ushort a) { return BUILTIN(x, (uint)a); } \
+  template <typename E, int N> METAL_FUNC E __attribute__((ext_vector_type(N))) NAME(E __attribute__((ext_vector_type(N))) x, ushort a) { \
+    E __attribute__((ext_vector_type(N))) r;                                                                           \
+    for (int i = 0; i < N; i++) r[i] = BUILTIN(x[i], (uint)a);                                                         \
+    return r;                                                                                                          \
+  }
+M2V_SHUF(simd_shuffle, sub_group_shuffle, lane)
+M2V_SHUF(simd_shuffle_xor, sub_group_shuffle_xor, mask)
+M2V_SHUF(simd_shuffle_down, sub_group_shuffle_down, delta)
+M2V_SHUF(simd_shuffle_up, sub_group_shuffle_up, delta)
+M2V_SHUF(simd_broadcast, sub_group_broadcast, lane)
+template <typename T> METAL_FUNC T simd_broadcast_first(T x) { return simd_broadcast(x, (ushort)0); }
+
+// ---- simdgroup_matrix<T, 8, 8>, Apple fragment layout: lane -> (row, col0, col0 + 1), two elements per lane ----
+METAL_FUNC int m2v_row(uint lane) { return (int)(((lane >> 4) & 1) * 4 + ((lane >> 1) & 3)); }
+METAL_FUNC int m2v_col(uint lane) { return (int)(((lane >> 3) & 1) * 4 + (lane & 1) * 2); }
+METAL_FUNC uint m2v_lane_of(int r, int c0) {
+  return (uint)(((c0 >> 1) & 1) | ((r & 3) << 1) | (((c0 >> 2) & 1) << 3) | (((r >> 2) & 1) << 4));
+}
+
+template <typename T, int R, int C> struct simdgroup_matrix {
+  vec<T, 2> el;
+  METAL_FUNC __private vec<T, 2>& thread_elements() __private { return el; }
+};
+
+#ifdef M2V_NO_COOPMAT
+// Portable fallback: D = A * B + C with subgroup shuffles in the Apple fragment layout (any 32-wide subgroup device).
+template <typename TD, typename TA, typename TB, typename TC>
+METAL_FUNC void simdgroup_multiply_accumulate(
+    simdgroup_matrix<TD, 8, 8>& D, simdgroup_matrix<TA, 8, 8>& A, simdgroup_matrix<TB, 8, 8>& B,
+    simdgroup_matrix<TC, 8, 8>& Cm) {
+  const uint lane = get_sub_group_local_id();
+  const int row = m2v_row(lane);
+  const int col = m2v_col(lane);
+  float acc0 = (float)Cm.el[0];
+  float acc1 = (float)Cm.el[1];
+  for (int k = 0; k < 8; k++) {
+    const float a = sub_group_shuffle((float)A.el[k & 1], m2v_lane_of(row, k & ~1));
+    const uint src_b = m2v_lane_of(k, col);
+    const float b0 = sub_group_shuffle((float)B.el[0], src_b);
+    const float b1 = sub_group_shuffle((float)B.el[1], src_b);
+    acc0 = ::fma(a, b0, acc0);
+    acc1 = ::fma(a, b1, acc1);
+  }
+  D.el[0] = (TD)acc0;
+  D.el[1] = (TD)acc1;
+}
+#else
+} // namespace metal
+// Lowered by the patched clspv (clspv-patches/apply-coopmat-lowering.py) to OpCooperativeMatrixMulAddKHR. Honeykrisp's 8x8
+// coopmat fragment layout equals Apple's simdgroup_matrix layout (probes/layout-run.py), so two elements per lane map 1:1.
+extern "C" float2 m2v_mma_f32(float2 a, float2 b, float2 c) __attribute__((convergent, const));
+namespace metal {
+template <typename TD, typename TA, typename TB, typename TC>
+METAL_FUNC void simdgroup_multiply_accumulate(
+    simdgroup_matrix<TD, 8, 8>& D, simdgroup_matrix<TA, 8, 8>& A, simdgroup_matrix<TB, 8, 8>& B,
+    simdgroup_matrix<TC, 8, 8>& Cm) {
+  const float2 r = m2v_mma_f32(float2{(float)A.el[0], (float)A.el[1]}, float2{(float)B.el[0], (float)B.el[1]},
+                               float2{(float)Cm.el[0], (float)Cm.el[1]});
+  D.el[0] = (TD)r.x;
+  D.el[1] = (TD)r.y;
+}
+#endif
+
+} // namespace metal
+
+using namespace metal;
+#include "m2v_vec_ctors.h"
