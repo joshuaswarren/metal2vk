@@ -96,6 +96,8 @@ template <> struct numeric_limits<float> {
   static constexpr float infinity() { return __builtin_inff(); }
   static constexpr float quiet_NaN() { return __builtin_nanf(""); }
   static constexpr float epsilon() { return 1.1920929e-07f; }
+  static constexpr bool has_infinity = true;
+  static constexpr bool has_quiet_NaN = true;
 };
 
 // ---- vectors: native ext_vector for arithmetic element types, a plain struct otherwise (bfloat) ----
@@ -103,6 +105,10 @@ template <typename T, int N, bool Native = __is_arithmetic(T)> struct vec_sel { 
 template <typename T, int N> struct vec_sel<T, N, false> {
   struct type {
     T v[N];
+    static constexpr int m2v_n = N;
+    METAL_FUNC type() = default;
+    METAL_FUNC type(T s) { for (int i = 0; i < N; i++) v[i] = s; }
+    template <typename E, typename = decltype(E{}[0])> METAL_FUNC type(E x) { for (int i = 0; i < N; i++) v[i] = T(x[i]); }
     METAL_FUNC T& operator[](int i) { return v[i]; }
     METAL_FUNC const T& operator[](int i) const { return v[i]; }
   };
@@ -125,13 +131,14 @@ typedef vec<half, 4> packed_half4;
 // ---- bfloat16 as a storage type with exact widening, round-to-nearest-even narrowing ----
 struct bfloat {
   ushort bits;
-  METAL_FUNC bfloat() : bits(0) {}
+  METAL_FUNC bfloat() = default;
   METAL_FUNC bfloat(float f) {
     const uint u = as_uint(f);
     bits = (ushort)((u + 0x7fffu + ((u >> 16) & 1u)) >> 16);
   }
   template <typename U> METAL_FUNC bfloat(U v) : bfloat((float)v) {}
   METAL_FUNC operator float() const { return as_float((uint)bits << 16); }
+  METAL_FUNC operator float() const __constant { return as_float((uint)bits << 16); }
 };
 
 template <typename T, typename U> METAL_FUNC T as_type(U u) { return __builtin_bit_cast(T, u); }
@@ -192,15 +199,13 @@ METAL_FUNC uint simd_prefix_exclusive_sum(uint x) { return sub_group_scan_exclus
 // shuffles on scalars use the subgroup builtins; vector types go element by element
 #define M2V_SHUF(NAME, BUILTIN, ARG)                                                                                   \
   template <typename T> METAL_FUNC enable_if_t<__is_arithmetic(T), T> NAME(T x, ushort a) { return BUILTIN(x, (uint)a); } \
-  template <typename E, int N> METAL_FUNC E __attribute__((ext_vector_type(N))) NAME(E __attribute__((ext_vector_type(N))) x, ushort a) { \
-    E __attribute__((ext_vector_type(N))) r;                                                                           \
-    for (int i = 0; i < N; i++) r[i] = BUILTIN(x[i], (uint)a);                                                         \
+  template <typename V> METAL_FUNC enable_if_t<!__is_arithmetic(V), V> NAME(V x, ushort a) {                                \
+    V r;                                                                                                               \
+    for (int i = 0; i < (int)__builtin_vectorelements(V); i++) r[i] = BUILTIN(x[i], (uint)a);                          \
     return r;                                                                                                          \
   }
 M2V_SHUF(simd_shuffle, sub_group_shuffle, lane)
 M2V_SHUF(simd_shuffle_xor, sub_group_shuffle_xor, mask)
-M2V_SHUF(simd_shuffle_down, sub_group_shuffle_down, delta)
-M2V_SHUF(simd_shuffle_up, sub_group_shuffle_up, delta)
 M2V_SHUF(simd_broadcast, sub_group_broadcast, lane)
 template <typename T> METAL_FUNC T simd_broadcast_first(T x) { return simd_broadcast(x, (ushort)0); }
 
@@ -213,6 +218,14 @@ METAL_FUNC uint m2v_lane_of(int r, int c0) {
 
 template <typename T, int R, int C> struct simdgroup_matrix {
   vec<T, 2> el;
+  METAL_FUNC simdgroup_matrix() = default;
+  // Metal: simdgroup_matrix(value) is the diagonal matrix value * I.
+  METAL_FUNC simdgroup_matrix(T v) {
+    const uint lane = get_sub_group_local_id();
+    const int r = m2v_row(lane), c = m2v_col(lane);
+    el[0] = r == c ? v : T(0);
+    el[1] = r == c + 1 ? v : T(0);
+  }
   METAL_FUNC __private vec<T, 2>& thread_elements() __private { return el; }
 };
 
@@ -259,3 +272,4 @@ METAL_FUNC void simdgroup_multiply_accumulate(
 
 using namespace metal;
 #include "m2v_vec_ctors.h"
+#include "m2v_extra.h"
