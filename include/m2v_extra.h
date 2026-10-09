@@ -135,12 +135,15 @@ M2V_FAST_VEC(cos, native_cos)
   METAL_FUNC bfloat operator[](int i) const { bfloat r; r.bits = (&x)[i]; return r; }                                  \
   struct ref {                                                                                                         \
     ushort* slot;                                                                                                      \
-    METAL_FUNC operator bfloat() const { bfloat r; r.bits = *slot; return r; }                                         \
-    METAL_FUNC operator float() const { return as_float((uint)*slot << 16); }                                          \
-    METAL_FUNC ref& operator=(bfloat b) { *slot = b.bits; return *this; }                                              \
-    METAL_FUNC ref& operator=(float f) { bfloat b(f); *slot = b.bits; return *this; }                                  \
+    ushort bits;                                                                                                       \
+    METAL_FUNC ref(ushort* s, ushort b) : slot(s), bits(b) {}                                                          \
+    METAL_FUNC ref(float f) : slot(nullptr), bits(bfloat(f).bits) {}                                                   \
+    METAL_FUNC operator bfloat() const { bfloat r; r.bits = slot ? *slot : bits; return r; }                           \
+    METAL_FUNC operator float() const { return as_float((uint)(slot ? *slot : bits) << 16); }                          \
+    METAL_FUNC ref& operator=(bfloat b) { if (slot) *slot = b.bits; else bits = b.bits; return *this; }                \
+    METAL_FUNC ref& operator=(float f) { return *this = bfloat(f); }                                                   \
   };                                                                                                                   \
-  METAL_FUNC ref operator[](int i) { return ref{&x + i}; }                                                             \
+  METAL_FUNC ref operator[](int i) { return ref{&x + i, 0}; }                                                             \
   template <typename E> METAL_FUNC NAME(E v) { for (int i = 0; i < N; i++) (&x)[i] = bfloat((float)v[i]).bits; }
 struct bfloat2 { ushort x, y;
   M2V_BFVEC_COMMON(bfloat2, 2)

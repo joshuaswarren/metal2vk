@@ -158,14 +158,19 @@ template <int N> struct vec_sel<bfloat, N, false> {
       for (int i = 0; i < N; i++) v[i] = bfloat((float)x[i]).bits;
     }
     METAL_FUNC bfloat operator[](int i) const { bfloat r; r.bits = v[i]; return r; }
+    // A ref constructed from a float carries the round-to-nearest-even value instead of referencing storage, so
+    // templates whose T is deduced from a non const operator[] call can return static_cast<T>(float).
     struct ref {
-      ushort& slot;
-      METAL_FUNC operator bfloat() const { bfloat r; r.bits = slot; return r; }
-      METAL_FUNC operator float() const { return as_float((uint)slot << 16); }
-      METAL_FUNC ref& operator=(bfloat b) { slot = b.bits; return *this; }
+      ushort* slot;
+      ushort bits;
+      METAL_FUNC ref(ushort* s, ushort b) : slot(s), bits(b) {}
+      METAL_FUNC ref(float f) : slot(nullptr), bits(bfloat(f).bits) {}
+      METAL_FUNC operator bfloat() const { bfloat r; r.bits = slot ? *slot : bits; return r; }
+      METAL_FUNC operator float() const { return as_float((uint)(slot ? *slot : bits) << 16); }
+      METAL_FUNC ref& operator=(bfloat b) { if (slot) *slot = b.bits; else bits = b.bits; return *this; }
       METAL_FUNC ref& operator=(float f) { return *this = bfloat(f); }
     };
-    METAL_FUNC ref operator[](int i) { return ref{v[i]}; }
+    METAL_FUNC ref operator[](int i) { return ref{&v[i], 0}; }
   };
 };
 
