@@ -112,7 +112,10 @@ METAL_FUNC void m2v_home(int lane, int& x, int& y) {
 METAL_FUNC void m2v_loc(int i, int lane, int band_w, int rows_per_band, int& r, int& c) {
   int x, y;
   m2v_home(lane, x, y);
-  if (rows_per_band) {
+  if (rows_per_band == 32) {  // one 32-lane group covers a whole 32-row tile
+    r = y + (((i >> 2) & 3) << 3);
+    c = x + (i & 3) + ((i >> 4) << 4);
+  } else if (rows_per_band) {
     r = (lane >> 5) * rows_per_band + y + (((i >> 2) & 1) << 3);
     c = x + (i & 3) + ((i >> 3) << 4);
   } else {
@@ -143,7 +146,8 @@ struct cooperative_tensor {
   // the 32-lane groups tile rows when the tile is taller than one group's 16 rows, columns otherwise
   static constexpr int m2v_rows_per_band =
       (ROWS >= 16 * (LANES / M2V_SUBGROUP) && ROWS % (LANES / M2V_SUBGROUP) == 0) ? ROWS / (LANES / M2V_SUBGROUP) : 0;
-  static_assert(m2v_rows_per_band == 0 || m2v_rows_per_band == 16, "matmul2d emulation covers 16 or 32-row tiles");
+  static_assert(m2v_rows_per_band == 0 || m2v_rows_per_band == 16 || (m2v_rows_per_band == 32 && LANES == M2V_SUBGROUP),
+                "matmul2d emulation covers 16-row and 32-row tiles");
   static constexpr int m2v_band_w = m2v_rows_per_band ? COLS : COLS / (LANES / M2V_SUBGROUP);
   m2v_elem m2v_v[m2v_elems];
 
@@ -206,7 +210,8 @@ struct matmul2d {
   // D = op(A) * op(B) (+ D): every lane computes its own destination elements in fp32.
   template <typename SA, typename SB, typename SC>
   METAL_FUNC void run(const SA& a, const SB& b, SC& c) const {
-    static_assert(SC::m2v_rows_per_band == 0 || SC::m2v_rows_per_band == 16, "matmul2d emulation covers 16 or 32-row tiles");
+    static_assert(SC::m2v_rows_per_band == 0 || SC::m2v_rows_per_band == 16 || (SC::m2v_rows_per_band == 32 && m2v_lanes == M2V_SUBGROUP),
+                  "matmul2d emulation covers 16-row and 32-row tiles");
     static_assert(!detail::m2v_is_coop<SA>::value || m2v_sn == 1, "cooperative sources are single-simdgroup");
     static_assert(!detail::m2v_is_coop<SB>::value || m2v_sn == 1, "cooperative sources are single-simdgroup");
     const int lane = c.m2v_lane();
