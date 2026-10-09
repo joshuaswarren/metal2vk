@@ -641,6 +641,289 @@ TF_DEFAULTS = {"TF_UNROLL": "4", "TF_COL": "4", "TF_GROUP": "64", "TF_OUT_T": "b
                "TF_SIMD_FRAGS": "4", "TF_FLOOR": "0", "TF_E": "64", "TF_BITS": "4", "TF_MAXR": "4", "TF_LOW": "0",
                "TF_GATHER_SCATTER": "0", "TF_GATHER": "0", "TF_SIMD_LAYOUT": "0", "TF_K": "64", "TF_ITERS": "4", "TF_HC_EPS_INT": "1000"}
 
+# Host-injected symbols: the TensorFold host prepends a per-family preamble before the kernel text; the checkout carries the
+# same code inline in sibling kernels (glm/kda_rows.metal, flashnext/*.metal, nax.h). When a parse fails because one of these
+# symbols is missing, the group is injected before the kernel text and recorded in the row ("host_syms"). Definitions are
+# verbatim host code (mma_16x32 stays out behind M2V_NAX_MPP: it needs the mpp tensor-op emulation).
+HOST_SYMBOL_TRIGGERS = {
+    "tf_frag": ("frag", "frag_home"),
+    "tf_math": ("bsig", "bsilu", "fsig", "fsoftplus", "log1p_", "simd_topk", "simd_topk_all"),
+    "kda_quad_dot": ("quad_dot",),
+    "kda_sigmoid": ("mlx_sigmoid_precise",),
+    "kda_sq_acc": ("sq_acc",),
+    "fz_tile": ("fz_tile",),
+}
+HOST_SYMBOL_TEXT = {
+    "kda_quad_dot": """
+template <int BITS, int PER>
+inline float quad_dot(device const bfloat* x, device const uint8_t* wb, float s, float bb);
+template <>
+inline float quad_dot<4, 32>(device const bfloat* x, device const uint8_t* wb, float s, float bb) {
+  constexpr int PER = 32;
+  float xt[PER];
+  float sum = 0.0f;
+  for (int i = 0; i < PER; i += 4) {
+    const bfloat a = x[i], b = x[i + 1], c = x[i + 2], e = x[i + 3];
+    sum += float(bfloat(float(bfloat(float(bfloat(float(a) + float(b))) + float(c))) + float(e)));
+    xt[i] = float(a); xt[i + 1] = float(b) / 16.0f; xt[i + 2] = float(c) / 256.0f; xt[i + 3] = float(e) / 4096.0f;
+  }
+  device const uint16_t* ws = (device const uint16_t*)wb;
+  float accum = 0.0f;
+  for (int i = 0; i < PER / 4; i++)
+    accum += xt[4 * i] * float(ws[i] & 0x000f) + xt[4 * i + 1] * float(ws[i] & 0x00f0) +
+             xt[4 * i + 2] * float(ws[i] & 0x0f00) + xt[4 * i + 3] * float(ws[i] & 0xf000);
+  float result = 0.0f;
+  result += s * accum + sum * bb;
+  return result;
+}
+template <>
+inline float quad_dot<4, 16>(device const bfloat* x, device const uint8_t* wb, float s, float bb) {
+  constexpr int PER = 16;
+  float xt[PER];
+  float sum = 0.0f;
+  for (int i = 0; i < PER; i += 4) {
+    const bfloat a = x[i], b = x[i + 1], c = x[i + 2], e = x[i + 3];
+    sum += float(bfloat(float(bfloat(float(bfloat(float(a) + float(b))) + float(c))) + float(e)));
+    xt[i] = float(a); xt[i + 1] = float(b) / 16.0f; xt[i + 2] = float(c) / 256.0f; xt[i + 3] = float(e) / 4096.0f;
+  }
+  device const uint16_t* ws = (device const uint16_t*)wb;
+  float accum = 0.0f;
+  for (int i = 0; i < PER / 4; i++)
+    accum += xt[4 * i] * float(ws[i] & 0x000f) + xt[4 * i + 1] * float(ws[i] & 0x00f0) +
+             xt[4 * i + 2] * float(ws[i] & 0x0f00) + xt[4 * i + 3] * float(ws[i] & 0xf000);
+  float result = 0.0f;
+  result += s * accum + sum * bb;
+  return result;
+}
+template <>
+inline float quad_dot<8, 32>(device const bfloat* x, device const uint8_t* wb, float s, float bb) {
+  constexpr int PER = 32;
+  float xt[PER];
+  float sum = 0.0f;
+  for (int i = 0; i < PER; i++) { sum += float(x[i]); xt[i] = float(x[i]); }
+  float accum = 0.0f;
+  for (int i = 0; i < PER; i++) accum += xt[i] * wb[i];
+  float result = 0.0f;
+  result += s * accum + sum * bb;
+  return result;
+}
+template <>
+inline float quad_dot<8, 16>(device const bfloat* x, device const uint8_t* wb, float s, float bb) {
+  constexpr int PER = 16;
+  float xt[PER];
+  float sum = 0.0f;
+  for (int i = 0; i < PER; i++) { sum += float(x[i]); xt[i] = float(x[i]); }
+  float accum = 0.0f;
+  for (int i = 0; i < PER; i++) accum += xt[i] * wb[i];
+  float result = 0.0f;
+  result += s * accum + sum * bb;
+  return result;
+}
+""",
+    "kda_sigmoid": """
+template <typename U>
+inline U mlx_sigmoid_precise(U x) {
+  U e = static_cast<U>(metal::precise::exp(metal::abs(x)));
+  U y = static_cast<U>(1) / (static_cast<U>(1) + e);
+  return (x < 0) ? y : (static_cast<U>(1) - y);
+}
+""",
+    "kda_sq_acc": """
+#pragma clang fp contract(off)
+inline float sq_acc(float acc, float v) {
+  return v * v + acc;
+}
+#pragma clang fp contract(on)
+""",
+    "tf_math": """
+// Elementwise ops as the checkpoint's training framework does them on bf16 tensors: fp32 math, one rounding.
+inline float bsig(float x) { return float(bfloat(1.0f / (1.0f + metal::exp(-x)))); }
+inline float bsilu(float x) { return float(bfloat(x / (1.0f + metal::exp(-x)))); }
+inline float fsig(float x) { return 1.0f / (1.0f + metal::exp(-x)); }
+inline float log1p_(float x) {
+  const float u = 1.0f + x;
+  return u == 1.0f ? x : x * (metal::log(u) / (u - 1.0f));
+}
+// softplus in fp32 (threshold 20, as torch.nn.functional.softplus)
+inline float fsoftplus(float x) { return x > 20.0f ? x : log1p_(metal::exp(x)); }
+// Rank-k expert of a row inside one simdgroup: lane l holds logits l, l + 32, ...; rounds of (largest logit,
+// lowest id); returns the id picked in round k and, through ``picked``, the logits of rounds 0..k.
+template <int NE>
+inline int simd_topk(const device float* logits, int k, uint lane, thread float* picked) {
+  float v[NE / 32];
+  for (int j = 0; j < NE / 32; j++) v[j] = logits[j * 32 + int(lane)];
+  int id = 0;
+  for (int round = 0; round <= k; round++) {
+    float best = -INFINITY;
+    int bid = NE;
+    for (int j = 0; j < NE / 32; j++) {
+      const int e = j * 32 + int(lane);
+      if (v[j] > best || (v[j] == best && e < bid)) { best = v[j]; bid = e; }
+    }
+    for (int off = 16; off > 0; off /= 2) {
+      const float ob = simd_shuffle_xor(best, off);
+      const int oi = simd_shuffle_xor(bid, off);
+      if (ob > best || (ob == best && oi < bid)) { best = ob; bid = oi; }
+    }
+    picked[round] = best;
+    id = bid;
+    if (int(lane) == bid % 32) v[bid / 32] = -INFINITY;
+  }
+  return id;
+}
+// simd_topk's rounds 0 .. TOPK-1 in one pass: ids[k] and logits picked[k] of each round
+template <int NE, int TOPK>
+inline void simd_topk_all(const device float* logits, uint lane, thread int* ids, thread float* picked) {
+  float v[NE / 32];
+  for (int j = 0; j < NE / 32; j++) v[j] = logits[j * 32 + int(lane)];
+  for (int round = 0; round < TOPK; round++) {
+    float best = -INFINITY;
+    int bid = NE;
+    for (int j = 0; j < NE / 32; j++) {
+      const int e = j * 32 + int(lane);
+      if (v[j] > best || (v[j] == best && e < bid)) { best = v[j]; bid = e; }
+    }
+    for (int off = 16; off > 0; off /= 2) {
+      const float ob = simd_shuffle_xor(best, off);
+      const int oi = simd_shuffle_xor(bid, off);
+      if (ob > best || (ob == best && oi < bid)) { best = ob; bid = oi; }
+    }
+    picked[round] = best;
+    ids[round] = bid;
+    if (int(lane) == bid % 32) v[bid / 32] = -INFINITY;
+  }
+}
+""",
+    "tf_frag": """
+// M5 tensor-unit fragments shared by every NAX kernel (nax.h): layout, loads, stores.
+namespace tfp {
+using namespace metal;
+// Full unroll: register arrays indexed by a loop counter stay in registers only when the loop unrolls.
+#define TF_UNROLL _Pragma("clang loop unroll(full)")
+// One simdgroup's 16x16 fragment: 8 values a lane.
+template <typename T>
+using frag = vec<T, 8>;
+#ifndef TF_SIMD_FRAGS
+// Lane l holds rows home.y and home.y + 8, columns home.x .. home.x + 3 of every fragment (the M5 operand layout).
+inline short2 frag_home(ushort l) {
+  return short2(short((l & 8) + ((l & 1) << 2)), short(((l & 16) >> 2) | ((l >> 1) & 3)));
+}
+// The 16x16 block at (r, c) of a row-major matrix with leading dimension ld, in device or threadgroup memory.
+template <typename T, typename P>
+inline void frag_get(thread frag<T>& f, P p, int ld, int r, int c, short2 home) {
+  const P q = p + (r + home.y) * ld + (c + home.x);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    f[e] = T(q[(e >> 2) * 8 * ld + (e & 3)]);
+  }
+}
+// frag_get with zeros outside rows < nr and columns < nc (both relative to p); nothing outside is read.
+template <typename T, typename S>
+inline void frag_get_in(thread frag<T>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + (e & 3);
+    f[e] = (rr < nr && cc < nc) ? T(p[rr * ld + cc]) : T(0);
+  }
+}
+template <typename O>
+inline void frag_put(thread const frag<float>& f, device O* p, int ld, int r, int c, short2 home) {
+  device O* q = p + (r + home.y) * ld + (c + home.x);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    q[(e >> 2) * 8 * ld + (e & 3)] = O(f[e]);
+  }
+}
+template <typename O>
+inline void frag_put_in(thread const frag<float>& f, device O* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + (e & 3);
+    if (rr < nr && cc < nc) {
+      p[rr * ld + cc] = O(f[e]);
+    }
+  }
+}
+// Element e's column past home.x (a plain index: M5 kernels keep their exact text); its row is home.y + (e >> 2) * 8.
+#define TF_COL(e) (e & 3)
+// A transposed right operand's block (its rows are the op's columns): on M5 it loads like any other.
+#define frag_get_t frag_get
+#define frag_get_t_in frag_get_in
+#else
+// TF_SIMD_FRAGS (before M5, 8x8 simdgroup matrices): lane l holds rows home.y, home.y + 8, columns home.x + {0,1,8,9}.
+inline short2 frag_home(ushort l) {
+  return short2(short(((l & 8) >> 1) | ((l & 1) << 1)), short(((l & 16) >> 2) | ((l >> 1) & 3)));
+}
+#define TF_COL(e) (((e) & 1) + 8 * (((e) >> 1) & 1))
+template <typename T, typename P>
+inline void frag_get(thread frag<T>& f, P p, int ld, int r, int c, short2 home) {
+  const P q = p + (r + home.y) * ld + (c + home.x);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    f[e] = T(q[(e >> 2) * 8 * ld + TF_COL(e)]);
+  }
+}
+template <typename T, typename S>
+inline void frag_get_in(thread frag<T>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + TF_COL(e);
+    f[e] = (rr < nr && cc < nc) ? T(p[rr * ld + cc]) : T(0);
+  }
+}
+// The block at (r, c) as a transposed right operand: its rows on the column pattern, its columns on the row pattern.
+template <typename T, typename P>
+inline void frag_get_t(thread frag<T>& f, P p, int ld, int r, int c, short2 home) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    f[e] = T(p[(r + home.x + TF_COL(e)) * ld + c + home.y + (e >> 2) * 8]);
+  }
+}
+template <typename T, typename S>
+inline void frag_get_t_in(thread frag<T>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.x + TF_COL(e), cc = c + home.y + (e >> 2) * 8;
+    f[e] = (rr < nr && cc < nc) ? T(p[rr * ld + cc]) : T(0);
+  }
+}
+template <typename O>
+inline void frag_put(thread const frag<float>& f, device O* p, int ld, int r, int c, short2 home) {
+  device O* q = p + (r + home.y) * ld + (c + home.x);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    q[(e >> 2) * 8 * ld + TF_COL(e)] = O(f[e]);
+  }
+}
+template <typename O>
+inline void frag_put_in(thread const frag<float>& f, device O* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + TF_COL(e);
+    if (rr < nr && cc < nc) {
+      p[rr * ld + cc] = O(f[e]);
+    }
+  }
+}
+#endif
+}  // namespace tfp
+using namespace tfp;
+""",
+    "fz_tile": """
+// The includer defines fz_tile (a threadgroup's output tile); identity is the host default mapping.
+inline int fz_tile(int tgx) { return tgx; }
+""",
+}
+
+
+def missing_host_symbols(errs):
+    """Identifiers the compiler reports as missing that the TensorFold host preambles provide -> group names to inject."""
+    seen = set()
+    for ln in errs:
+        for m in re.finditer(r"(?:use of undeclared identifier|no template named|unknown type name) '([^']+)'", ln):
+            seen.add(m.group(1))
+    return sorted(g for g, ids in HOST_SYMBOL_TRIGGERS.items() if seen.intersection(ids))
+
 
 def sh(cmd, timeout=300):
     t0 = time.time()
@@ -697,21 +980,26 @@ def feature_keys(errlines):
 
 
 def process(job):
-    (setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs) = job
+    (setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms) = job
     defs = list(defs)
+    syms = list(syms)
     row = None
     for _ in range(4):
-        row, undecl = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs)
+        row, undecl, missing = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms)
         new = sorted(n for n in undecl if not any(d.startswith("-D" + n + "=") for d in defs))
-        if setname != "tf" or row["parse"] != "FAIL" or not new:
+        add_syms = [g for g in missing if g not in syms] if setname == "tf" and row["parse"] == "FAIL" else []
+        if setname != "tf" or row["parse"] != "FAIL" or (not new and not add_syms):
             break
         defs += [f"-D{n}={TF_DEFAULTS.get(n, 'bfloat' if undecl[n] == 'type' else MACRO_DEFAULT)}" for n in new]
+        syms += add_syms
     if defs:
         row["defs"] = [d[2:] for d in defs]
+    if syms:
+        row["host_syms"] = syms
     return row
 
 
-def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs):
+def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms=()):
     row = {"set": setname, "file": rel, "entry": kname, "variant": targs[:60] if targs else "-", "parse": "", "ir": "", "spv": "",
            "val": "", "error": "", "features": [], "kernel": "", "args": []}
     text0 = preprocess(src_path, include_dirs, defs + (["-DDSL_ANALYZE"] if setname == "uzu" else []))
@@ -721,14 +1009,14 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["parse"] = "FAIL"
         row["error"] = "entry not found after preprocessing"
         row["features"] = [row["error"]]
-        return row, {}
+        return row, {}, []
     entry = allent[eidx]
     src, wsrc, params = build_source(text0, blanked, entry, kname, targs, [o for i, o in enumerate(allent) if i != eidx])
     if src is None:
         row["parse"] = "FAIL"
         row["error"] = "wrapper: " + next((getattr(p, "note", "") for p in params if p.kind == "unsupported"), "unsupported parameter")
         row["features"] = [row["error"]]
-        return row, {}
+        return row, {}, []
     row["kernel"] = kname
     row["args"] = [{"kind": p.kind, "name": p.name, "type": p.type, "dims": p.dims, "tags": {k: v for k, v in p.tags.items()},
                     "attrs": p.attrs} for p in params]
@@ -739,6 +1027,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     cl = d / "src" / (tag + ".cl")
     cl.parent.mkdir(parents=True, exist_ok=True)
     pre = '#include "metal_stdlib"\n'
+    pre += "".join(HOST_SYMBOL_TEXT[g] for g in syms)
     if "MetalPerformancePrimitives" in src_path.read_text(errors="replace"):
         pre += '#include "MetalPerformancePrimitives/MetalPerformancePrimitives.h"\n'
     cl.write_text(pre + VEC_ALIASES + norm_decls(strip_annotate(src)) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
@@ -759,7 +1048,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             if " error: " in ln or "fatal error" in ln:
                 row["detail"] = "\n".join(lines[i:i + 3])[:600]
                 break
-        return row, undeclared_macros(errs)
+        return row, undeclared_macros(errs), missing_host_symbols(errs)
     row["parse"] = "ok"
     txt = ll.read_text()
     if "-O0" in FE_OPT:
@@ -771,12 +1060,12 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["error"] = ([x for x in out.splitlines() if x.strip() and "failed to create target machine" not in x] or [f"opt exit {rc}"])[0][:140]
             row["features"] = ["opt:" + norm_msg(row["error"])]
             row["primary"] = row["features"][0]
-            return row, {}
+            return row, {}, []
         pathlib.Path(str(ll) + ".opt").replace(ll)
         txt = ll.read_text()
     row["ir"] = "ok"
     if not use_spv:
-        return row, {}
+        return row, {}, []
     txt = re.sub(r", !(alias\.scope|noalias) ![0-9]+", "", txt)
     txt = re.sub(r"^\s*(?:tail |musttail |notail )?call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
     ll.write_text(txt)
@@ -800,7 +1089,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["clspv:" + norm_msg(row["error"])]
         row["primary"] = row["features"][0]
         row["detail"] = "\n".join(lines[:6])[:600]
-        return row, {}
+        return row, {}, []
     row["spv"] = "ok"
     rc, out, _ = sh([SPIRV_VAL, "--target-env", "vulkan1.3", str(spv)])
     if rc != 0:
@@ -809,9 +1098,9 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["spirv-val:" + row["error"]]
         row["primary"] = row["features"][0]
         row["detail"] = out.strip()[:400]
-        return row, {}
+        return row, {}, []
     row["val"] = "ok"
-    return row, {}
+    return row, {}, []
 
 
 def inventory(args):
@@ -846,7 +1135,7 @@ def inventory(args):
                         rows.append({"set": name, "file": rel, "entry": kname, "variant": "-", "parse": "FAIL", "ir": "", "spv": "", "val": "",
                                      "error": "wrapper: " + err, "features": ["wrapper:" + err], "kernel": "", "args": []})
                     else:
-                        jobs.append((name, f, rel, ei, kname, targs, args.out, fincs, use_spv, defs))
+                        jobs.append((name, f, rel, ei, kname, targs, args.out, fincs, use_spv, defs, []))
     return jobs, rows
 
 
