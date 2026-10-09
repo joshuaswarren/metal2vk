@@ -252,6 +252,15 @@ METAL_FUNC void store_hadamard_vector(device T* destination, const E source) {
 }
 
 
+// ---- bfloat compound assignments (struct fallback only: on the __bf16 typedef the native operators already have
+// Metal's widen-operate-narrow semantics, and free overloads on a builtin type are ill-formed) ----
+#ifdef M2V_BFLOAT_STRUCT
+METAL_FUNC bfloat& operator+=(bfloat& a, const bfloat& b) { a = bfloat(float(a) + float(b)); return a; }
+METAL_FUNC bfloat& operator-=(bfloat& a, const bfloat& b) { a = bfloat(float(a) - float(b)); return a; }
+METAL_FUNC bfloat& operator*=(bfloat& a, const bfloat& b) { a = bfloat(float(a) * float(b)); return a; }
+METAL_FUNC bfloat& operator/=(bfloat& a, const bfloat& b) { a = bfloat(float(a) / float(b)); return a; }
+#endif
+
 // ---- metal::array ----
 template <typename T, size_t N> struct array {
   T _data[N];
