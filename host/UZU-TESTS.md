@@ -40,12 +40,6 @@ patched build script sets that on Linux with the `vulkan-host` feature.
   test_head_dim_128_bf16, test_unaligned_f32, test_unaligned_bf16, test_prefill_mxu
 - kernel/gdn/chunked_test.rs: chunked_prefill_matches_recurrent_prefill
 
-## Blocking error (raw)
-
-Appended below once `cargo check -p uzu-engine --no-default-features --features
-metal,vulkan-host` reaches the kernel-binding include (log:
-`$HOME/scratch/w7k-host/uzucheck4.log`).
-
 ## What the kernel pipeline must emit on Linux
 
 uzu's macOS `MetalCompiler` (crates/uzu-engine/build/metal/compiler.rs) produces, per
@@ -79,11 +73,11 @@ library byte constants change (`.m2vlib` instead of `.metallib`).
 ## Blocking error (raw, cargo check tail, 2026-10-09)
 
 `cargo check -p uzu-engine --no-default-features --features metal,vulkan-host`
-(unit w7k-uzu-check21, log kept at `$HOME/scratch/w7k-host/uzucheck21.log`):
+(build log from the 2026-10-09 run):
 
 ```
 warning: `mtl-rs` (lib) generated 4 warnings
-error: couldn't find file `/home/joshuawarren/scratch/w7k-host/target-m2vcompat/debug/build/uzu-engine/8b9019794de1a591/out/metal.rs`
+error: couldn't find file `<target-dir>/debug/build/uzu-engine/<hash>/out/metal.rs`
   --> crates/uzu-engine/src/backends/metal/kernel/mod.rs:24:1
    |
 24 | include!(concat!(env!("OUT_DIR"), "/metal.rs"));
