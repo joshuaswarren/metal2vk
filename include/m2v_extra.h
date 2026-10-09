@@ -241,6 +241,17 @@ struct bfloat4 { bfloat x, y, z, w;
   M2V_BFVEC_COMMON(bfloat4, 4)
   METAL_FUNC bfloat4(bfloat a, bfloat b, bfloat c, bfloat d) : x(a), y(b), z(c), w(d) {} };
 
+// ---- store_hadamard_vector: keep uzu's helper callable when the source vector type must be deduced ----
+// uzu writes the source parameter as `vec<SourceT, 4>`. The shim spells vec<T, N> through vec_sel<...>::type, which is
+// a non-deduced context, so template argument deduction cannot recover SourceT from a builtin vector argument and the
+// helper is discarded as a candidate. Take the source under its own deduced type and keep uzu's write: convert to the
+// destination element type, then store through the packed reinterpret.
+template <typename T, typename E>
+METAL_FUNC void store_hadamard_vector(device T* destination, const E source) {
+  *reinterpret_cast<device packed_vec<T, 4>*>(destination) = vec<T, 4>(source);
+}
+
+
 // ---- metal::array ----
 template <typename T, size_t N> struct array {
   T _data[N];
