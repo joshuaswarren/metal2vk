@@ -128,7 +128,15 @@ typedef vec<float, 4> packed_float4;
 typedef vec<half, 2> packed_half2;
 typedef vec<half, 4> packed_half4;
 
-// ---- bfloat16 as a storage type with exact widening, round-to-nearest-even narrowing ----
+// ---- bfloat16: Metal's 16-bit float storage with exact widening, round-to-nearest-even narrowing ----
+#if defined(__clang__) && __clang_major__ >= 20
+// clang 20+ gives SPIR a real arithmetic __bf16, so Metal's promotion rules hold exactly: a conditional of
+// bfloat and float is float, arithmetic promotes to float, float->bfloat narrows round-to-nearest-even. clspv
+// rejects the LLVM bfloat type, so sweep/bfloat_to_i16.py retypes the module to i16 before clspv.
+typedef __bf16 bfloat;
+#else
+// Storage struct on older clangs. Both implicit conversions (float->bfloat ctor, bfloat->float operator) mean
+// `c ? bfloat : float` is ambiguous here - the conditional rule needs the real type above.
 struct bfloat {
   ushort bits;
   METAL_FUNC bfloat() = default;
@@ -140,6 +148,7 @@ struct bfloat {
   METAL_FUNC operator float() const { return as_float((uint)bits << 16); }
   METAL_FUNC operator float() const __constant { return as_float((uint)bits << 16); }
 };
+#endif
 
 template <typename T, typename U> METAL_FUNC T as_type(U u) { return __builtin_bit_cast(T, u); }
 
