@@ -786,7 +786,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:
         row["spv"] = "FAIL"
-        row["error"] = (lines[0] if lines else (f"clspv exit {rc} without a diagnostic (crash)" if rc != 124 else "timeout"))[:140]
+        row["error"] = (lines[0] if lines else (f"clspv exit {rc} without a diagnostic (crash)" if rc != 124 else f"timeout after {CLSPV_TIMEOUT} s (clspv does not finish)"))[:140]
         row["features"] = ["clspv:" + norm_msg(row["error"])]
         row["primary"] = row["features"][0]
         row["detail"] = "\n".join(lines[:6])[:600]
