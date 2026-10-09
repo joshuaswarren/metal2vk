@@ -71,6 +71,7 @@ pub struct Device {
     pub(crate) inner: Arc<DeviceInner>,
     /// Physical device name; queried lazily, once.
     name_str: std::sync::OnceLock<String>,
+    policy: crate::Policy,
 }
 
 impl Device {
@@ -244,7 +245,26 @@ impl Device {
             has_debug_utils: debug_utils_flag,
             map: Arc::new(AddressMap::new()),
         });
-        Ok(Arc::new(Device { inner, name_str: std::sync::OnceLock::new() }))
+        Ok(Arc::new(Device { inner, name_str: std::sync::OnceLock::new(), policy: crate::Policy::from_env()? }))
+    }
+
+    /// Kernel routing policy of this device (gate table from `M2V_POLICY_FILE`, fallbacks, first-use checks).
+    pub fn policy(&self) -> &crate::Policy {
+        &self.policy
+    }
+
+    /// How to run `kernel` from `lib`: translated, translated with a first-use check, a fallback, or `Error::Refused`.
+    /// Call this before creating the pipeline; only [`crate::Route::Translated`] and
+    /// [`crate::Route::TranslatedChecked`] may be followed by `create_pipeline`.
+    pub fn route_kernel(&self, lib: &crate::Library, kernel: &str) -> Result<crate::Route> {
+        let func = lib.function(kernel).ok();
+        // the library's own gate seeds the table unless the policy file or an earlier check already decided
+        if let Some(f) = func {
+            if !self.policy.knows(kernel) && f.gate.state != crate::GateState::Unverified {
+                self.policy.set_state(kernel, f.gate.state, &f.gate.evidence);
+            }
+        }
+        self.policy.route(kernel, func.is_some())
     }
 
     pub fn name(&self) -> &str {
@@ -283,7 +303,16 @@ impl Device {
         name: &str,
         constants: &[(u32, crate::ConstantValue)],
     ) -> Result<Arc<Pipeline>> {
-        Pipeline::create(self.inner(), library, name, constants)
+        // The gate: only a verified kernel, or one that will be checked against a reference on its first use, gets a
+        // pipeline. A fallback route is an error here; callers that want the fallback ask `route_kernel` first.
+        match self.route_kernel(library, name)? {
+            crate::Route::Translated | crate::Route::TranslatedChecked { .. } => {
+                Pipeline::create(self.inner(), library, name, constants)
+            }
+            crate::Route::Fallback(fb) => Err(Error::Refused(format!(
+                "kernel '{name}' is routed to fallback {fb:?}; dispatch the fallback, no translated pipeline is created"
+            ))),
+        }
     }
 
     pub fn create_queue(&self) -> Result<Arc<Queue>> {

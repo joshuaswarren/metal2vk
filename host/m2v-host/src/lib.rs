@@ -12,6 +12,7 @@ mod encoder;
 mod error;
 mod library;
 mod pipeline;
+mod policy;
 mod queue;
 
 pub use buffer::Buffer;
@@ -19,10 +20,11 @@ pub use device::{Device, DeviceInfo, TimestampPool};
 pub use encoder::Encoder;
 pub use error::Error;
 pub use library::{
-    BufferBindingJson, ConstantJson, ConstantType, ConstantValue, FunctionJson, Library, M2vLibJson,
+    BufferBindingJson, ConstantJson, ConstantType, ConstantValue, FunctionJson, GateJson, GateState, Library, M2vLibJson,
     PushJson, PushWordJson, SpvRange, ThreadgroupJson, M2VLIB_MAGIC, M2VLIB_VERSION,
 };
 pub use pipeline::Pipeline;
+pub use policy::{Fallback, GateEntry, Policy, PolicyJson, Route};
 pub use queue::{CommandBuffer, Completion, Event, Queue};
 
 pub(crate) use device::DeviceInner;

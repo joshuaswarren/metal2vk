@@ -78,26 +78,63 @@ impl From<m2v_constant> for (u32, ConstantValue) {
 }
 
 /// Opaque handle types. All are `Arc<...>` under the hood except the encoder,
-/// which owns its recording session.
-macro_rules! opaque {
-    ($name:ident) => {
-        #[repr(C)]
-        pub struct $name {
-            _unused: [u8; 0],
-            _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
-        }
-    };
+/// which owns its recording session. cbindgen cannot see macro-generated
+/// types, so each is spelled out explicitly.
+#[repr(C)]
+pub struct m2v_device {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
 }
 
-opaque!(m2v_device);
-opaque!(m2v_buffer);
-opaque!(m2v_library);
-opaque!(m2v_pipeline);
-opaque!(m2v_queue);
-opaque!(m2v_cmdbuf);
-opaque!(m2v_event);
-opaque!(m2v_encoder);
-opaque!(m2v_timestamp_pool);
+#[repr(C)]
+pub struct m2v_buffer {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_library {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_pipeline {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_queue {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_cmdbuf {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_event {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_encoder {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_timestamp_pool {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+
 
 /// Completion callback: (error_status, gpu_start_ns, gpu_end_ns, user). Runs
 /// once, on the queue's waiter thread, after the fence is signalled.
@@ -119,6 +156,7 @@ fn fail(e: &crate::Error) -> m2v_status {
     match e {
         crate::Error::Unsupported(_) => m2v_status::UNSUPPORTED,
         crate::Error::Invalid(_) => m2v_status::INVALID,
+        crate::Error::Refused(_) => m2v_status::UNSUPPORTED,
         crate::Error::Vulkan(_) => m2v_status::ERROR,
     }
 }
@@ -212,7 +250,7 @@ pub unsafe extern "C" fn m2v_device_name(d: *mut m2v_device) -> *const c_char {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2v_device_info(d: *mut m2v_device, out: *mut m2v_device_info) -> m2v_status {
+pub unsafe extern "C" fn m2v_device_get_info(d: *mut m2v_device, out: *mut m2v_device_info) -> m2v_status {
     let i = device_ref(d).info();
     *out = m2v_device_info {
         subgroup_size: i.subgroup_size,
@@ -396,6 +434,74 @@ pub unsafe extern "C" fn m2v_device_create_pipeline(
         }
         Err(e) => fail(&e),
     }
+}
+
+/// How the host wants one kernel run (see `Device::route_kernel` and `host/DESIGN.md`).
+#[repr(i32)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum m2v_route {
+    /// Verified translated kernel: create the pipeline and dispatch it.
+    TRANSLATED = 0,
+    /// Translated but unverified: run it into shadow outputs, compute the reference into the real outputs, compare, and call
+    /// `m2v_report_check`. `reference` names the reference.
+    CHECKED = 1,
+    /// Run the omarchy-mlx hand kernel named in `reference`.
+    FALLBACK_HAND = 2,
+    /// Run the CPU reference named in `reference`.
+    FALLBACK_CPU = 3,
+}
+
+/// Ask how to run kernel `name` of library `l`. On OK, `*route` is set and, for CHECKED and FALLBACK_*, the reference name is
+/// copied NUL-terminated into `reference` (capacity `cap`; truncation is an INVALID error). A kernel with no trusted
+/// translation and no fallback returns UNSUPPORTED and `m2v_last_error` names it.
+#[no_mangle]
+pub unsafe extern "C" fn m2v_route_kernel(
+    d: *mut m2v_device,
+    l: *mut m2v_library,
+    name: *const c_char,
+    route: *mut m2v_route,
+    reference: *mut c_char,
+    cap: usize,
+) -> m2v_status {
+    let name = match CStr::from_ptr(name).to_str() {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error(&crate::Error::Invalid("kernel name is not UTF-8".into()));
+            return m2v_status::INVALID;
+        }
+    };
+    let (r, refname) = match device_ref(d).route_kernel(library_ref(l), name) {
+        Ok(crate::Route::Translated) => (m2v_route::TRANSLATED, String::new()),
+        Ok(crate::Route::TranslatedChecked { reference }) => (m2v_route::CHECKED, fallback_name(&reference)),
+        Ok(crate::Route::Fallback(fb @ crate::Fallback::Hand(_))) => (m2v_route::FALLBACK_HAND, fallback_name(&fb)),
+        Ok(crate::Route::Fallback(fb @ crate::Fallback::Cpu(_))) => (m2v_route::FALLBACK_CPU, fallback_name(&fb)),
+        Err(e) => return fail(&e),
+    };
+    if !reference.is_null() && cap > 0 {
+        if refname.len() + 1 > cap {
+            set_last_error(&crate::Error::Invalid(format!("reference name '{refname}' does not fit in {cap} bytes")));
+            return m2v_status::INVALID;
+        }
+        std::ptr::copy_nonoverlapping(refname.as_ptr(), reference as *mut u8, refname.len());
+        *reference.add(refname.len()) = 0;
+    }
+    *route = r;
+    m2v_status::OK
+}
+
+fn fallback_name(fb: &crate::Fallback) -> String {
+    match fb {
+        crate::Fallback::Hand(n) | crate::Fallback::Cpu(n) => n.clone(),
+    }
+}
+
+/// Result of the first-use check requested by a CHECKED route. `matched` enables the translated kernel for the rest of the
+/// process; a mismatch disables it for good and later routes return the fallback. `detail` is logged (max error, tolerance).
+#[no_mangle]
+pub unsafe extern "C" fn m2v_report_check(d: *mut m2v_device, name: *const c_char, matched: bool, detail: *const c_char) {
+    let name = CStr::from_ptr(name).to_string_lossy();
+    let detail = if detail.is_null() { "".into() } else { CStr::from_ptr(detail).to_string_lossy() };
+    device_ref(d).policy().report_check(&name, matched, &detail);
 }
 
 #[no_mangle]

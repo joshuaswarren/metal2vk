@@ -98,3 +98,42 @@ json = {
   in debug builds and reports them through `Completion::error`.
 - Build artifacts go to a target directory outside tmpfs.
 - No private paths, hostnames, or tokens in committed files.
+
+## Untranslated and unverified kernels (policy.rs)
+
+The host never runs a kernel it cannot trust. `Policy::route(kernel, translated)` runs before every dispatch:
+
+| kernel state | route |
+|---|---|
+| translated, verified (sweep table row with a matching reference, or matched on first use) | run the translated kernel |
+| translated, not verified, a reference exists | run it into shadow outputs, compute the reference into the real outputs, compare, `report_check`; the first dispatch uses the reference result |
+| translated, not verified, no reference | refuse, error names the kernel |
+| translated, failed its check | fallback, never the translated kernel again in this process |
+| not translated (no SPIR-V, or the pipeline failed to build) | fallback |
+| no fallback registered | refuse, `Error::Refused` names the kernel (C ABI: `m2v_status` UNSUPPORTED) |
+
+A fallback is an omarchy-mlx hand kernel with the same contract (`{"hand": name}`) or a CPU reference registered by the application
+(`{"cpu": name}`). Each routing event other than the verified path is logged once per kernel on stderr with the `m2v:` prefix and
+kept in `Policy::events()`. There is no setting that disables the gate. The table is read from `M2V_POLICY_FILE` (a missing or
+malformed file is an error); `tools/make-gate.py` builds its `kernels` section from `sweep-run.json`: `verified` only for rows whose
+`ref` is ok, `failed` for rows whose `ref` failed, `unverified` for the rest. The `gate` field of a `.m2vlib` function (state verified, unverified or failed, plus evidence) seeds the table in `Device::route_kernel` when the policy file and earlier first-use checks have no entry for that kernel.
+
+`Device::create_pipeline` goes through the gate: it builds a pipeline only for a Translated or TranslatedChecked route and returns
+`Error::Refused` for a fallback route, so a kernel the gate does not trust cannot be dispatched by accident. Callers that want the
+fallback call `Device::route_kernel` first. C ABI: `m2v_route_kernel(device, library, name, &route, reference, cap)` returns
+`m2v_route_TRANSLATED`, `m2v_route_CHECKED`, `m2v_route_FALLBACK_HAND` or `m2v_route_FALLBACK_CPU` (with the reference name), or
+`m2v_status` UNSUPPORTED naming the kernel when it is refused; `m2v_report_check(device, name, matched, detail)` reports the first-use check.
+The GPU tests register a CPU reference for their kernel and report the result of their own comparison.
+
+
+## Per-kernel lazy mode (slice/compat-lazy)
+
+uzu's compat layer never fails at pipeline creation: any non-Translated gate
+route returns a `RefusedPipeline` whose launch-maths accessors answer with
+device values. Encoding it dispatches nothing; the commit completes without GPU
+work and reports `Error::Refused` naming every refused kernel (m2v-host
+`Completion.error`, C ABI `m2v_status` UNSUPPORTED at the equivalent point).
+Refusals are logged once per kernel with the `m2v:` prefix. `M2V_KERNEL_TRACE`
+records first dispatches per process for `tools/gate-from-tests.py`, which
+builds the policy `kernels` section from traced test runs (verified / failed /
+unverified per policy.rs semantics).

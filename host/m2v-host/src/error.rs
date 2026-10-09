@@ -8,6 +8,8 @@ pub enum Error {
     Unsupported(String),
     /// Bad argument or malformed input (e.g. a corrupt `.m2vlib`).
     Invalid(String),
+    /// The routing policy refused to run a kernel: it has no trusted translation and no fallback. Names the kernel.
+    Refused(String),
     /// Underlying Vulkan call failed.
     Vulkan(ash::vk::Result),
 }
@@ -17,6 +19,7 @@ impl fmt::Display for Error {
         match self {
             Error::Unsupported(m) => write!(f, "unsupported: {m}"),
             Error::Invalid(m) => write!(f, "invalid: {m}"),
+            Error::Refused(m) => write!(f, "refused: {m}"),
             Error::Vulkan(r) => write!(f, "vulkan error: {r:?}"),
         }
     }

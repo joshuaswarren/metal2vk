@@ -158,14 +158,19 @@ template <int N> struct vec_sel<bfloat, N, false> {
       for (int i = 0; i < N; i++) v[i] = bfloat((float)x[i]).bits;
     }
     METAL_FUNC bfloat operator[](int i) const { bfloat r; r.bits = v[i]; return r; }
+    // A ref constructed from a float carries the round-to-nearest-even value instead of referencing storage, so
+    // templates whose T is deduced from a non const operator[] call can return static_cast<T>(float).
     struct ref {
-      ushort& slot;
-      METAL_FUNC operator bfloat() const { bfloat r; r.bits = slot; return r; }
-      METAL_FUNC operator float() const { return as_float((uint)slot << 16); }
-      METAL_FUNC ref& operator=(bfloat b) { slot = b.bits; return *this; }
+      ushort* slot;
+      ushort bits;
+      METAL_FUNC ref(ushort* s, ushort b) : slot(s), bits(b) {}
+      METAL_FUNC ref(float f) : slot(nullptr), bits(bfloat(f).bits) {}
+      METAL_FUNC operator bfloat() const { bfloat r; r.bits = slot ? *slot : bits; return r; }
+      METAL_FUNC operator float() const { return as_float((uint)(slot ? *slot : bits) << 16); }
+      METAL_FUNC ref& operator=(bfloat b) { if (slot) *slot = b.bits; else bits = b.bits; return *this; }
       METAL_FUNC ref& operator=(float f) { return *this = bfloat(f); }
     };
-    METAL_FUNC ref operator[](int i) { return ref{v[i]}; }
+    METAL_FUNC ref operator[](int i) { return ref{&v[i], 0}; }
   };
 };
 
@@ -294,6 +299,20 @@ METAL_FUNC void simdgroup_multiply_accumulate(
   D.el[0] = (TD)r.x;
   D.el[1] = (TD)r.y;
 }
+#ifdef M2V_F16_COOPMAT
+} // namespace metal
+// half A and B with an f32 accumulator: lowered to the f16/f16/f32 8x8x8 cooperative matrix shape (clspv-patches/apply-coopmat-f16.py).
+extern "C" float2 m2v_mma_f16(half2 a, half2 b, float2 c) __attribute__((convergent, const));
+namespace metal {
+template <typename TD, typename TC>
+METAL_FUNC void simdgroup_multiply_accumulate(
+    simdgroup_matrix<TD, 8, 8>& D, simdgroup_matrix<half, 8, 8>& A, simdgroup_matrix<half, 8, 8>& B,
+    simdgroup_matrix<TC, 8, 8>& Cm) {
+  const float2 r = m2v_mma_f16(A.el, B.el, float2{(float)Cm.el[0], (float)Cm.el[1]});
+  D.el[0] = (TD)r.x;
+  D.el[1] = (TD)r.y;
+}
+#endif
 #endif
 
 } // namespace metal
