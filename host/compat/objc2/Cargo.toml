@@ -1,0 +1,19 @@
+[package]
+name = "objc2"
+version = "0.6.4"
+edition = "2021"
+description = "Linux shim for the objc2 surface uzu consumes (Retained, ProtocolObject, AnyObject, autoreleasepool, AnyThread)."
+license = "MIT"
+publish = false
+
+[features]
+default = []
+# objc2-foundation and friends enable these; they are no-ops in the shim.
+std = []
+alloc = []
+
+[lib]
+# uzu references `use objc2::{rc::Retained, runtime::ProtocolObject, ...}` and the
+# `objc2::` paths must resolve to this crate.
+name = "objc2"
+path = "src/lib.rs"

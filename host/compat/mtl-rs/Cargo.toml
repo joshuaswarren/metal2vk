@@ -1,0 +1,18 @@
+[package]
+name = "mtl-rs"
+version = "0.3.0"
+edition = "2021"
+description = "Linux host shim for the mtl-rs (Metal) API subset uzu consumes, backed by the m2v-host core."
+license = "MIT"
+publish = false
+
+[lib]
+# uzu's dependency is `metal = { package = "mtl-rs", ... }`; `use metal::...` must resolve here.
+name = "metal"
+path = "src/lib.rs"
+
+[dependencies]
+objc2 = { path = "../objc2" }
+metal2vk = { package = "m2v-host", path = "../../m2v-host" }
+bitflags = "2"
+parking_lot = "0.12"
