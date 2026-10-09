@@ -11,6 +11,8 @@ module; raise the floor with `sweep/check_coverage.py RESULT.json --update` in t
 | main's shim, sweep start | 232 of 609 (38.1%) | 70 | 162 | |
 | shim additions (m2v_extra.h) | 316 of 609 (51.9%) | 75 | 241 | +84 |
 | `m2v::mk` fix (clspv segfault on uzu gemm) | 323 of 609 (53.0%) | 82 | 241 | +7 |
+| clang 23 toolchain, re-measured baseline | 325 of 609 (53.4%) | 84 | 241 | +2 |
+| bfloat = `__bf16` + the bfloat_to_i16 pass | 382 of 609 (62.7%) | 90 | 292 | +57 |
 
 ## Failure classes
 
@@ -22,7 +24,7 @@ Counted by the entry's first error. The per-entry messages are in `sweep/results
 | 1 | Metal 4 tensor ops (`mpp::tensor_ops`, `tensor`, `dextents`, `execution_simdgroups`, cooperative tensors) | 138 | emulation: `matmul2d` and cooperative tensors on top of `simdgroup_matrix` and the cooperative matrix lowering | coopmat slice | open: gap list handed over |
 | 2 | clspv does not finish (90 s limit; still no result at 400 s for the seven checked) | 42 | clspv patch: find the loop (pointer passes on large unrolled kernels), or an IR pre-pass that shrinks the module | sweep slice | open |
 | 3 | clspv pointer passes (`OpPhi` of a `[4 x i8]` pointer and a typed pointer: 37, `Invalid bitcast`: 2, bitcast of a non-numeric type: 2) | 41 | IR post-pass in front of clspv that retypes the pointer, or a clspv patch | sweep slice | open |
-| 4 | `c ? bfloat : float` is ambiguous (bfloat converts both ways) | 27 | shim, or a bfloat lowering so `bfloat` is a real arithmetic type | sweep slice | open |
+| 4 | `c ? bfloat : float` is ambiguous (bfloat converts both ways) | 0 | closed on clang 23: `bfloat` is `__bf16` (a real arithmetic type, so Metal's rule - a conditional of bfloat and float is float - holds in C++), with `sweep/bfloat_to_i16.py` retyping the LLVM bfloat to i16 for clspv; the clang 19 struct fallback keeps the class open there | sweep slice | closed |
 | 5 | clspv, other (`ptr addrspace(N)` operand: 15, `llvm.memcpy` with mixed address spaces: 1) | 16 | clspv patch or IR pre-pass | sweep slice | open |
 | 6 | small front-end gaps (`store_hadamard_vector`, `template:frag`, clang frontend failure, constant address space variables, two `static_assert`s, `Mark`, one `+=`, `excess elements`) | 15 | shim header | sweep slice | open |
 | 7 | symbols the host provides (`quad_dot`, `sq_acc`, `fsoftplus`, `simd_topk_all`, `fz_tile`, `simdgroup_load`, `simdgroup_store` on a layout the shim lacks) | 6 | shim header, or a stand-in value in the driver | sweep slice | open |
