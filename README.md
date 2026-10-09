@@ -142,18 +142,15 @@ Measured on an Apple M1 Max (G13C) with the fork ICD, Mesa 26.3.0-devel. "Hand k
 | the same tile kernel, shuffle emulation instead of cooperative matrix | max rel error 1.4e-6 | 0.03 TFLOP/s | |
 | uzu `Gemm` (`gemm.metal`, SimdgroupMmaCore, f32) | front end passes for every tiling | blocked in clspv, see below | |
 
-uzu `Gemm` and clspv. The front end instantiates the whole SimdgroupMmaCore path, so the shim covers what it needs.
-clspv then fails on the IR in three ways, all in its pointer simplification passes (types and counts below are from the
-8x32x32 tiling, the same happens at 64x64x32):
-(1) `ReplacePointerBitcastPass` tries to rebuild uzu's `ThreadgroupLoader` (two pointers plus three i16 fields) from a
-`<4 x i16>` value left by struct copy lowering and loops forever (patched to stop with the types);
-(2) `SimplifyPointerBitcastPass` does not converge: `runOnUpgradeableConstantCasts` and `runOnPHIFromGEP` undo each other
-on loop-carried pointer PHIs, and the unoptimised IR oscillates in `runOnImplicitGEP` (patched to stop and name the sub-pass);
-(3) if the cycle is cut, the SPIR-V producer emits an `OpPhi` whose result is a float pointer and one incoming value is a
-pointer to `[4 x i8]` (clspv's emulation of 8-bit buffers), which fails validation.
-Physical storage buffer mode hits the same struct-copy failure. Null optional-buffer arguments crash the producer, so the
-wrapper binds real typed buffers for them. The fix belongs in clspv's pointer passes; routing GEMM and quantized matmul to
-omarchy-mlx's tuned kernels (host shim) does not depend on it.
+uzu `Gemm` and clspv. The front end instantiates the whole SimdgroupMmaCore path, and with the typed-GEP front end route
+(the default, see `compile.sh`) clspv accepts it and the SPIR-V validates for the 8x32x32, 32x32x32 and 64x64x32 tilings. The three
+clspv failures seen first (an endless loop rebuilding uzu's `ThreadgroupLoader` from a `<4 x i16>`, `SimplifyPointerBitcastPass`
+not converging, and an `OpPhi` of a float pointer and a `[4 x i8]` pointer) all came from the front end: clang's InstCombine
+rewrites typed float GEPs into byte-offset GEPs, and clang -O0 leaves every function `noinline` with closures whose `this` is in
+the generic address space. The guards in `apply-coopmat-lowering.py` remain, so a future input that breaks those passes stops
+with the offending types instead of hanging. Null optional-buffer arguments crash the producer, so the wrapper binds real typed
+buffers for them; clspv drops the unused ones, and the test driver binds from the reflection JSON that `compile.sh` writes next
+to each module. Routing GEMM and quantized matmul to omarchy-mlx's tuned kernels (host shim) remains the plan for the hot path.
 
 The tile matmul is a deliberately naive kernel built from uzu's header (no operand reuse), so its gap to a tiled GEMM says
 little about the lowering; the tiled `Gemm` is the real comparison and is the open item. A parse level census of all 55 uzu
