@@ -49,3 +49,16 @@ pub struct AnyThread(pub PhantomData<()>);
 pub unsafe trait NSObjectProtocol {}
 
 unsafe impl<P: ?Sized> NSObjectProtocol for ProtocolObject<P> {}
+
+unsafe impl<P: ?Sized> super::Message for ProtocolObject<P> {}
+
+impl<P: ?Sized> ProtocolObject<P> {
+    /// Address of the wrapped object, for pointer-identity maps. In this
+    /// compat layer `ProtocolObject<dyn Trait>` pointers are wide; the object
+    /// address is their data word.
+    pub fn host_addr(this: &Self) -> usize {
+        let fat = this as *const ProtocolObject<P>;
+        // The data word of a wide pointer leads on every supported target.
+        unsafe { *(&fat as *const *const ProtocolObject<P> as *const usize) }
+    }
+}
