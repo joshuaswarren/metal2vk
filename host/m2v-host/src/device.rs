@@ -257,8 +257,14 @@ impl Device {
     /// Call this before creating the pipeline; only [`crate::Route::Translated`] and
     /// [`crate::Route::TranslatedChecked`] may be followed by `create_pipeline`.
     pub fn route_kernel(&self, lib: &crate::Library, kernel: &str) -> Result<crate::Route> {
-        let translated = lib.function_names().iter().any(|n| n == kernel);
-        self.policy.route(kernel, translated)
+        let func = lib.function(kernel).ok();
+        // the library's own gate seeds the table unless the policy file or an earlier check already decided
+        if let Some(f) = func {
+            if !self.policy.knows(kernel) && f.gate.state != crate::GateState::Unverified {
+                self.policy.set_state(kernel, f.gate.state, &f.gate.evidence);
+            }
+        }
+        self.policy.route(kernel, func.is_some())
     }
 
     pub fn name(&self) -> &str {

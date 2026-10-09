@@ -31,19 +31,7 @@ use parking_lot::Mutex;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Error, Result};
-
-/// Where a kernel stands with respect to its reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum GateState {
-    /// Matched its reference (sweep table or first use). Safe to run.
-    Verified,
-    /// Not checked yet. Must be checked against a reference before it is trusted.
-    Unverified,
-    /// Mismatched its reference. Never run again in this process.
-    Failed,
-}
+use crate::{Error, GateState, Result};
 
 /// The substitute for a kernel that cannot be used.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -143,6 +131,11 @@ impl Policy {
 
     pub fn set_state(&self, kernel: &str, state: GateState, evidence: &str) {
         self.state.lock().gate.insert(kernel.to_string(), (state, evidence.to_string()));
+    }
+
+    /// True when the table already has an entry for `kernel` (from the policy file or a first-use check).
+    pub fn knows(&self, kernel: &str) -> bool {
+        self.state.lock().gate.contains_key(kernel)
     }
 
     pub fn state_of(&self, kernel: &str) -> GateState {

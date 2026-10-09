@@ -116,4 +116,4 @@ A fallback is an omarchy-mlx hand kernel with the same contract (`{"hand": name}
 (`{"cpu": name}`). Each routing event other than the verified path is logged once per kernel on stderr with the `m2v:` prefix and
 kept in `Policy::events()`. There is no setting that disables the gate. The table is read from `M2V_POLICY_FILE` (a missing or
 malformed file is an error); `tools/make-gate.py` builds its `kernels` section from `sweep-run.json`: `verified` only for rows whose
-`ref` is ok, `failed` for rows whose `ref` failed, `unverified` for the rest.
+`ref` is ok, `failed` for rows whose `ref` failed, `unverified` for the rest. The `gate` field of a `.m2vlib` function (state verified, unverified or failed, plus evidence) seeds the table in `Device::route_kernel` when the policy file and earlier first-use checks have no entry for that kernel.
