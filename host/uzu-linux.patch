@@ -4365,8 +4365,8 @@ index 420503b9..d5e1a626 100644
 +# Linux host layer (slice/host): route metal (mtl-rs) and objc2 through the
 +# metal2vk compat crates. Paths are relative to this file.
 +[patch.crates-io]
-+mtl-rs = { path = "__M2V_COMPAT__/mtl-rs" }
-+objc2 = { path = "__M2V_COMPAT__/objc2" }
++mtl-rs = { path = "../metal2vk-bindgen/host/compat/mtl-rs" }
++objc2 = { path = "../metal2vk-bindgen/host/compat/objc2" }
 diff --git a/crates/uzu-engine/Cargo.toml b/crates/uzu-engine/Cargo.toml
 index 56ec4b73..fea8395b 100644
 --- a/crates/uzu-engine/Cargo.toml
@@ -4712,10 +4712,10 @@ index 62e76339..731742f8 100644
  pub use compiler::MetalCompiler;
 diff --git a/crates/uzu-engine/build/metal/toolchain_m2v.rs b/crates/uzu-engine/build/metal/toolchain_m2v.rs
 new file mode 100644
-index 00000000..354b6fc4
+index 00000000..a34d7637
 --- /dev/null
 +++ b/crates/uzu-engine/build/metal/toolchain_m2v.rs
-@@ -0,0 +1,1823 @@
+@@ -0,0 +1,1950 @@
 +//! Linux/vulkan-host kernel toolchain (slice/host-bindgen).
 +//!
 +//! Replaces the macOS `xcrun metal` step with the metal2vk chain while reusing
@@ -4856,6 +4856,9 @@ index 00000000..354b6fc4
 +    /// for the whole build-script run so clang's relative includes resolve
 +    /// inside the mirror.
 +    mirror: Mutex<Option<tempfile::TempDir>>,
++    /// Empty stand-ins for the Metal system headers, used by the one
++    /// `clang -E` pass per shard.
++    stubs: Mutex<Option<tempfile::TempDir>>,
 +    /// GPU type short names -> `uzu::<module>::<Name>` (from the shared
 +    /// gpu_types sources; this clang prints record/enum types as written,
 +    /// while the macOS metal compiler prints them qualified).
@@ -4916,7 +4919,7 @@ index 00000000..354b6fc4
 +
 +        let cache_key = {
 +            let mut hasher = blake3::Hasher::new();
-+            hasher.update(b"m2v-toolchain-v7\0");
++            hasher.update(b"m2v-toolchain-v8\0");
 +            hasher.update(run_output(&clang, &["--version"]).as_bytes());
 +            hasher.update(b"\0");
 +            hasher.update(clspv.as_ref().map(|p| run_output(p, &["--version"])).unwrap_or_else(|| "clspv-missing".into()).as_bytes()).update(b"\0");
@@ -4962,6 +4965,7 @@ index 00000000..354b6fc4
 +            diag: DiagMutex(Mutex::new((run, None))),
 +            sanitized: Mutex::new(BTreeMap::new()),
 +            mirror: Mutex::new(None),
++            stubs: Mutex::new(None),
 +            uzu_types: uzu_types,
 +        })
 +    }
@@ -5275,8 +5279,6 @@ index 00000000..354b6fc4
 +
 +        let stem = output.file_stem().and_then(|s| s.to_str()).unwrap_or("shard").to_string();
 +        let work = output.parent().context("output has no parent")?.to_path_buf();
-+        let ll_path = work.join(format!("{stem}.ll"));
-+        let spv_path = work.join(format!("{stem}.spv"));
 +
 +        // Compile against a copy whose function-constant slots are lowered
 +        // to the __m2v_spec_N macros the transformed footer binds. The copy
@@ -5285,88 +5287,87 @@ index 00000000..354b6fc4
 +        let lowered = lower_function_constant_slots(&fs::read_to_string(front_source).context("cannot read front source")?);
 +        let front_path = self.mirror_write(source, &lowered).context("cannot write lowered front copy")?;
 +
++        // One front-end preprocessing pass per shard: every header resolves
++        // once (inside the mirror), so no per-kernel unit can double-define
++        // a type through differing include spellings, and no unit re-parses
++        // the include tree. Metal system headers come from empty stubs here;
++        // the per-kernel units -include the real shim instead.
++        let front_text = match self.preprocess_front(&front_path) {
++            Ok(text) => text,
++            Err(why) => {
++                let kernel_names = footer_kernel_names(&footer_text);
++                for name in &kernel_names {
++                    self.record_diag(&source_rel, name, false, Some(&format!("front-end preprocessing failed: {why}")));
++                }
++                fs::write(output, pack_m2vlib(Vec::new())?)
++                    .with_context(|| format!("cannot write {}", output.display()))?;
++                return Ok(Some(
++                    format!("{source_rel}: {} kernels got no SPIR-V: front-end preprocessing failed: {why}", kernel_names.len())
++                        .into_boxed_str()
++                        .into(),
++                ));
++            },
++        };
++
++        // Each kernel variant translates as its own small translation unit:
++        // preprocessed front text plus one wrapper (the sweep driver's
++        // per-entry layout). A variant that fails is left out of the library
++        // and cannot hide its siblings.
 +        let mut funcs: Vec<FuncSer> = Vec::new();
 +        let mut modules: Vec<Vec<u8>> = Vec::new();
-+
-+        let compiled = self.compile_module(&transformed_path, Some(&front_path), &ll_path, &spv_path, clspv.as_path());
-+        let spv_bytes = compiled.ok().and_then(|_| fs::read(&spv_path).ok()).unwrap_or_default();
-+
-+        let mut fallback_diag: Option<String> = None;
-+        if !spv_bytes.is_empty() {
-+            if !self.validate(&spv_path) {
-+                fallback_diag = Some("module failed spirv-val".to_string());
-+            } else {
-+                match reflect_spv(&spv_bytes) {
++        for (idx, chunk) in split_variants(&transformed).into_iter().enumerate() {
++            let Some(name) = chunk.entry_name() else { continue };
++            let tu_path = work.join(format!("{stem}.v{idx}.cl"));
++            let ll_path = work.join(format!("{stem}.v{idx}.ll"));
++            let spv_path = work.join(format!("{stem}.v{idx}.spv"));
++            if fs::write(&tu_path, format!("{front_text}\n#line 1 \"m2v-wrapper\"\n{}", chunk.text))
++                .is_err()
++            {
++                self.record_diag(&source_rel, &name, false, Some("cannot write the per-kernel translation unit"));
++                continue;
++            }
++            let diag;
++            match self.compile_module(&tu_path, &ll_path, &spv_path, clspv.as_path()) {
++                Ok(()) => match reflect_spv(&fs::read(&spv_path).unwrap_or_default()) {
 +                    Ok(refl) if !refl.is_empty() => {
 +                        for r in refl.into_values() {
-+                            modules.push(spv_bytes.clone());
++                            modules.push(fs::read(&spv_path).unwrap_or_default());
 +                            funcs.push(self.function_desc(&r, &slots));
 +                            self.record_diag(&source_rel, &r.entry, true, None);
 +                        }
++                        let _ = fs::remove_file(&tu_path);
++                        let _ = fs::remove_file(&ll_path);
++                        let _ = fs::remove_file(&spv_path);
++                        continue;
 +                    },
-+                    Ok(_) => fallback_diag = Some("clspv produced no reflected kernels".into()),
-+                    Err(e) => fallback_diag = Some(format!("reflection failed: {e}")),
-+                }
++                    Ok(_) => diag = "clspv produced no reflected kernels".into(),
++                    Err(e) => diag = format!("reflection failed: {e}"),
++                },
++                Err(e) => diag = e,
 +            }
-+        } else {
-+            fallback_diag = Some("clspv produced no module".into());
++            self.record_diag(&source_rel, &name, false, Some(&diag));
++            // Keep the failing unit for the next debugging pass; only the
++            // intermediate LLVM IR and SPIR-V are noise.
++            let _ = fs::remove_file(&ll_path);
++            let _ = fs::remove_file(&spv_path);
 +        }
 +
-+        let had_fallback = fallback_diag.is_some();
-+        if let Some(_why) = fallback_diag {
-+            // Whole-shard compile did not yield a usable module: retry each
-+            // kernel wrapper on its own so one untranslatable kernel does not
-+            // hide its siblings.
-+            fs::remove_file(&spv_path).ok();
-+            self.fallback_per_kernel(&source_rel, &transformed, &front_path, &slots, &work, &stem, clspv.as_path(), &mut funcs, &mut modules);
-+        }
-+        eprintln!("m2v compile {source_rel}/{stem}: funcs={} fallback={}", funcs.len(), had_fallback);
-+
++        eprintln!("m2v compile {source_rel}/{stem}: funcs={}", funcs.len());
 +        let entries: Vec<(&FuncSer, &[u8])> = funcs.iter().zip(modules.iter().map(|m| m.as_slice())).collect();
 +        fs::write(output, pack_m2vlib(entries)?).with_context(|| format!("cannot write {}", output.display()))?;
 +        Ok(None)
 +    }
 +
-+    fn validate(&self, spv: &Path) -> bool {
-+        let Some(val) = &self.spirv_val else { return true };
-+        Command::new(val)
-+            .args(["--target-env", "vulkan1.3"])
-+            .arg(spv)
-+            .stdout(std::process::Stdio::null())
-+            .stderr(std::process::Stdio::null())
-+            .status()
-+            .map(|s| s.success())
-+            .unwrap_or(false)
-+    }
-+
-+    fn compile_module(
-+        &self,
-+        cl_source: &Path,
-+        include_source: Option<&Path>,
-+        ll: &Path,
-+        spv: &Path,
-+        clspv: &Path,
-+    ) -> Result<(), String> {
++    fn compile_module(&self, cl_source: &Path, ll: &Path, spv: &Path, clspv: &Path) -> Result<(), String> {
 +        let mut cmd = Command::new(&self.clang);
 +        cmd.args(self.clang_baseline_args());
 +        cmd.args(&self.opt_flags);
 +        cmd.arg("-cl-kernel-arg-info");
-+        self.common_includes(&mut cmd);
-+        if let Some(src) = include_source {
-+            // The front copy lives in the mirror; putting the mirror first on
-+            // the include path makes every header resolve to the same
-+            // (rewritten) copy - without it, quoted includes pick mirror
-+            // files while -I picks the originals and clang sees both.
-+            let mirror = self.ensure_mirror().map_err(|e| e.to_string())?;
-+            cmd.arg("-I").arg(mirror);
-+            // The DSL footer's function-constant slots sit at the TOP of the
-+            // front source, before the kernel's own `#include <metal_stdlib>`;
-+            // force the shim in first so its types (uint32_t, vec macros) are
-+            // visible to those lines, like the Metal compiler's built-in
-+            // prelude does.
-+            cmd.arg("-include").arg(self.shim_include.join("metal_stdlib"));
-+            cmd.arg("-include").arg(src);
-+        }
++        // The unit is self-contained (preprocessed front text plus wrapper);
++        // only the Metal stdlib shim is included, and nothing else can pull
++        // headers from outside the pasted text.
++        cmd.arg("-I").arg(&self.shim_include);
++        cmd.arg("-include").arg(self.shim_include.join("metal_stdlib"));
 +        cmd.arg(cl_source);
 +        cmd.args(["-S", "-emit-llvm"]).arg("-o").arg(ll);
 +
@@ -5384,56 +5385,98 @@ index 00000000..354b6fc4
 +            .output()
 +            .map_err(|e| format!("cannot execute clspv: {e}"))?;
 +        if !spv.is_file() {
-+            return Err(first_diag_lines(&String::from_utf8_lossy(&co.stderr)));
++            // A crashed or empty clspv run can carry no diagnostic at all
++            // (only the module-link warnings); the exit status is the real
++            // information then.
++            let stderr = String::from_utf8_lossy(&co.stderr).into_owned();
++            let has_error = stderr.lines().any(|l| l.contains("error:"));
++            if has_error {
++                return Err(first_diag_lines(&stderr));
++            }
++            let status = match co.status.code() {
++                Some(code) => format!("exit {code}"),
++                None => "killed by a signal".to_string(),
++            };
++            return Err(format!("clspv {status} without a diagnostic"));
++        }
++        if let Some(val) = &self.spirv_val {
++            let vo = Command::new(val)
++                .args(["--target-env", "vulkan1.3"])
++                .arg(spv)
++                .output()
++                .map_err(|e| format!("cannot execute spirv-val: {e}"))?;
++            if !vo.status.success() {
++                return Err(first_diag_lines(&String::from_utf8_lossy(&vo.stderr)));
++            }
 +        }
 +        Ok(())
 +    }
 +
-+    /// Whole-shard compile failed: retry each kernel wrapper on its own so a
-+    /// single untranslatable kernel does not hide its siblings.
-+    fn fallback_per_kernel(
-+        &self,
-+        source_rel: &str,
-+        transformed: &str,
-+        front_source: &Path,
-+        slots: &[SlotInfo],
-+        work: &Path,
-+        stem: &str,
-+        clspv: &Path,
-+        funcs: &mut Vec<FuncSer>,
-+        modules: &mut Vec<Vec<u8>>,
-+    ) {
-+        let preamble = slot_preamble(transformed);
-+        for (idx, chunk) in split_variants(transformed).into_iter().enumerate() {
-+            let Some(name) = chunk.entry_name() else { continue };
-+            let ll = work.join(format!("{stem}.v{idx}.ll"));
-+            let spv = work.join(format!("{stem}.v{idx}.spv"));
-+            let cl_path = work.join(format!("{stem}.v{idx}.cl"));
-+            if fs::write(&cl_path, format!("{preamble}{}", chunk.text)).is_err() {
-+                continue;
++    /// Preprocess the front source once per shard: `clang -E -P` with the
++    /// Metal system headers replaced by empty stubs (the per-kernel units
++    /// `-include` the real shim instead) and every project include resolved
++    /// inside the kernel mirror, so the pasted text carries each header
++    /// exactly once. Missing metal/simd headers get an empty stub and the
++    /// run retries, like the sweep driver.
++    fn preprocess_front(&self, front: &Path) -> anyhow::Result<String> {
++        let stubs = self.ensure_stubs()?;
++        let mirror = self.ensure_mirror()?;
++        for _ in 0..8 {
++            let mut cmd = Command::new(&self.clang);
++            // -dD keeps the front's own #define lines (the DSL wrapper
++            // bodies pasted after this text reference the front's variant
++            // macros); -P drops the line markers.
++            cmd.args(["--target=spir", "-x", "cl", "-cl-std=clc++2021", "-E", "-P", "-dD", "-w", "-cl-no-stdinc"]);
++            // The stub dir first: `metal_stdlib` stays an empty stand-in (the
++            // per-kernel units -include the real shim). Later roots resolve
++            // everything that must keep its content - notably the shim's
++            // MetalPerformancePrimitives emulation.
++            cmd.arg("-I").arg(&stubs);
++            cmd.arg("-I").arg(&self.shim_include);
++            cmd.arg("-I").arg(&mirror);
++            cmd.arg("-I").arg(mirror.join("generated"));
++            cmd.arg(front);
++            let out = cmd.output().with_context(|| format!("cannot execute clang {}", self.clang.display()))?;
++            if out.status.success() {
++                return Ok(String::from_utf8_lossy(&out.stdout).into_owned());
 +            }
-+            let diag;
-+            match self.compile_module(&cl_path, Some(front_source), &ll, &spv, clspv) {
-+                Ok(()) => match reflect_spv(&fs::read(&spv).unwrap_or_default()) {
-+                    Ok(refl) if !refl.is_empty() => {
-+                        for r in refl.into_values() {
-+                            modules.push(fs::read(&spv).unwrap_or_default());
-+                            funcs.push(self.function_desc(&r, slots));
-+                            self.record_diag(source_rel, &r.entry, true, None);
-+                        }
-+                        let _ = fs::remove_file(&cl_path);
-+                        continue;
-+                    },
-+                    Ok(_) => diag = "no reflected kernels".into(),
-+                    Err(e) => diag = format!("reflection failed: {e}"),
-+                },
-+                Err(e) => diag = e,
++            let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
++            let miss = stub_header_name(&stderr);
++            let Some(name) = miss else {
++                bail!("{}", first_diag_lines(&stderr));
++            };
++            let stub = stubs.join(&name);
++            if let Some(parent) = stub.parent() {
++                fs::create_dir_all(parent).with_context(|| format!("cannot create {}", parent.display()))?;
 +            }
-+            self.record_diag(source_rel, &name, false, Some(&diag));
-+            let _ = fs::remove_file(&cl_path);
-+            let _ = fs::remove_file(&ll);
-+            let _ = fs::remove_file(&spv);
++            fs::write(&stub, "").with_context(|| format!("cannot write stub {}", stub.display()))?;
 +        }
++        bail!("clang preprocessing did not converge after stub retries");
++    }
++
++    /// Empty stand-ins for the Metal system headers, created once per
++    /// build-script run. Every shim-owned `metal_*`/`simd*` header is
++    /// stubbed so the preprocessing pass inlines none of the shim (the
++    /// per-kernel units `-include` the real shim; a second copy would
++    /// redefine `namespace metal`). Headers outside that namespace (the
++    /// MetalPerformancePrimitives emulation) keep their real content.
++    fn ensure_stubs(&self) -> anyhow::Result<PathBuf> {
++        let mut guard = self.stubs.lock().unwrap_or_else(|p| p.into_inner());
++        if let Some(dir) = guard.as_ref() {
++            return Ok(dir.path().to_path_buf());
++        }
++        let dir = tempfile::TempDir::new().context("cannot create stub directory")?;
++        for entry in fs::read_dir(&self.shim_include).with_context(|| format!("cannot read {}", self.shim_include.display()))? {
++            let entry = entry.with_context(|| format!("cannot read entry in {}", self.shim_include.display()))?;
++            let name = entry.file_name();
++            let name = name.to_string_lossy();
++            if name == "metal_stdlib" || name.starts_with("metal_") || name.starts_with("simd") {
++                fs::write(dir.path().join(&*name), "").with_context(|| format!("cannot write stub {name}"))?;
++            }
++        }
++        let path = dir.path().to_path_buf();
++        *guard = Some(dir);
++        Ok(path)
 +    }
 +
 +    fn function_desc(&self, r: &Reflected, slots: &[SlotInfo]) -> FuncSer {
@@ -5476,6 +5519,17 @@ index 00000000..354b6fc4
 +    fn transform_footer(&self, footer: &str) -> anyhow::Result<(String, Vec<SlotInfo>)> {
 +        let mut text = String::with_capacity(footer.len() + 8192);
 +        let mut slots: Vec<SlotInfo> = Vec::new();
++        // The footer repeats slot blocks per variant family (the same
++        // `[[function_constant(N)]]` line and the same typed wrapper twice for
++        // the float and half spellings of one kernel); a second copy is a
++        // redefinition at file scope, so exact repeats are dropped.
++        let mut emitted: BTreeSet<String> = BTreeSet::new();
++        // Typed spec-constant wrappers (`constant <T> __dsl_typed_<x> =
++        // <T>(expr);`) become a raw constant plus a constructing macro: this
++        // front end cannot construct a thread-qualified DSL struct in the
++        // constant address space, and every use of the macro must read the
++        // value through the spec constant anyway.
++        let mut typed: BTreeMap<String, String> = BTreeMap::new();
 +
 +        for line in footer.lines() {
 +            let trimmed = line.trim_start();
@@ -5483,14 +5537,43 @@ index 00000000..354b6fc4
 +            // function-constant slot declarations -> __m2v_spec_<N> globals
 +            if let Some(rest) = trimmed.strip_prefix("constant ") {
 +                if let Some((clty, m2vty, index)) = parse_slot_line(rest) {
-+                    slots.push(SlotInfo { index, m2v_type: m2vty });
-+                    text.push_str(&format!("constant volatile {clty} {SPEC_PREFIX}{index} = 0;\n"));
++                    if slots.iter().all(|s| s.index != index) {
++                        slots.push(SlotInfo { index, m2v_type: m2vty });
++                    }
++                    let global = format!("constant volatile {clty} {SPEC_PREFIX}{index} = 0;\n");
++                    if emitted.insert(global.clone()) {
++                        text.push_str(&global);
++                    }
 +                    // The body still refers to the slot by its original name
 +                    // (directly or through wrapper #defines); keep it alive.
 +                    if let Some(name) = slot_decl_name(rest) {
 +                        text.push_str(&format!("#define {name} {SPEC_PREFIX}{index}\n"));
 +                    }
 +                    continue;
++                }
++                // Typed spec-constant wrappers and buffer-condition globals:
++                // pass through, but only once (same redefinition hazard).
++                // Typed wrappers additionally switch to the raw-plus-macro
++                // spelling described above.
++                if emitted.insert(trimmed.to_string()) {
++                    if let Some((ty, name, expr)) = typed_wrapper_parts(trimmed) {
++                        typed.insert(name.to_string(), format!("({ty}({name}_raw))"));
++                        text.push_str(&format!("constant uint32_t {name}_raw = {expr};\n"));
++                    } else {
++                        text.push_str(line);
++                        text.push('\n');
++                    }
++                }
++                continue;
++            }
++
++            // Name defines over a typed wrapper follow the wrapper global.
++            if let Some(rest) = trimmed.strip_prefix("#define ") {
++                if let Some((macro_name, target)) = rest.split_once(' ') {
++                    if let Some(replacement) = typed.get(target.trim()) {
++                        text.push_str(&format!("#define {macro_name} {replacement}\n"));
++                        continue;
++                    }
 +                }
 +            }
 +
@@ -5541,6 +5624,29 @@ index 00000000..354b6fc4
 +
 +        Ok((text, slots))
 +    }
++}
++
++/// Parse a footer typed spec-constant wrapper
++/// `constant <T> <name> = <T>(<expr>);` into (T, name, expr); None for any
++/// other `constant` line (buffer conditions and such pass through).
++fn typed_wrapper_parts(line: &str) -> Option<(&str, &str, &str)> {
++    let rest = line.strip_prefix("constant ")?;
++    let eq = rest.find(" = ")?;
++    let decl = &rest[..eq];
++    let expr = rest[eq + 3..].strip_suffix(';')?;
++    let (ty, name) = decl.split_once(' ')?;
++    let ident = !name.is_empty()
++        && !name.starts_with(|c: char| c.is_ascii_digit())
++        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
++    if !ident {
++        return None;
++    }
++    let open = format!("{ty}(");
++    let inner = expr.strip_prefix(&open)?.strip_suffix(')')?;
++    if inner.contains(')') {
++        return None;
++    }
++    Some((ty, name, inner))
 +}
 +
 +/// The fixed-size vector names whose constructor macros
@@ -5874,10 +5980,10 @@ index 00000000..354b6fc4
 +    for line in text.lines() {
 +        let t = line.trim_start();
 +        if t.starts_with("constant ") && t.contains("[[function_constant(") {
-+            let name = t.split_whitespace().nth(2);
++            let name = slot_decl_name(t.trim_start_matches("constant "));
 +            let n = t.split("[[function_constant(").nth(1).and_then(|r| r.split(')').next());
 +            if let (Some(name), Some(n)) = (name, n) {
-+                if n.chars().all(|c| c.is_ascii_digit()) && t.trim_end().ends_with(");") {
++                if n.chars().all(|c| c.is_ascii_digit()) {
 +                    out.push_str("#define ");
 +                    out.push_str(name);
 +                    out.push_str(" __m2v_spec_");
@@ -5887,31 +5993,20 @@ index 00000000..354b6fc4
 +                }
 +            }
 +        }
-+        out.push_str(&const_qualify_constant_refs(line));
++        // DSL constexpr constructors are thread-qualified; the footer's
++        // typed wrapper globals construct them in the constant address
++        // space, which this front end rejects. The qualifier adds nothing
++        // for translation (the implicit object's address space deduces at
++        // the call site), so drop it in the translate-only copy.
++        let qualified = const_qualify_constant_refs(line);
++        if qualified.contains(") thread :") {
++            out.push_str(&qualified.replace(") thread :", ") :"));
++        } else {
++            out.push_str(&qualified);
++        }
 +        out.push('\n');
 +    }
 +    out
-+}
-+
-+/// The file-level function-constant machinery of a transformed footer: the
-+/// `__m2v_spec_N` globals, their slot-name defines and the typed wrappers.
-+/// The per-kernel fallback compiles one variant chunk on its own, so the
-+/// chunk needs this header to resolve the slot names its body uses.
-+fn slot_preamble(transformed: &str) -> String {
-+    let mut pre = String::new();
-+    for line in transformed.lines() {
-+        let t = line.trim_start();
-+        let keep = t.is_empty()
-+            || t.starts_with("constant ")
-+            || (t.starts_with("#define ")
-+                && (t.contains("__m2v_spec_") || t.contains("__dsl_specialize") || t.contains("__dsl_typed_")));
-+        if !keep {
-+            break;
-+        }
-+        pre.push_str(line);
-+        pre.push('\n');
-+    }
-+    pre
 +}
 +
 +/// Metal's `constant` address space is const for objects but clang's OpenCL
@@ -6077,6 +6172,23 @@ index 00000000..354b6fc4
 +        .unwrap_or_default()
 +}
 +
++/// The Metal/simd system header a preprocessing failure could not find, so
++/// the next attempt can stub it out (the sweep driver's retry loop).
++fn stub_header_name(stderr: &str) -> Option<String> {
++    for ln in stderr.lines() {
++        let Some(pos) = ln.find("' file not found") else { continue };
++        let before = &ln[..pos];
++        let Some(start) = before.rfind('\'') else { continue };
++        let name = &before[start + 1..];
++        if name.rsplit('/').next().unwrap_or(name).get(..5).map(|p| p.eq_ignore_ascii_case("metal")).unwrap_or(false)
++            || name.starts_with("simd")
++        {
++            return Some(name.to_string());
++        }
++    }
++    None
++}
++
 +fn first_diag_lines(stderr: &str) -> String {
 +    let lines: Vec<&str> = stderr
 +        .lines()
@@ -6101,12 +6213,16 @@ index 00000000..354b6fc4
 +    let idx_start = rest.find("[[function_constant(")? + "[[function_constant(".len();
 +    let idx_end = rest[idx_start..].find(')')? + idx_start;
 +    let index: u32 = rest[idx_start..idx_end].parse().ok()?;
-+    let ty = rest.split_whitespace().next()?;
-+    let (clty, m2vty) = match ty {
-+        "bool" => ("uint", "bool"),
-+        "uint32_t" | "uint" => ("uint", "u32"),
-+        "int32_t" | "int" => ("int", "i32"),
-+        "float" => ("float", "f32"),
++    let toks: Vec<&str> = rest.split_whitespace().collect();
++    // `unsigned int`/`unsigned long` spell the Metal DSL types out; map them
++    // like their fixed-width aliases.
++    let (clty, m2vty) = match (toks.first().copied().unwrap_or(""), toks.get(1).copied()) {
++        ("bool", _) => ("uint", "bool"),
++        ("uint32_t", _) | ("uint", _) => ("uint", "u32"),
++        ("unsigned", Some("long")) | ("unsigned", Some("long long")) => ("ulong", "u64"),
++        ("unsigned", _) => ("uint", "u32"),
++        ("int32_t", _) | ("int", _) | ("signed", _) => ("int", "i32"),
++        ("float", _) => ("float", "f32"),
 +        _ => return None,
 +    };
 +    Some((clty, m2vty, index))
@@ -6141,34 +6257,37 @@ index 00000000..354b6fc4
 +    }
 +}
 +
-+/// Split a transformed footer into per-variant translation units: shared
-+/// preamble plus one kernel wrapper each.
++/// Split a transformed footer into per-variant translation units: the
++/// leading shared block (slot globals, their name defines, typed wrappers)
++/// plus the variant's own defines and wrapper. Lines that are neither
++/// preamble nor a kernel line are the current variant's continuation (body,
++/// undefs) and stay in that unit; nothing from one variant's body may leak
++/// into the next one's unit (a leaked `__local` declaration lands at file
++/// scope and every later line fails with it).
 +fn split_variants(text: &str) -> Vec<VariantChunk> {
-+    let mut preamble = String::new();
++    let mut head = String::new();
 +    let mut pending = String::new();
 +    let mut chunks: Vec<String> = Vec::new();
 +
 +    for line in text.lines() {
 +        let t = line.trim_start();
 +        if t.starts_with("[[kernel") || t.starts_with("__kernel") {
-+            let mut chunk = std::mem::take(&mut preamble);
++            let mut chunk = head.clone();
 +            chunk.push_str(&std::mem::take(&mut pending));
 +            chunk.push_str(line);
 +            chunk.push('\n');
 +            chunks.push(chunk);
 +            continue;
 +        }
-+        if t.starts_with("constant ") || t.starts_with('#') {
-+            preamble.push_str(line);
-+            preamble.push('\n');
-+        } else if !chunks.is_empty() {
-+            // continuation of the current variant (body, undefs)
++        if chunks.is_empty() {
++            head.push_str(line);
++            head.push('\n');
++        } else if t.starts_with("constant ") || t.starts_with('#') {
 +            pending.push_str(line);
 +            pending.push('\n');
-+            if let Some(last) = chunks.last_mut() {
-+                last.push_str(line);
-+                last.push('\n');
-+            }
++        } else if let Some(last) = chunks.last_mut() {
++            last.push_str(line);
++            last.push('\n');
 +        }
 +    }
 +    chunks.into_iter().map(|text| VariantChunk { text }).collect()
@@ -6256,7 +6375,15 @@ index 00000000..354b6fc4
 +/// The declared identifier of a `constant T NAME [[function_constant(N)];`
 +/// slot line (the text after the `constant ` prefix).
 +fn slot_decl_name(rest: &str) -> Option<&str> {
-+    let name = rest.split_whitespace().nth(1)?;
++    let mut toks = rest.split_whitespace();
++    let mut name = toks.next()?;
++    // `unsigned int NAME` / `signed char NAME`: the sign word prefixes the type.
++    if name == "unsigned" || name == "signed" {
++        name = toks.next()?;
++        name = toks.next()?;
++    } else {
++        name = toks.next()?;
++    }
 +    let first = name.chars().next()?;
 +    let ident = (first.is_ascii_alphabetic() || first == '_')
 +        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
@@ -6539,6 +6666,19 @@ index 00000000..354b6fc4
 +        _ => {},
 +    }
 +}
+diff --git a/crates/uzu-engine/build/metal/wrapper.rs b/crates/uzu-engine/build/metal/wrapper.rs
+index 13ba9f40..3196a50c 100644
+--- a/crates/uzu-engine/build/metal/wrapper.rs
++++ b/crates/uzu-engine/build/metal/wrapper.rs
+@@ -288,7 +288,7 @@ fn kernel_wrappers(
+                     MetalArgumentType::Threads(_) => {
+                         format!("__dsl_thread_idx.{}", thread_axis_letters.next().unwrap())
+                     },
+-                    MetalArgumentType::ThreadContext => "ThreadContext { .simd_lane_id = __dsl_simd_lane_idx, .simdgroup_index = __dsl_simd_group_idx, .simdgroup_size = __dsl_simd_group_size, .simdgroups_per_threadgroup = __dsl_simd_group_per_threadgroup, .threadgroup_position = __dsl_group_idx }".into(),
++                    MetalArgumentType::ThreadContext => "ThreadContext { .simd_lane_id = __dsl_simd_lane_idx, .simdgroup_index = __dsl_simd_group_idx, .simdgroup_size = __dsl_simd_group_size, .simdgroups_per_threadgroup = __dsl_simd_groups_per_threadgroup, .threadgroup_position = __dsl_group_idx }".into(),
+                 })
+                 .collect::<Vec<_>>()
+                 .join(", ")
 diff --git a/crates/uzu-engine/src/backends/metal/context.rs b/crates/uzu-engine/src/backends/metal/context.rs
 index 90ee23b3..bfc79160 100644
 --- a/crates/uzu-engine/src/backends/metal/context.rs
