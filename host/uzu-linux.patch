@@ -4502,7 +4502,7 @@ index f3430413..cedfac11 100644
  pub mod gpu_types;
  pub mod identifiers;
 diff --git a/crates/uzu-engine/build/main.rs b/crates/uzu-engine/build/main.rs
-index 85c1b93a..b31258c9 100644
+index 85c1b93a..aea1219d 100644
 --- a/crates/uzu-engine/build/main.rs
 +++ b/crates/uzu-engine/build/main.rs
 @@ -7,7 +7,7 @@ use common::{compiler::Compiler, enum_paths::EnumPaths, envs, gpu_types::GpuType
@@ -4544,7 +4544,7 @@ index 85c1b93a..b31258c9 100644
 -        compilers.iter().map(|c| c.build(&gpu_types, &enum_paths)).collect::<anyhow::Result<Vec<_>>>()?;
 +    // slice/host (vulkan-host on Linux): the metal backend compiles without the
 +    // macOS kernel compiler; the generated kernel bindings (OUT_DIR/metal.rs)
-+    // must be pre-supplied — see metal2vk host/STATUS.md.
++    // must be pre-supplied - see metal2vk host/STATUS.md.
 +    let backends_kernels = if compilers.is_empty() {
 +        Vec::new()
 +    } else {
@@ -4712,10 +4712,10 @@ index 62e76339..731742f8 100644
  pub use compiler::MetalCompiler;
 diff --git a/crates/uzu-engine/build/metal/toolchain_m2v.rs b/crates/uzu-engine/build/metal/toolchain_m2v.rs
 new file mode 100644
-index 00000000..1103efa8
+index 00000000..354b6fc4
 --- /dev/null
 +++ b/crates/uzu-engine/build/metal/toolchain_m2v.rs
-@@ -0,0 +1,1704 @@
+@@ -0,0 +1,1823 @@
 +//! Linux/vulkan-host kernel toolchain (slice/host-bindgen).
 +//!
 +//! Replaces the macOS `xcrun metal` step with the metal2vk chain while reusing
@@ -4916,7 +4916,7 @@ index 00000000..1103efa8
 +
 +        let cache_key = {
 +            let mut hasher = blake3::Hasher::new();
-+            hasher.update(b"m2v-toolchain-v3\0");
++            hasher.update(b"m2v-toolchain-v7\0");
 +            hasher.update(run_output(&clang, &["--version"]).as_bytes());
 +            hasher.update(b"\0");
 +            hasher.update(clspv.as_ref().map(|p| run_output(p, &["--version"])).unwrap_or_else(|| "clspv-missing".into()).as_bytes()).update(b"\0");
@@ -5353,6 +5353,12 @@ index 00000000..1103efa8
 +        cmd.arg("-cl-kernel-arg-info");
 +        self.common_includes(&mut cmd);
 +        if let Some(src) = include_source {
++            // The front copy lives in the mirror; putting the mirror first on
++            // the include path makes every header resolve to the same
++            // (rewritten) copy - without it, quoted includes pick mirror
++            // files while -I picks the originals and clang sees both.
++            let mirror = self.ensure_mirror().map_err(|e| e.to_string())?;
++            cmd.arg("-I").arg(mirror);
 +            // The DSL footer's function-constant slots sit at the TOP of the
 +            // front source, before the kernel's own `#include <metal_stdlib>`;
 +            // force the shim in first so its types (uint32_t, vec macros) are
@@ -5397,12 +5403,13 @@ index 00000000..1103efa8
 +        funcs: &mut Vec<FuncSer>,
 +        modules: &mut Vec<Vec<u8>>,
 +    ) {
++        let preamble = slot_preamble(transformed);
 +        for (idx, chunk) in split_variants(transformed).into_iter().enumerate() {
 +            let Some(name) = chunk.entry_name() else { continue };
 +            let ll = work.join(format!("{stem}.v{idx}.ll"));
 +            let spv = work.join(format!("{stem}.v{idx}.spv"));
 +            let cl_path = work.join(format!("{stem}.v{idx}.cl"));
-+            if fs::write(&cl_path, &chunk.text).is_err() {
++            if fs::write(&cl_path, format!("{preamble}{}", chunk.text)).is_err() {
 +                continue;
 +            }
 +            let diag;
@@ -5478,6 +5485,11 @@ index 00000000..1103efa8
 +                if let Some((clty, m2vty, index)) = parse_slot_line(rest) {
 +                    slots.push(SlotInfo { index, m2v_type: m2vty });
 +                    text.push_str(&format!("constant volatile {clty} {SPEC_PREFIX}{index} = 0;\n"));
++                    // The body still refers to the slot by its original name
++                    // (directly or through wrapper #defines); keep it alive.
++                    if let Some(name) = slot_decl_name(rest) {
++                        text.push_str(&format!("#define {name} {SPEC_PREFIX}{index}\n"));
++                    }
 +                    continue;
 +                }
 +            }
@@ -5486,7 +5498,8 @@ index 00000000..1103efa8
 +            if trimmed.starts_with("[[kernel") {
 +                let line = rewrite_kernel_line(line)?;
 +                let (line, builtins) = convert_builtins(&line);
-+                text.push_str(&line);
++                let line = strip_param_attrs(&line);
++                text.push_str(&line.trim_end());
 +                text.push('\n');
 +                for def in builtins {
 +                    text.push_str(&format!("  {def}\n"));
@@ -5498,7 +5511,7 @@ index 00000000..1103efa8
 +            // own continuation lines if the signature was wrapped.
 +            if trimmed.contains("[[buffer(") || trimmed.contains("[[threadgroup(") {
 +                let (line, _) = convert_builtins(&strip_param_attrs(line));
-+                text.push_str(&line);
++                text.push_str(line.trim_end());
 +                text.push('\n');
 +                continue;
 +            }
@@ -5658,16 +5671,18 @@ index 00000000..1103efa8
 +            rewritten += copy_tree_fixed(&from, &to)?;
 +        } else if from.extension().and_then(|e| e.to_str()) == Some("h") {
 +            let text = fs::read_to_string(&from).with_context(|| format!("cannot read {}", from.display()))?;
-+            match fix_vector_array_refs(&text) {
-+                Some(fixed) => {
-+                    fs::write(&to, fixed).with_context(|| format!("cannot write {}", to.display()))?;
-+                    eprintln!("m2v mirror: rewrote {}", from.display());
-+                    rewritten += 1;
-+                },
-+                None => {
-+                    fs::copy(&from, &to).with_context(|| format!("cannot copy to {}", to.display()))?;
-+                },
++            let mut fixed = fix_vector_array_refs(&text).unwrap_or(text);
++            if !fixed.ends_with('\n') {
++                fixed.push('\n');
 +            }
++            // clang treats differently spelled paths (constructed with `..`)
++            // as distinct files even for `#pragma once` headers, so spellings
++            // like `common/../../../generated/x.h` and `generated/x.h`
++            // double-define types. A macro guard dedupes regardless of path.
++            let key = blake3::hash(from.to_string_lossy().as_bytes()).to_hex()[..16].to_uppercase();
++            let guarded = format!("#ifndef M2V_ONCE_{key}\n#define M2V_ONCE_{key}\n{fixed}#endif\n");
++            fs::write(&to, guarded).with_context(|| format!("cannot write {}", to.display()))?;
++            rewritten += 1;
 +        } else {
 +            fs::copy(&from, &to).with_context(|| format!("cannot copy to {}", to.display()))?;
 +        }
@@ -5872,9 +5887,65 @@ index 00000000..1103efa8
 +                }
 +            }
 +        }
-+        out.push_str(line);
++        out.push_str(&const_qualify_constant_refs(line));
 +        out.push('\n');
 +    }
++    out
++}
++
++/// The file-level function-constant machinery of a transformed footer: the
++/// `__m2v_spec_N` globals, their slot-name defines and the typed wrappers.
++/// The per-kernel fallback compiles one variant chunk on its own, so the
++/// chunk needs this header to resolve the slot names its body uses.
++fn slot_preamble(transformed: &str) -> String {
++    let mut pre = String::new();
++    for line in transformed.lines() {
++        let t = line.trim_start();
++        let keep = t.is_empty()
++            || t.starts_with("constant ")
++            || (t.starts_with("#define ")
++                && (t.contains("__m2v_spec_") || t.contains("__dsl_specialize") || t.contains("__dsl_typed_")));
++        if !keep {
++            break;
++        }
++        pre.push_str(line);
++        pre.push('\n');
++    }
++    pre
++}
++
++/// Metal's `constant` address space is const for objects but clang's OpenCL
++/// front end does not const-qualify references: front templates taking
++/// `constant T&` parameters reject the footer's `const constant T&`
++/// arguments ("would lose const qualifier"). Add the explicit const on the
++/// translate-side copy only - the analyzed copy keeps Metal's exact text.
++fn const_qualify_constant_refs(line: &str) -> String {
++    const NEEDLE: &str = "constant ";
++    let mut out = String::with_capacity(line.len() + 8);
++    let mut rest = line;
++    while let Some(pos) = rest.find(NEEDLE) {
++        let after = &rest[pos + NEEDLE.len()..];
++        let ident_len = after
++            .chars()
++            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
++            .count();
++        let tail = &after[ident_len..];
++        let ws_len = tail.len() - tail.trim_start().len();
++        let is_ref = tail.trim_start().starts_with('&');
++        // Skip `__constant` spellings and parameters already const-qualified.
++        let already = rest[..pos].ends_with("const ") || rest[..pos].ends_with("__");
++        out.push_str(&rest[..pos]);
++        if !already && ident_len > 0 && is_ref {
++            out.push_str("const constant ");
++            out.push_str(&after[..ident_len]);
++            out.push('&');
++            rest = &tail[ws_len + 1..];
++        } else {
++            out.push_str(NEEDLE);
++            rest = after;
++        }
++    }
++    out.push_str(rest);
 +    out
 +}
 +
@@ -6007,18 +6078,21 @@ index 00000000..1103efa8
 +}
 +
 +fn first_diag_lines(stderr: &str) -> String {
-+    let mut lines = Vec::new();
-+    for line in stderr.lines() {
-+        let l = line.trim();
-+        if l.is_empty() {
-+            continue;
-+        }
-+        lines.push(l.to_string());
-+        if lines.len() == 3 {
-+            break;
-+        }
-+    }
-+    if lines.is_empty() { "unknown diagnostic".to_string() } else { lines.join(" | ") }
++    let lines: Vec<&str> = stderr
++        .lines()
++        .map(str::trim)
++        .filter(|l| !l.is_empty())
++        .collect();
++    // The include stack ("In file included from ...") is preamble; the first
++    // `error:` line carries the real cause.
++    let start = lines
++        .iter()
++        .position(|l| l.contains("error:"))
++        .or_else(|| lines.iter().position(|l| !l.starts_with("In file included from")));
++    let Some(start) = start else {
++        return "unknown diagnostic".to_string();
++    };
++    lines[start..std::cmp::min(start + 3, lines.len())].join(" | ")
 +}
 +
 +/// Parse `uint32_t __dsl_specialize_x [[function_constant(3)]];`-style slot
@@ -6121,27 +6195,72 @@ index 00000000..1103efa8
 +    Ok(out)
 +}
 +
-+/// Remove `[[buffer(..)]]` and `[[threadgroup(..)]]` parameter attributes,
-+/// prefixing threadgroup pointer items with `__local `.
++/// Remove `[[buffer(..)]]`, `[[threadgroup(..)]]`, `[[function_constant(..)]]`
++/// parameter attribute groups (including combined lists like
++/// `[[buffer(0), function_constant(cond)]]`), prefixing bare threadgroup
++/// items with `__local `, and collapse the empty parameter slots the
++/// removals leave behind (`f(a, )`, `a,,b`).
 +fn strip_param_attrs(line: &str) -> String {
++    const MARKERS: [&str; 3] = ["[[buffer(", "[[threadgroup(", "[[function_constant("];
 +    let mut out = line.to_string();
-+    for marker in ["[[threadgroup(", "[[buffer("] {
-+        while let Some(pos) = out.find(marker) {
-+            let Some(close_rel) = out[pos..].find(")]") else { break };
-+            let close = pos + close_rel + 2;
-+            let mut item_start = out[..pos].rfind(['(', ',']).map(|i| i + 1).unwrap_or(0);
-+            let item = out[item_start..pos].trim().to_string();
-+            let mut end = close;
-+            if out[close..].starts_with(", ") {
-+                end = close + 2;
-+            } else if out[..item_start].ends_with(", ") {
-+                item_start -= 2;
-+            }
-+            let replacement = if marker == "[[threadgroup(" { format!("__local {item}") } else { item };
-+            out.replace_range(item_start..end, &replacement);
++    while let Some(pos) = MARKERS.iter().filter_map(|m| out.find(m)).min() {
++        let Some(close_rel) = out[pos..].find("]]") else { break };
++        let close = pos + close_rel + 2;
++        let threadgroup = out[pos..].starts_with("[[threadgroup(");
++        let item_start = out[..pos].rfind(['(', ',']).map(|i| i + 1).unwrap_or(0);
++        let item = out[item_start..pos].trim();
++        // Metal types carry the qualifier themselves (the shim maps
++        // `threadgroup` -> `__local`); only a bare item needs the prefix.
++        let prefix = if threadgroup
++            && !item.is_empty()
++            && !item.contains("threadgroup")
++            && !item.contains("__local")
++        {
++            "__local "
++        } else {
++            ""
++        };
++        out.replace_range(pos..close, "");
++        if !prefix.is_empty() {
++            out.insert_str(item_start, prefix);
 +        }
 +    }
++    collapse_param_commas(&mut out);
 +    out
++}
++
++/// Remove empty parameter slots left behind by attribute stripping:
++/// `", )"` -> `")"`, `",,"` -> `","`, `"(,"` -> `"("`. Every replacement
++/// strictly shortens the text, so a stable length ends the loop.
++fn collapse_param_commas(out: &mut String) {
++    loop {
++        let before = out.len();
++        while let Some(p) = out.find(", )") {
++            out.replace_range(p..p + 3, ")");
++        }
++        while let Some(p) = out.find(",)") {
++            out.replace_range(p..p + 2, ")");
++        }
++        while let Some(p) = out.find(",,") {
++            out.replace_range(p..p + 2, ",");
++        }
++        while let Some(p) = out.find("(, ") {
++            out.replace_range(p..p + 3, "(");
++        }
++        if out.len() == before {
++            return;
++        }
++    }
++}
++
++/// The declared identifier of a `constant T NAME [[function_constant(N)];`
++/// slot line (the text after the `constant ` prefix).
++fn slot_decl_name(rest: &str) -> Option<&str> {
++    let name = rest.split_whitespace().nth(1)?;
++    let first = name.chars().next()?;
++    let ident = (first.is_ascii_alphabetic() || first == '_')
++        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
++    ident.then_some(name)
 +}
 +
 +/// Replace DSL built-in parameter items with OpenCL builtin locals; returns
