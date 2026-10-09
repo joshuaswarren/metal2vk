@@ -117,3 +117,11 @@ A fallback is an omarchy-mlx hand kernel with the same contract (`{"hand": name}
 kept in `Policy::events()`. There is no setting that disables the gate. The table is read from `M2V_POLICY_FILE` (a missing or
 malformed file is an error); `tools/make-gate.py` builds its `kernels` section from `sweep-run.json`: `verified` only for rows whose
 `ref` is ok, `failed` for rows whose `ref` failed, `unverified` for the rest. The `gate` field of a `.m2vlib` function (state verified, unverified or failed, plus evidence) seeds the table in `Device::route_kernel` when the policy file and earlier first-use checks have no entry for that kernel.
+
+`Device::create_pipeline` goes through the gate: it builds a pipeline only for a Translated or TranslatedChecked route and returns
+`Error::Refused` for a fallback route, so a kernel the gate does not trust cannot be dispatched by accident. Callers that want the
+fallback call `Device::route_kernel` first. C ABI: `m2v_route_kernel(device, library, name, &route, reference, cap)` returns
+`M2V_ROUTE_TRANSLATED`, `M2V_ROUTE_CHECKED`, `M2V_ROUTE_FALLBACK_HAND` or `M2V_ROUTE_FALLBACK_CPU` (with the reference name), or
+`M2V_UNSUPPORTED` naming the kernel when it is refused; `m2v_report_check(device, name, matched, detail)` reports the first-use check.
+The GPU tests register a CPU reference for their kernel and report the result of their own comparison.
+

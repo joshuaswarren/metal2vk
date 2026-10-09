@@ -303,7 +303,16 @@ impl Device {
         name: &str,
         constants: &[(u32, crate::ConstantValue)],
     ) -> Result<Arc<Pipeline>> {
-        Pipeline::create(self.inner(), library, name, constants)
+        // The gate: only a verified kernel, or one that will be checked against a reference on its first use, gets a
+        // pipeline. A fallback route is an error here; callers that want the fallback ask `route_kernel` first.
+        match self.route_kernel(library, name)? {
+            crate::Route::Translated | crate::Route::TranslatedChecked { .. } => {
+                Pipeline::create(self.inner(), library, name, constants)
+            }
+            crate::Route::Fallback(fb) => Err(Error::Refused(format!(
+                "kernel '{name}' is routed to fallback {fb:?}; dispatch the fallback, no translated pipeline is created"
+            ))),
+        }
     }
 
     pub fn create_queue(&self) -> Result<Arc<Queue>> {

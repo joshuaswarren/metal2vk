@@ -47,6 +47,38 @@ typedef enum m2v_constant_kind m2v_constant_kind;
 typedef int32_t m2v_constant_kind;
 #endif // __STDC_VERSION__ >= 202311L
 
+/**
+ * How the host wants one kernel run (see `Device::route_kernel` and `host/DESIGN.md`).
+ */
+enum m2v_route
+#if __STDC_VERSION__ >= 202311L
+  : int32_t
+#endif // __STDC_VERSION__ >= 202311L
+ {
+  /**
+   * Verified translated kernel: create the pipeline and dispatch it.
+   */
+  m2v_route_TRANSLATED = 0,
+  /**
+   * Translated but unverified: run it into shadow outputs, compute the reference into the real outputs, compare, and call
+   * `m2v_report_check`. `reference` names the reference.
+   */
+  m2v_route_CHECKED = 1,
+  /**
+   * Run the omarchy-mlx hand kernel named in `reference`.
+   */
+  m2v_route_FALLBACK_HAND = 2,
+  /**
+   * Run the CPU reference named in `reference`.
+   */
+  m2v_route_FALLBACK_CPU = 3,
+};
+#if __STDC_VERSION__ >= 202311L
+typedef enum m2v_route m2v_route;
+#else
+typedef int32_t m2v_route;
+#endif // __STDC_VERSION__ >= 202311L
+
 typedef struct m2v_device_info {
   uint32_t subgroup_size;
   uint32_t max_threads_per_threadgroup;
@@ -156,6 +188,27 @@ m2v_status m2v_device_create_pipeline(m2v_device *d,
                                       const struct m2v_constant *constants,
                                       uintptr_t n_constants,
                                       m2v_pipeline **out);
+
+/**
+ * Ask how to run kernel `name` of library `l`. On OK, `*route` is set and, for CHECKED and FALLBACK_*, the reference name is
+ * copied NUL-terminated into `reference` (capacity `cap`; truncation is an INVALID error). A kernel with no trusted
+ * translation and no fallback returns UNSUPPORTED and `m2v_last_error` names it.
+ */
+m2v_status m2v_route_kernel(m2v_device *d,
+                            m2v_library *l,
+                            const char *name,
+                            m2v_route *route,
+                            char *reference,
+                            uintptr_t cap);
+
+/**
+ * Result of the first-use check requested by a CHECKED route. `matched` enables the translated kernel for the rest of the
+ * process; a mismatch disables it for good and later routes return the fallback. `detail` is logged (max error, tolerance).
+ */
+void m2v_report_check(m2v_device *d,
+                      const char *name,
+                      bool matched,
+                      const char *detail);
 
 void m2v_pipeline_release(m2v_pipeline *p);
 

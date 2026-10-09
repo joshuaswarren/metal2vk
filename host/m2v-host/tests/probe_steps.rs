@@ -1,6 +1,6 @@
 //! Step-marker probe to bisect the M2 segfault; not part of the API surface.
 
-use metal2vk::{Device, Library};
+use metal2vk::{Device, Fallback, Library};
 use std::sync::Arc;
 
 fn step(name: &str) {
@@ -29,6 +29,7 @@ fn probe_steps() {
     let bytes = std::fs::read(std::env::var("M2V_LIB").unwrap()).unwrap();
     let library = Library::from_bytes(&device, &bytes).expect("library");
     step("library-ok");
+    device.policy().set_fallback("add", Fallback::Cpu("cpu_add".into()));
     let pipeline = device.create_pipeline(&library, "add", &[]).expect("pipeline");
     step("pipeline-ok");
     let queue = device.create_queue().expect("queue");
