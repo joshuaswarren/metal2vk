@@ -21,6 +21,7 @@ pub use descriptors::{
     MTLSharedEventNotificationBlock, MTLSharedEventListener,
 };
 pub use error::MetalError;
+pub use metal2vk::{Fallback, Route};
 pub use protocols::{
     system_default_device, MTL4ArgumentTable, MTL4CommandAllocator, MTL4CommandBuffer, MTL4CommandBufferExt,
     MTL4CommandEncoder, MTL4CommandEncoderExt, MTL4CommandQueue, MTL4CommandQueueExt, MTL4CommitFeedback,

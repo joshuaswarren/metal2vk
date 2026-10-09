@@ -82,3 +82,32 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
   slice, not started here.
 - `Event::wait` on a host that lacks timeline semaphores returns
   Unsupported via the feature bit only (both lab hosts have them).
+
+
+## Compat gate (slice/compat-gate)
+
+- `compat/mtl-rs` routes every compute-pipeline creation through
+  `Device::route_kernel` before `Device::create_pipeline`
+  (`CompilerShim::host_compute_pipeline_state`, the only pipeline-creation path uzu
+  reaches): Translated -> create; TranslatedChecked -> error naming kernel +
+  reference (the compat layer cannot run reference kernels, so an unchecked kernel
+  is never silently run); Fallback(Hand/Cpu) -> error naming kernel + fallback so
+  uzu's kernel-selection/CPU-backend path takes over; Refused -> the
+  `Error::Refused` Display text verbatim ("refused: ..."). No env or flag bypasses
+  the gate.
+- `host/tools/add-gate-args.sh` + `make-add-m2vlib.sh`: the `add` kernel is packed
+  with gate state verified and evidence host/receipts/G13C/run-g13c.txt only when
+  that receipt exists and contains its PASS add_kernel_end_to_end line;
+  `add_offset` stays unverified (no GPU test has run it).
+  `host/tools/test-add-gate-args.sh` proves both branches (PASS, runs twice,
+  restores the receipt byte-identical).
+- Which uzu paths see a refused or fallback route: uzu's
+  `CompilerPipelineExtensions::compute_pipeline_state` maps the compat error to
+  `MetalError::CannotCreatePipelineState { function_name, error }`
+  (crates/uzu-engine/src/backends/metal/context.rs:104); every kernel `new`
+  (attention gemm/gemm_grouped/fallback/single_pass/two_pass, matmul
+  gemv/gemm/qmv, gdn chunked/tree_verify, radix, ActivationTransform) propagates
+  it to `MetalKernels::new`, so `select_backend` (backends/mod.rs:34,
+  `selection.select::<metal::Metal>()`) reports metal-backend startup failure.
+  uzu has no per-kernel automatic CPU fallback inside the metal backend; its own
+  CPU path is `UZU_BACKEND=cpu` or a build without the metal feature.
