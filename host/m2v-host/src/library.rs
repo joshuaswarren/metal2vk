@@ -38,6 +38,8 @@ pub enum GateState {
     Verified,
     #[default]
     Unverified,
+    /// Mismatched its reference: the host never runs it and routes to its fallback.
+    Failed,
 }
 
 /// Per-function verification gate. `evidence` names the check that justifies `Verified`
