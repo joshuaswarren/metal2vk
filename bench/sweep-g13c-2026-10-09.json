@@ -1,0 +1,183 @@
+{
+ "device": "g13c",
+ "date": "2026-10-09",
+ "host": "jw16-linux",
+ "kernels": {
+  "activation_f32_8388608": {
+   "variants": [
+    {
+     "us": 335.70059999999995,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=335.70",
+     "err": 3.5129223203378244e-07,
+     "ok": true,
+     "tol": 2e-05,
+     "metric": "GBps",
+     "value": 199.9068932256898,
+     "variant": "base",
+     "defs": "",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 397.3028,
+     "info": "iters=500 ts_per_us=0.09 wall_per_us=397.30",
+     "err": 3.5129223203378244e-07,
+     "ok": true,
+     "tol": 2e-05,
+     "metric": "GBps",
+     "value": 168.9111277343125,
+     "variant": "base_o2route",
+     "defs": "",
+     "opt": ""
+    },
+    {
+     "us": 345.541,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=345.54",
+     "err": 3.5129223203378244e-07,
+     "ok": true,
+     "tol": 2e-05,
+     "metric": "GBps",
+     "value": 194.21389646959406,
+     "variant": "ept2",
+     "defs": "-DM2V_ACT_EPT=2",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 514.16,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=514.16",
+     "err": 3.5129223203378244e-07,
+     "ok": true,
+     "tol": 2e-05,
+     "metric": "GBps",
+     "value": 130.52136299984443,
+     "variant": "ept4",
+     "defs": "-DM2V_ACT_EPT=4",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 336.3236,
+     "info": "iters=500 ts_per_us=0.11 wall_per_us=336.32",
+     "err": 3.5129223203378244e-07,
+     "ok": true,
+     "tol": 2e-05,
+     "metric": "GBps",
+     "value": 199.53658916591047,
+     "variant": "wg512",
+     "defs": "-DM2V_ACT_WG=512",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    }
+   ],
+   "winner": "base"
+  },
+  "activation_f16_8388608": {
+   "variants": [
+    {
+     "us": 333.088,
+     "info": "iters=500 ts_per_us=0.11 wall_per_us=333.09",
+     "err": 0.00038303539174362066,
+     "ok": true,
+     "tol": 0.002,
+     "metric": "GBps",
+     "value": 100.73743875492363,
+     "variant": "base",
+     "defs": "",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 352.64459999999997,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=352.64",
+     "err": 0.00038303539174362066,
+     "ok": true,
+     "tol": 0.002,
+     "metric": "GBps",
+     "value": 95.15084592249535,
+     "variant": "ept2",
+     "defs": "-DM2V_ACT_EPT=2",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 338.8892,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=338.89",
+     "err": 0.00038303539174362066,
+     "ok": true,
+     "tol": 0.002,
+     "metric": "GBps",
+     "value": 99.01298713561836,
+     "variant": "ept4",
+     "defs": "-DM2V_ACT_EPT=4",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    }
+   ],
+   "winner": "base"
+  },
+  "softmax_f32_4096": {
+   "variants": [
+    {
+     "us": 746.1704,
+     "info": "iters=500 ts_per_us=0.10 wall_per_us=746.17",
+     "err": 2.3616258582048744e-07,
+     "ok": true,
+     "tol": 1e-05,
+     "metric": "GBps",
+     "value": 179.87543863975307,
+     "variant": "base",
+     "defs": "",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    }
+   ],
+   "winner": "base"
+  },
+  "tilematmul_f32_1024": {
+   "variants": [
+    {
+     "us": 11264.084545454545,
+     "info": "iters=110 ts_per_us=0.46 wall_per_us=11264.08",
+     "err": 1.2735948627504326e-06,
+     "ok": true,
+     "tol": 1e-05,
+     "metric": "GFLOPs",
+     "value": 190.64875084470006,
+     "variant": "base_o2route",
+     "defs": "",
+     "opt": ""
+    },
+    {
+     "us": 2651.261855670103,
+     "info": "iters=291 ts_per_us=0.17 wall_per_us=2651.26",
+     "err": 1.2735948627504326e-06,
+     "ok": true,
+     "tol": 1e-05,
+     "metric": "GFLOPs",
+     "value": 809.9854955508445,
+     "variant": "base",
+     "defs": "",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 2670.1004065040647,
+     "info": "iters=246 ts_per_us=0.21 wall_per_us=2670.10",
+     "err": 7.916299039739569e-07,
+     "ok": true,
+     "tol": 1e-05,
+     "metric": "GFLOPs",
+     "value": 804.2707468112326,
+     "variant": "chains2",
+     "defs": "-DM2V_TM_CHAINS=2",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    },
+    {
+     "us": 2590.670297029703,
+     "info": "iters=303 ts_per_us=0.14 wall_per_us=2590.67",
+     "err": 4.5135002874981064e-07,
+     "ok": true,
+     "tol": 1e-05,
+     "metric": "GFLOPs",
+     "value": 828.9297370113702,
+     "variant": "chains4",
+     "defs": "-DM2V_TM_CHAINS=4",
+     "opt": "-O0 -Xclang -disable-O0-optnone"
+    }
+   ],
+   "winner": "chains4"
+  }
+ }
+}

@@ -24,3 +24,5 @@ export M2V_OPT=${M2V_OPT:--O0 -Xclang -disable-O0-optnone}
 bash "$H/compile.sh" "$SPV" activation softmax tilematmul tilematmul_rt
 "$PY" "$H/bench/m2v-bench.py" "$OUT" --spvdir "$SPV" --mlx-python "$PY" "$@"
 "$PY" "$H/bench/sweep.py" "$OUT" --spvroot "$OUT/spv-sweep"
+# the receipts land in bench/ (results-<device>-<date>.json, sweep-<device>-<date>.json)
+cp -f "$OUT"/results-*.json "$OUT"/sweep-*.json "$H/bench/" 2>/dev/null || true
