@@ -25,7 +25,7 @@ All the other entry points of a file are dropped from the translation unit of on
 
 Usage: m2v_sweep.py OUTDIR [--set uzu|tf|all] [--jobs N] [--limit N] [--only SUBSTR] [--no-spv] [--tag NAME]
 env:   UZU_ROOT (uzu checkout), TF_ROOT (TensorFold checkout), CLANG (default clang-19), CLSPV (patched clspv; spv/val skipped if absent),
-       M2V_VEC=1 keeps clang's loop and SLP vectorizers on (default off: Vulkan has no 8 or 16 wide vectors)
+       M2V_INCLUDE=DIR uses another shim include directory (a baseline run); M2V_VEC=1 keeps clang's loop and SLP vectorizers on (default off: Vulkan has no 8 or 16 wide vectors)
 """
 import argparse
 import concurrent.futures as cf
@@ -39,7 +39,7 @@ import sys
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
-INC = HERE.parent / "include"
+INC = pathlib.Path(os.environ.get("M2V_INCLUDE", HERE.parent / "include"))  # another shim, to measure a baseline
 CLANG = os.environ.get("CLANG", "clang-19")
 CLSPV = os.environ.get("CLSPV", str(pathlib.Path.home() / "scratch/metal2vk/clspv/build/bin/clspv"))
 SPIRV_VAL = os.environ.get("SPIRV_VAL", "spirv-val")
