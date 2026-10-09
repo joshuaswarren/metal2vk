@@ -109,11 +109,16 @@ METAL_FUNC void m2v_home(int lane, int& x, int& y) {
   x = (lane & 8) + ((lane & 1) << 2);
   y = (((lane >> 4) & 1) << 2) + ((lane >> 1) & 3);
 }
-METAL_FUNC void m2v_loc(int i, int lane, int band_w, int& r, int& c) {
+METAL_FUNC void m2v_loc(int i, int lane, int band_w, int rows_per_band, int& r, int& c) {
   int x, y;
   m2v_home(lane, x, y);
-  r = y + (((i >> 2) & 1) << 3);
-  c = (lane >> 5) * band_w + x + (i & 3) + ((i >> 3) << 4);
+  if (rows_per_band) {
+    r = (lane >> 5) * rows_per_band + y + (((i >> 2) & 1) << 3);
+    c = x + (i & 3) + ((i >> 3) << 4);
+  } else {
+    r = y + (((i >> 2) & 1) << 3);
+    c = (lane >> 5) * band_w + x + (i & 3) + ((i >> 3) << 4);
+  }
 }
 METAL_FUNC int m2v_owner(int r, int c, int band_w, int& i) {
   const int band = c / band_w;
@@ -135,7 +140,11 @@ struct cooperative_tensor {
   static constexpr int m2v_rows = ROWS;
   static constexpr int m2v_cols = COLS;
   static constexpr int m2v_elems = ROWS * COLS / LANES;
-  static constexpr int m2v_band_w = COLS / (LANES / M2V_SUBGROUP);
+  // the 32-lane groups tile rows when the tile is taller than one group's 16 rows, columns otherwise
+  static constexpr int m2v_rows_per_band =
+      (ROWS >= 16 * (LANES / M2V_SUBGROUP) && ROWS % (LANES / M2V_SUBGROUP) == 0) ? ROWS / (LANES / M2V_SUBGROUP) : 0;
+  static_assert(m2v_rows_per_band == 0 || m2v_rows_per_band == 16, "matmul2d emulation covers 16 or 32-row tiles");
+  static constexpr int m2v_band_w = m2v_rows_per_band ? COLS : COLS / (LANES / M2V_SUBGROUP);
   m2v_elem m2v_v[m2v_elems];
 
   // this thread's lane in the op's tile, including the execution_simdgroups<N> band
@@ -149,7 +158,7 @@ struct cooperative_tensor {
   METAL_FUNC metal::array<int, 2> get_multidimensional_index(int i) const {
     metal::array<int, 2> ids;
     int r, c;
-    detail::m2v_loc(i, m2v_lane(), m2v_band_w, r, c);
+    detail::m2v_loc(i, m2v_lane(), m2v_band_w, m2v_rows_per_band, r, c);
     ids[0] = c;
     ids[1] = r;
     return ids;
@@ -197,13 +206,13 @@ struct matmul2d {
   // D = op(A) * op(B) (+ D): every lane computes its own destination elements in fp32.
   template <typename SA, typename SB, typename SC>
   METAL_FUNC void run(const SA& a, const SB& b, SC& c) const {
-    static_assert(SC::m2v_rows == 16, "matmul2d emulation covers 16-row tiles");
+    static_assert(SC::m2v_rows_per_band == 0 || SC::m2v_rows_per_band == 16, "matmul2d emulation covers 16 or 32-row tiles");
     static_assert(!detail::m2v_is_coop<SA>::value || m2v_sn == 1, "cooperative sources are single-simdgroup");
     static_assert(!detail::m2v_is_coop<SB>::value || m2v_sn == 1, "cooperative sources are single-simdgroup");
     const int lane = c.m2v_lane();
     for (int i = 0; i < SC::m2v_elems; i++) {
       int r, col;
-      detail::m2v_loc(i, lane, SC::m2v_band_w, r, col);
+      detail::m2v_loc(i, lane, SC::m2v_band_w, SC::m2v_rows_per_band, r, col);
       float acc = m2v_acc ? (float)c[i] : 0.0f;
       for (int k = 0; k < m2v_k; k++) {
         acc = ::fma(m2v_a(a, r, k), m2v_b(b, k, col), acc);
