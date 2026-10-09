@@ -97,3 +97,15 @@ json = {
 - No compiles on jwm1. Build on the CT (x86 check) and jw16 (aarch64 run). jw16 rustc: use rustup in `~/.rustup` (system rustc is broken by the llvm pin).
 - No tmpfs builds on the Macs: `CARGO_TARGET_DIR=$HOME/scratch/<lane>/target` or `/var/tmp`.
 - Signed commits, receipts in the PR. Public repo: no private paths, hostnames, tokens, or the word that the No-Asahi rule bans.
+
+## Compat-layer notes (slice/host, M2vHostCompat)
+
+- `MTLDevice::system_default` is exposed as the free fn `metal::system_default_device()`
+  (associated fns cannot dispatch through a trait object). uzu's one call site is rewritten
+  by `host/uzu-linux.patch`.
+- `MTL4FunctionDescriptor::set_library` / `MTL4SpecializedFunctionDescriptor::
+  set_constant_values` take `&Retained<...>`: a bare `&ProtocolObject` cannot recover the
+  shared handle to clone. uzu's `CompilerPipelineExtensions::compute_pipeline_state`
+  signature changes to `&Retained<ProtocolObject<dyn MTLLibrary>>`; call sites unchanged.
+- Residency sets are unified-memory bookkeeping (buffers stay host-visible coherent for
+  their whole life) — add/remove/commit/request are no-ops by design, not stubs.
