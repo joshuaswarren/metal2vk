@@ -16,6 +16,9 @@ LOCAL = {"activation": "256 1 1", "softmax": "256 1 1", "tile_matmul": "32 1 1",
          "gemm_f32_t64x": "32 2 2"}
 
 
+_SEEN = set()
+
+
 def run(spv, entry, grid, bufs, push=None, iters=1, dump=None):
     loc = next(v for k, v in LOCAL.items() if entry.startswith(k))
     cmd = [runner, spv, entry, *map(str, grid), "--iters", str(iters), "--local", *loc.split()]
@@ -28,6 +31,10 @@ def run(spv, entry, grid, bufs, push=None, iters=1, dump=None):
     if dump:
         cmd += ["--dump", dump]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    if os.environ.get("M2V_STDERR_FILE") and entry not in _SEEN:
+        _SEEN.add(entry)
+        with open(os.environ["M2V_STDERR_FILE"], "a") as f:
+            f.write(f"=== {entry} grid={grid}\n{r.stderr}\n")
     if r.returncode:
         return None, r.stderr.strip()[-400:]
     line = [l for l in r.stdout.splitlines() if l.startswith("iters=")][0]
