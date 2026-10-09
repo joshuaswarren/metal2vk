@@ -1485,6 +1485,15 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["primary"] = row["features"][0]
             return row, {}, [], m4
         txt = ll.read_text()
+    # clspv cannot lower dynamic-index GEPs into private alloca arrays of aggregate element type; flatten the
+    # single-member vector-wrapper types (the simdgroup_matrix shape) into the member type (no-op otherwise)
+    rc, out, _ = sh([sys.executable, str(HERE / "flatten_single_member_structs.py"), str(ll)])
+    if rc != 0:
+        row["ir"] = "FAIL"
+        row["error"] = (out.strip().splitlines() or ["flatten_single_member_structs failed"])[-1][:140]
+        row["features"] = ["flat:" + norm_msg(row["error"])]
+        row["primary"] = row["features"][0]
+        return row, {}, [], m4
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)

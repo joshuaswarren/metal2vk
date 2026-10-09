@@ -67,12 +67,32 @@ def narrow_value(dst, tok, lanes, out):
     out.append(f"  %{dst} = trunc {v32} %n{dst}t to {v16}\n")
 
 
+def f64_hex(bits16):
+    """The LLVM hex spelling of a bf16 bit pattern as a float constant. Hex float constants print through the
+    exact f64 bit pattern (16 digits), the one form every LLVM text parser takes; the short float-width form is
+    rejected by both the clspv LLVM and current clang. NaN payloads do not survive the widening, so a NaN becomes
+    the quiet double pattern."""
+    import struct
+    f32 = struct.unpack(">f", struct.pack(">I", bits16 << 16))[0]
+    return "0x{:016X}".format(struct.unpack(">Q", struct.pack(">d", f32))[0])
+
+
 def widen_tok(tok, name, lanes, out, typed=False):
     """Operand token for a float op: constants convert in place, registers get widened. With typed=True the
     operand carries its float type spelling (intrinsic call arguments need it)."""
     if tok.startswith("0xH"):
-        hexs = f"0x{int(tok[3:], 16) << 16:08x}"
-        const = splat(lanes, f"float {hexs}") if lanes else hexs
+        const = f64_hex(int(tok[3:], 16))
+        const = splat(lanes, f"float {const}") if lanes else const
+        return f"float {const}" if typed else const
+    m = re.fullmatch(r"[-+]?(inf|nan)(?:\(0x[0-9A-Fa-f]+\))?", tok)
+    if m:
+        # clang 23 spells the infinity and NaN constants literally; hex float constants must carry the exact
+        # f64 pattern, so both go through the bit widening like any other constant.
+        bits16 = 0x7FC0 if m.group(1) == "nan" else 0x7F80
+        if tok.startswith("-"):
+            bits16 |= 0x8000
+        const = f64_hex(bits16)
+        const = splat(lanes, f"float {const}") if lanes else const
         return f"float {const}" if typed else const
     if re.fullmatch(r"[-\d.e+]+", tok):
         const = splat(lanes, f"float {tok}") if lanes else tok
@@ -234,7 +254,23 @@ def main():
         if bare.search(ln.split(";")[0]):
             die(f"unhandled bfloat reference after the rewrite: {ln.strip()}")
         out.append(ln)
-    p.write_text("".join(out))
+
+    def respell_phi(line):
+        # clang 23 writes plain integer constants for float types; older LLVM text parsers (the one inside
+        # clspv) reject them in the type-less phi incoming position ("integer/byte constant must have
+        # integer/byte type"). Respell bare integer incoming values of float phis as exact float hex.
+        m = re.match(r"^(\s*%[\w.$.-]+ = phi (?:<\d+ x )?float(?: x \d+)?\s+)([^\n]*)", line)
+        if not m:
+            return line
+
+        def pair(mm):
+            import struct
+            d = struct.unpack(">Q", struct.pack(">d", float(int(mm.group(1)))))[0]
+            return f"[ 0x{d:016X}, "
+
+        return m.group(1) + re.sub(r"\[ (-?\d+), ", pair, m.group(2)) + line[m.end():]
+
+    p.write_text("".join(respell_phi(ln) for ln in out))
 
 
 main()
