@@ -41,18 +41,18 @@ host_name instantiation. A count is a number of entries.
 | 12 | `clspv:ptr addrspace(N)` | 4 | kimi/mla.metal `k3_mla_cache` | ptr addrspace(1) |
 | 13 | `other: from vector 'X' (vector of N 'X' values) to vector 'X' (aka 'X') of diffe` | 3 | activation_transform/activation_transform.metal `ActivationTransform_v1` | error:  from vector 'float4' (vector of 4 'float' values) to vector 'vec<__bf16, 4>' (aka  |
 | 14 | `clspv:MNV: SimplifyPointerBitcast does not converge; changing sub-passes: N N` | 3 | ops/qmv.metal `tf_gather_qmv_b4_g64` | M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7 |
-| 15 | `other:variable in constant address space must be initialized` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
-| 16 | `overload:__private Logit` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
-| 17 | `overload:const __constant Logit` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
-| 18 | `other:incompatible operand types ('X' (aka 'X') and 'X')` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
+| 15 | `overload:__private Logit` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
+| 16 | `overload:const __constant Logit` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
+| 17 | `other:incompatible operand types ('X' (aka 'X') and 'X')` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
+| 18 | `other:variable in constant address space must be initialized` | 2 | sampling/unified_sampling.metal `UnifiedSampling_v0` | error: variable in constant address space must be initialized |
 | 19 | `spirv-val:error: line N: Expected input to be a pointer or int or float vector o` | 2 | glm/router.metal `custom_kernel_tf_glm5_fused_router_t` | error: line 259: Expected input to be a pointer or int or float vector or scalar: Bitcast |
 | 20 | `other:excess elements in scalar initializer` | 1 | convolution/separable_causal_conv.metal `SeparableCausalConv_v0` | error: excess elements in scalar initializer |
 | 21 | `other: from vector 'X' (aka 'X') to vector 'X' (aka 'X') of different size` | 1 | convolution/separable_causal_conv.metal `SeparableCausalConv_v0` | error: excess elements in scalar initializer |
 | 22 | `overload:select` | 1 | matmul/gemm/gemm.metal `Gemm_v1` | error: no matching function for call to 'load_paired_vectors' |
 | 23 | `other:static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allo` | 1 | matmul/gemv/gemv.metal `Gemv_v0` | error: static_cast from 'I4' (aka 'typename vec_sel<__bf16, 4>::type') to 'float4' (vector |
-| 24 | `overload:__private Mark` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
+| 24 | `other:incompatible operand types ('X' and 'X')` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
 | 25 | `other:kernel functions cannot be used in a template declaration, instantiation o` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
-| 26 | `other:incompatible operand types ('X' and 'X')` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
+| 26 | `overload:__private Mark` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
 | 27 | `overload:Mark` | 1 | nemotron_sample.metal `tf_sample_full` | error: no matching constructor for initialization of 'Mark' |
-| 28 | `other:redefinition of 'X'` | 1 | ops/nax_gemm.metal `tf_nax_gemm_nn_bf16` | error: redefinition of 'frag_home' |
-| 29 | `overload:frag_put_in` | 1 | ops/nax_gemm.metal `tf_nax_gemm_nn_bf16` | error: redefinition of 'frag_home' |
+| 28 | `overload:frag_put_in` | 1 | ops/nax_gemm.metal `tf_nax_gemm_nn_bf16` | error: redefinition of 'frag_home' |
+| 29 | `other:redefinition of 'X'` | 1 | ops/nax_gemm.metal `tf_nax_gemm_nn_bf16` | error: redefinition of 'frag_home' |
