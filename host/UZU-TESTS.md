@@ -75,3 +75,21 @@ uzu's macOS `MetalCompiler` (crates/uzu-engine/build/metal/compiler.rs) produces
 
 On Linux these items must be generated with identical names/signatures; only the
 library byte constants change (`.m2vlib` instead of `.metallib`).
+
+## Blocking error (raw, cargo check tail, 2026-10-09)
+
+`cargo check -p uzu-engine --no-default-features --features metal,vulkan-host`
+(unit w7k-uzu-check21, log kept at `$HOME/scratch/w7k-host/uzucheck21.log`):
+
+```
+warning: `mtl-rs` (lib) generated 4 warnings
+error: couldn't find file `/home/joshuawarren/scratch/w7k-host/target-m2vcompat/debug/build/uzu-engine/8b9019794de1a591/out/metal.rs`
+  --> crates/uzu-engine/src/backends/metal/kernel/mod.rs:24:1
+   |
+24 | include!(concat!(env!("OUT_DIR"), "/metal.rs"));
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+error: could not compile `uzu-engine` (lib) due to 1 previous error
+```
+
+That is the ONLY error: everything else — the compat crates, the whole metal
+backend, the Linux `DeviceExt` forwards, LZFSE decode, the manifest swap — compiles.
