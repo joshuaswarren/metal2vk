@@ -18,7 +18,6 @@ env:
   CLSPV_SHA: f2b01dd6dce7058585eb4bcdb5326997cfeebfd4
   UZU_SHA: c92723bdc04e40f55286de458a457172ce62c5b6
   TF_SHA: f8fe17d24629aedabf90bbf78279dd776e6d62e7
-  CLSPV_KEY: clspv-${{ hashFiles('clspv-patches/**') }}-f2b01dd6
 
 jobs:
   clspv:
@@ -32,7 +31,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: clspv/build/bin/clspv
-          key: ${{ env.CLSPV_KEY }}
+          key: clspv-${{ hashFiles('clspv-patches/**') }}-f2b01dd6
 
       - name: Build clspv with the m2v patches
         if: steps.cache.outputs.cache-hit != 'true'
@@ -62,7 +61,7 @@ jobs:
       - uses: actions/cache/restore@v4
         with:
           path: clspv/build/bin/clspv
-          key: ${{ env.CLSPV_KEY }}
+          key: clspv-${{ hashFiles('clspv-patches/**') }}-f2b01dd6
           fail-on-cache-miss: true
       - name: Toolchain
         run: |
@@ -94,7 +93,7 @@ jobs:
       - uses: actions/cache/restore@v4
         with:
           path: clspv/build/bin/clspv
-          key: ${{ env.CLSPV_KEY }}
+          key: clspv-${{ hashFiles('clspv-patches/**') }}-f2b01dd6
           fail-on-cache-miss: true
 
       - name: Toolchain (clang 23, opt 23, spirv-tools)
