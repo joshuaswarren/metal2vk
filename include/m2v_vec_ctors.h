@@ -4,6 +4,7 @@ namespace m2v {
 template <typename V> using elem_t = decltype(V{}.x);
 template <typename V, typename E, int N> METAL_FUNC V mk1(E __attribute__((ext_vector_type(N))) s) { return __builtin_convertvector(s, V); }
 template <typename V, typename S> METAL_FUNC metal::enable_if_t<__is_arithmetic(S), V> mk1(S s) { return V{} + (elem_t<V>)s; }
+template <typename V, typename B> METAL_FUNC metal::enable_if_t<(B::m2v_n > 0), V> mk1(B b);
 template <typename V, typename... S> METAL_FUNC V mk(S... s) {
   if constexpr (sizeof...(S) == 1) return mk1<V>(s...);
   else return V{(elem_t<V>)s...};
