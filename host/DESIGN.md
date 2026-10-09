@@ -125,3 +125,15 @@ fallback call `Device::route_kernel` first. C ABI: `m2v_route_kernel(device, lib
 `m2v_status` UNSUPPORTED naming the kernel when it is refused; `m2v_report_check(device, name, matched, detail)` reports the first-use check.
 The GPU tests register a CPU reference for their kernel and report the result of their own comparison.
 
+
+## Per-kernel lazy mode (slice/compat-lazy)
+
+uzu's compat layer never fails at pipeline creation: any non-Translated gate
+route returns a `RefusedPipeline` whose launch-maths accessors answer with
+device values. Encoding it dispatches nothing; the commit completes without GPU
+work and reports `Error::Refused` naming every refused kernel (m2v-host
+`Completion.error`, C ABI `m2v_status` UNSUPPORTED at the equivalent point).
+Refusals are logged once per kernel with the `m2v:` prefix. `M2V_KERNEL_TRACE`
+records first dispatches per process for `tools/gate-from-tests.py`, which
+builds the policy `kernels` section from traced test runs (verified / failed /
+unverified per policy.rs semantics).

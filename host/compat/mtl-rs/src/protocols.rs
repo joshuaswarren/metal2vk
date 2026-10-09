@@ -380,17 +380,48 @@ unsafe impl<P: MTLLibrary + ?Sized> MTLLibrary for ProtocolObject<P>{
 pub unsafe trait MTLComputePipelineState: MTLAllocation {
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>>;
 
-    /// Shim-internal: the host pipeline.
+    /// Shim-internal: the host pipeline. `None` for a refused kernel: the object
+    /// exists only to keep uzu's launch maths valid and to refuse at use.
     #[doc(hidden)]
-    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline>;
+    fn host_pipeline(&self) -> Option<&Arc<metal2vk::Pipeline>>;
+
+    /// For most efficient execution, the threadgroup size should be a multiple
+    /// of this (Metal `threadExecutionWidth`; host: device subgroup size).
+    fn thread_execution_width(&self) -> usize;
+    /// The maximum total number of threads that can be in a single threadgroup.
+    fn max_total_threads_per_threadgroup(&self) -> usize;
+    /// Threadgroup memory statically allocated by the pipeline, in bytes.
+    fn static_threadgroup_memory_length(&self) -> usize;
+
+    /// Shim-internal: kernel this pipeline was built for (trace + refusals).
+    #[doc(hidden)]
+    fn kernel_name(&self) -> &str;
+    /// Shim-internal: refusal reason when there is no host pipeline.
+    #[doc(hidden)]
+    fn pipeline_reason(&self) -> &str;
 }
 
 unsafe impl<P: MTLComputePipelineState + ?Sized> MTLComputePipelineState for ProtocolObject<P>{
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         shim::default_device_handle()
     }
-    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline> {
+    fn host_pipeline(&self) -> Option<&Arc<metal2vk::Pipeline>> {
         self.as_inner().host_pipeline()
+    }
+    fn thread_execution_width(&self) -> usize {
+        self.as_inner().thread_execution_width()
+    }
+    fn max_total_threads_per_threadgroup(&self) -> usize {
+        self.as_inner().max_total_threads_per_threadgroup()
+    }
+    fn static_threadgroup_memory_length(&self) -> usize {
+        self.as_inner().static_threadgroup_memory_length()
+    }
+    fn kernel_name(&self) -> &str {
+        self.as_inner().kernel_name()
+    }
+    fn pipeline_reason(&self) -> &str {
+        self.as_inner().pipeline_reason()
     }
 }
 
@@ -551,6 +582,9 @@ pub unsafe trait MTL4CommandBuffer: NSObjectProtocol + Send + Sync {
     fn shim_label(&self) -> Option<String>;
     #[doc(hidden)]
     fn shim_set_label(&self, label: Option<&str>);
+    /// Shim-internal: kernels refused in this command buffer (name, reason).
+    #[doc(hidden)]
+    fn host_refused(&self) -> &Arc<Mutex<crate::shim::Refusals>>;
 }
 
 unsafe impl<P: MTL4CommandBuffer + ?Sized> MTL4CommandBuffer for ProtocolObject<P>{
@@ -562,7 +596,7 @@ unsafe impl<P: MTL4CommandBuffer + ?Sized> MTL4CommandBuffer for ProtocolObject<
         // Recording is closed when the encoder ends; nothing to do here.
     }
     fn compute_command_encoder(&self) -> Option<Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>>> {
-        Some(shim::encoder_for_slot(self.as_inner().host_slot()))
+        Some(shim::encoder_for_slot(self.as_inner().host_slot(), Arc::clone(self.as_inner().host_refused())))
     }
     fn host_slot(&self) -> &Arc<Mutex<Option<metal2vk::CommandBuffer>>> {
         self.as_inner().host_slot()
@@ -572,6 +606,9 @@ unsafe impl<P: MTL4CommandBuffer + ?Sized> MTL4CommandBuffer for ProtocolObject<
     }
     fn shim_set_label(&self, label: Option<&str>) {
         self.as_inner().shim_set_label(label)
+    }
+    fn host_refused(&self) -> &Arc<Mutex<crate::shim::Refusals>> {
+        self.as_inner().host_refused()
     }
 }
 
