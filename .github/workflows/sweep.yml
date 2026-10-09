@@ -42,6 +42,7 @@ jobs:
           git checkout -q "$CLSPV_SHA"
           python3 utils/fetch_sources.py --shallow
           python3 "$GITHUB_WORKSPACE/clspv-patches/apply-coopmat-lowering.py" .
+          python3 "$GITHUB_WORKSPACE/clspv-patches/apply-undef-pointer-type.py" .
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
           ninja -C build clspv
 
