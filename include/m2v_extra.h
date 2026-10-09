@@ -127,21 +127,30 @@ M2V_FAST_VEC(sin, native_sin)
 M2V_FAST_VEC(cos, native_cos)
 
 // ---- bfloat vectors (storage + conversion; arithmetic goes through float) ----
+// Fields are raw i16 at the IR level (see the vec_sel<bfloat, N> note in metal_stdlib); the element interface keeps
+// bfloat semantics with round-to-nearest-even narrowing on every write.
 #define M2V_BFVEC_COMMON(NAME, N)                                                                                      \
   static constexpr int m2v_n = N;                                                                                      \
   METAL_FUNC NAME() = default;                                                                                         \
-  METAL_FUNC bfloat& operator[](int i) { return (&x)[i]; }                                                             \
-  METAL_FUNC const bfloat& operator[](int i) const { return (&x)[i]; }                                                 \
-  template <typename E> METAL_FUNC NAME(E v) { for (int i = 0; i < N; i++) (&x)[i] = bfloat((float)v[i]); }
-struct bfloat2 { bfloat x, y;
+  METAL_FUNC bfloat operator[](int i) const { bfloat r; r.bits = (&x)[i]; return r; }                                  \
+  struct ref {                                                                                                         \
+    ushort* slot;                                                                                                      \
+    METAL_FUNC operator bfloat() const { bfloat r; r.bits = *slot; return r; }                                         \
+    METAL_FUNC operator float() const { return as_float((uint)*slot << 16); }                                          \
+    METAL_FUNC ref& operator=(bfloat b) { *slot = b.bits; return *this; }                                              \
+    METAL_FUNC ref& operator=(float f) { bfloat b(f); *slot = b.bits; return *this; }                                  \
+  };                                                                                                                   \
+  METAL_FUNC ref operator[](int i) { return ref{&x + i}; }                                                             \
+  template <typename E> METAL_FUNC NAME(E v) { for (int i = 0; i < N; i++) (&x)[i] = bfloat((float)v[i]).bits; }
+struct bfloat2 { ushort x, y;
   M2V_BFVEC_COMMON(bfloat2, 2)
-  METAL_FUNC bfloat2(bfloat a, bfloat b) : x(a), y(b) {} };
-struct bfloat3 { bfloat x, y, z;
+  METAL_FUNC bfloat2(bfloat a, bfloat b) : x(a.bits), y(b.bits) {} };
+struct bfloat3 { ushort x, y, z;
   M2V_BFVEC_COMMON(bfloat3, 3)
-  METAL_FUNC bfloat3(bfloat a, bfloat b, bfloat c) : x(a), y(b), z(c) {} };
-struct bfloat4 { bfloat x, y, z, w;
+  METAL_FUNC bfloat3(bfloat a, bfloat b, bfloat c) : x(a.bits), y(b.bits), z(c.bits) {} };
+struct bfloat4 { ushort x, y, z, w;
   M2V_BFVEC_COMMON(bfloat4, 4)
-  METAL_FUNC bfloat4(bfloat a, bfloat b, bfloat c, bfloat d) : x(a), y(b), z(c), w(d) {} };
+  METAL_FUNC bfloat4(bfloat a, bfloat b, bfloat c, bfloat d) : x(a.bits), y(b.bits), z(c.bits), w(d.bits) {} };
 
 // ---- metal::array ----
 template <typename T, size_t N> struct array {
