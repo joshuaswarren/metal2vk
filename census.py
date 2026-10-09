@@ -1,21 +1,21 @@
 """Front-end census: run clang (C++ for OpenCL, through the metal_stdlib shim) over every uzu .metal file and bucket
 the first errors. Parse level only: templates are not instantiated, so this under-counts semantic problems.
-Usage: census.py [UZU_ROOT] > census.txt"""
+Usage: census.py [ROOT] [KERNEL_DIR] > census.txt   (KERNEL_DIR defaults to uzu's kernel dir under ROOT; for another project pass its directory of .metal files)"""
 import collections
 import pathlib
 import re
 import subprocess
 import sys
 
-root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
-K = root / "crates/uzu-engine/src/backends/metal/kernel"
-H = root / "tools/metal2vk"
+root = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()  # a tree containing .metal files
+K = pathlib.Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else root / "crates/uzu-engine/src/backends/metal/kernel"
+H = pathlib.Path(__file__).parent.resolve()
 files = sorted(K.rglob("*.metal"))
 buckets = collections.Counter()
 ok = 0
 rows = []
 for f in files:
-    cmd = ["clang", "--target=spir64", "-x", "cl", "-cl-std=clc++2021", "-Xclang", "-finclude-default-header", "-fsyntax-only", "-w",
+    cmd = ["clang", "--target=spir64", "-x", "cl", "-cl-std=clc++2021", "-Xclang", "-finclude-default-header", "-cl-ext=-__opencl_c_generic_address_space", "-fsyntax-only", "-w",
            f"-I{H}/include", f"-I{K}", f"-I{K}/generated", "-ferror-limit=200", str(f)]
     r = subprocess.run(cmd, capture_output=True, text=True, check=False)
     errs = [ln for ln in r.stderr.splitlines() if " error: " in ln]
