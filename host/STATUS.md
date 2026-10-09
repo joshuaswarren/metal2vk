@@ -1,4 +1,4 @@
-# host slice status — m2v-host (Rust core + C ABI)
+# host slice status - m2v-host (Rust core + C ABI)
 
 Commit stream on `slice/host` (worktree `host/`, see git log for SHAs):
 `b921dac` API surface → `4f72ade` ash implementation + C ABI → `37f8dd7`
@@ -25,7 +25,7 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
   covered) + `host/tools/make-add-m2vlib.sh` running the repo's
   clang→sed→clspv chain and `m2v-reflect.py`.
 - Pipelines: spec constants 0..2 (workgroup size) + Metal function constants
-  (typed, clear errors — unit tested); dynamic threadgroup memory specialised
+  (typed, clear errors - unit tested); dynamic threadgroup memory specialised
   through cached pipeline variants on the queue.
 - Queues: one waiter thread per queue, FCFS submits, fence with
   `M2V_MAX_SUBMIT_MS` deadline (error in Completion on timeout), GPU
@@ -64,7 +64,7 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
   binding at dispatch), when the pipeline layout does not describe the
   clspv group-offsets push block (fixed in the emitter), and when
   vkCmdPushConstants is called with a zero-size range (guarded). Push
-  descriptors on G14C are suspected but not isolated — the G14C crash had
+  descriptors on G14C are suspected but not isolated - the G14C crash had
   the same missing-bind root cause.
 
 ## GPU-free test results

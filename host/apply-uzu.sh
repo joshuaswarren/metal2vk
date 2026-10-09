@@ -7,7 +7,7 @@
 # next to this script (metal2vk/host/compat). After applying, run:
 #   cargo check -p uzu-engine --features metal,vulkan-host
 # It proceeds until the macOS-generated kernel bindings are missing
-# (include!(OUT_DIR/metal.rs)) — see metal2vk host/STATUS.md.
+# (include!(OUT_DIR/metal.rs)) - see metal2vk host/STATUS.md.
 set -e
 UZU="$1"
 HOST_DIR="$(cd "$(dirname "$0")" && pwd)"
