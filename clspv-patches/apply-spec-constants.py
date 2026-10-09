@@ -11,6 +11,11 @@ import pathlib
 import sys
 
 root = pathlib.Path(sys.argv[1])
+# The marker is added by a separate script (apply-m2v-marker.py); apply
+# that one first so the spec-constant compile test can prove the flag
+# round-trips.
+import subprocess as _sp
+_sp.check_call([sys.executable, str(pathlib.Path(__file__).parent / "apply-m2v-marker.py"), str(root)])
 prod = root / "lib/SPIRVProducerPass.cpp"
 s = prod.read_text()
 if "M2vGetSpecConstant" in s:

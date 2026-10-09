@@ -11,7 +11,7 @@ template <typename E, typename S> METAL_FUNC metal::enable_if_t<!is_ext<S>::valu
 template <typename E, typename W> METAL_FUNC metal::enable_if_t<is_ext<W>::value> put(E* t, int& n, W v) {
   for (int i = 0; i < (int)__builtin_vectorelements(W); i++) t[n++] = (E)v[i];
 }
-template <typename S0, typename...> METAL_FUNC S0 mk_first(S0 s0, ...) { return s0; }
+template <typename S0, typename... S> METAL_FUNC S0 mk_first(S0 s0, S...) { return s0; }
 template <typename V, typename... S> METAL_FUNC V mk(S... s) {
   if constexpr (sizeof...(S) == 1) return mk1<V>(s...);
   else if constexpr ((int)__builtin_vectorelements(V) == 1) {
