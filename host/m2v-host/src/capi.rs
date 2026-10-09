@@ -78,26 +78,63 @@ impl From<m2v_constant> for (u32, ConstantValue) {
 }
 
 /// Opaque handle types. All are `Arc<...>` under the hood except the encoder,
-/// which owns its recording session.
-macro_rules! opaque {
-    ($name:ident) => {
-        #[repr(C)]
-        pub struct $name {
-            _unused: [u8; 0],
-            _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
-        }
-    };
+/// which owns its recording session. cbindgen cannot see macro-generated
+/// types, so each is spelled out explicitly.
+#[repr(C)]
+pub struct m2v_device {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
 }
 
-opaque!(m2v_device);
-opaque!(m2v_buffer);
-opaque!(m2v_library);
-opaque!(m2v_pipeline);
-opaque!(m2v_queue);
-opaque!(m2v_cmdbuf);
-opaque!(m2v_event);
-opaque!(m2v_encoder);
-opaque!(m2v_timestamp_pool);
+#[repr(C)]
+pub struct m2v_buffer {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_library {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_pipeline {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_queue {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_cmdbuf {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_event {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_encoder {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+#[repr(C)]
+pub struct m2v_timestamp_pool {
+    _unused: [u8; 0],
+    _marker: std::marker::PhantomData<(*mut u8, std::marker::PhantomPinned)>,
+}
+
+
 
 /// Completion callback: (error_status, gpu_start_ns, gpu_end_ns, user). Runs
 /// once, on the queue's waiter thread, after the fence is signalled.
@@ -213,7 +250,7 @@ pub unsafe extern "C" fn m2v_device_name(d: *mut m2v_device) -> *const c_char {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn m2v_device_info(d: *mut m2v_device, out: *mut m2v_device_info) -> m2v_status {
+pub unsafe extern "C" fn m2v_device_get_info(d: *mut m2v_device, out: *mut m2v_device_info) -> m2v_status {
     let i = device_ref(d).info();
     *out = m2v_device_info {
         subgroup_size: i.subgroup_size,

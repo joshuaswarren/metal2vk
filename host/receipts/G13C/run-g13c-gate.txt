@@ -1,0 +1,30 @@
+[G13C] chip: Apple M1 Max (G13C C0), Honeykrisp; vulkaninfo apiVersion 1.4.354
+warning: overriding the module target triple with spirv32-unknown-vulkan
+warning: Linking two modules of different data layouts: 'Unknown buffer' is 'e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-n8:16:32:64-G1' whereas '$HOME/scratch/m2v/target/out/add.ll' is 'e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-G1'
+
+spirv-val ok: 3520 bytes
+$HOME/scratch/m2v/target/out/add.m2vlib: 2 function(s), json 788 B, spv 3520 B at 800
+[G13C] FAIL add_kernel_end_to_end 
+subgroup=32 max_tpt=1024 shared=32768B coopmat=false timeline=true mem=31 GiB
+functions: ["add", "add_offset"]
+m2v: kernel 'add': translated but not verified, checking it against Cpu("cpu_add") on first use
+add gpu span: 18 us
+m2v: kernel 'add': matched its reference on first use (b[i] == a[i] for 4096 elements), enabled
+PASS add_kernel_end_to_end (4096 elements, 18 us GPU span)
+[G13C] FAIL push_constant_kernel_end_to_end 
+subgroup=32 max_tpt=1024 shared=32768B coopmat=false timeline=true mem=31 GiB
+functions: ["add", "add_offset"]
+m2v: kernel 'add_offset': translated but not verified, checking it against Cpu("cpu_add_offset") on first use
+add_offset gpu span: 21 us
+m2v: kernel 'add_offset': matched its reference on first use (b[i] == a[i] + 7 for 4096 elements), enabled
+PASS push_constant_kernel_end_to_end (4096 elements, 21 us GPU span)
+error: Usage
+[G13C] FAIL zig_demo
+[G13C] FAIL add_kernel_end_to_end env M2V_NO_PUSH_DESCRIPTOR=1
+subgroup=32 max_tpt=1024 shared=32768B coopmat=false timeline=true mem=31 GiB
+functions: ["add", "add_offset"]
+m2v: kernel 'add': translated but not verified, checking it against Cpu("cpu_add") on first use
+add gpu span: 23 us
+m2v: kernel 'add': matched its reference on first use (b[i] == a[i] for 4096 elements), enabled
+PASS add_kernel_end_to_end (4096 elements, 23 us GPU span)
+[G13C] ticket done

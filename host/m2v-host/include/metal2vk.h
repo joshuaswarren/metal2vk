@@ -16,44 +16,27 @@
  * capability, invalid input.
  */
 enum m2v_status
-#if __STDC_VERSION__ >= 202311L
-  : int32_t
-#endif // __STDC_VERSION__ >= 202311L
  {
   m2v_status_OK = 0,
   m2v_status_ERROR = 1,
   m2v_status_UNSUPPORTED = 2,
   m2v_status_INVALID = 3,
 };
-#if __STDC_VERSION__ >= 202311L
 typedef enum m2v_status m2v_status;
-#else
-typedef int32_t m2v_status;
-#endif // __STDC_VERSION__ >= 202311L
 
 enum m2v_constant_kind
-#if __STDC_VERSION__ >= 202311L
-  : int32_t
-#endif // __STDC_VERSION__ >= 202311L
  {
   m2v_constant_kind_BOOL = 0,
   m2v_constant_kind_U32 = 1,
   m2v_constant_kind_I32 = 2,
   m2v_constant_kind_F32 = 3,
 };
-#if __STDC_VERSION__ >= 202311L
 typedef enum m2v_constant_kind m2v_constant_kind;
-#else
-typedef int32_t m2v_constant_kind;
-#endif // __STDC_VERSION__ >= 202311L
 
 /**
  * How the host wants one kernel run (see `Device::route_kernel` and `host/DESIGN.md`).
  */
 enum m2v_route
-#if __STDC_VERSION__ >= 202311L
-  : int32_t
-#endif // __STDC_VERSION__ >= 202311L
  {
   /**
    * Verified translated kernel: create the pipeline and dispatch it.
@@ -73,11 +56,16 @@ enum m2v_route
    */
   m2v_route_FALLBACK_CPU = 3,
 };
-#if __STDC_VERSION__ >= 202311L
 typedef enum m2v_route m2v_route;
-#else
-typedef int32_t m2v_route;
-#endif // __STDC_VERSION__ >= 202311L
+
+/**
+ * Opaque handle types. All are `Arc<...>` under the hood except the encoder,
+ * which owns its recording session. cbindgen cannot see macro-generated
+ * types, so each is spelled out explicitly.
+ */
+typedef struct m2v_device {
+  uint8_t _unused[0];
+} m2v_device;
 
 typedef struct m2v_device_info {
   uint32_t subgroup_size;
@@ -88,6 +76,22 @@ typedef struct m2v_device_info {
   uint64_t total_memory;
   uint32_t gpu_core_count;
 } m2v_device_info;
+
+typedef struct m2v_buffer {
+  uint8_t _unused[0];
+} m2v_buffer;
+
+typedef struct m2v_queue {
+  uint8_t _unused[0];
+} m2v_queue;
+
+typedef struct m2v_event {
+  uint8_t _unused[0];
+} m2v_event;
+
+typedef struct m2v_library {
+  uint8_t _unused[0];
+} m2v_library;
 
 typedef union m2v_constant_value {
   uint32_t b;
@@ -101,6 +105,22 @@ typedef struct m2v_constant {
   m2v_constant_kind kind;
   union m2v_constant_value value;
 } m2v_constant;
+
+typedef struct m2v_pipeline {
+  uint8_t _unused[0];
+} m2v_pipeline;
+
+typedef struct m2v_cmdbuf {
+  uint8_t _unused[0];
+} m2v_cmdbuf;
+
+typedef struct m2v_encoder {
+  uint8_t _unused[0];
+} m2v_encoder;
+
+typedef struct m2v_timestamp_pool {
+  uint8_t _unused[0];
+} m2v_timestamp_pool;
 
 /**
  * Completion callback: (error_status, gpu_start_ns, gpu_end_ns, user). Runs
@@ -122,80 +142,83 @@ const char *m2v_last_error(void);
 /**
  * First compute-capable Vulkan device (`M2V_DEVICE=<index>` selects).
  */
-m2v_status m2v_device_new(m2v_device **out);
+m2v_status m2v_device_new(struct m2v_device **out);
 
-void m2v_device_release(m2v_device *d);
+void m2v_device_release(struct m2v_device *d);
 
 /**
  * Device name; valid until the next m2v_device_name call on this thread.
  */
-const char *m2v_device_name(m2v_device *d);
+const char *m2v_device_name(struct m2v_device *d);
 
-m2v_status m2v_device_info(m2v_device *d, struct m2v_device_info *out);
+m2v_status m2v_device_get_info(struct m2v_device *d, struct m2v_device_info *out);
 
 /**
  * Submit-time limit in seconds (M2V_MAX_SUBMIT_MS, default 5).
  */
-double m2v_device_limits_gpu_submit_seconds(m2v_device *d);
+double m2v_device_limits_gpu_submit_seconds(struct m2v_device *d);
 
-m2v_status m2v_device_create_buffer(m2v_device *d, uintptr_t size, m2v_buffer **out);
+m2v_status m2v_device_create_buffer(struct m2v_device *d, uintptr_t size, struct m2v_buffer **out);
 
 /**
  * Map a shim GPU address back to its live buffer and offset.
  * INVALID (with a message in m2v_last_error) when no live buffer covers it.
  */
-m2v_status m2v_device_resolve(m2v_device *d, uint64_t addr, m2v_buffer **out, uint64_t *offset);
+m2v_status m2v_device_resolve(struct m2v_device *d,
+                              uint64_t addr,
+                              struct m2v_buffer **out,
+                              uint64_t *offset);
 
-m2v_status m2v_device_create_queue(m2v_device *d, m2v_queue **out);
+m2v_status m2v_device_create_queue(struct m2v_device *d, struct m2v_queue **out);
 
-void m2v_queue_release(m2v_queue *q);
+void m2v_queue_release(struct m2v_queue *q);
 
-m2v_status m2v_device_create_event(m2v_device *d, m2v_event **out);
+m2v_status m2v_device_create_event(struct m2v_device *d, struct m2v_event **out);
 
-void m2v_event_release(m2v_event *e);
+void m2v_event_release(struct m2v_event *e);
 
-m2v_status m2v_event_signaled_value(m2v_event *e, uint64_t *out);
+m2v_status m2v_event_signaled_value(struct m2v_event *e, uint64_t *out);
 
 /**
  * Block the host until the event reaches `value` or `timeout_ns` elapses.
  */
-m2v_status m2v_event_wait(m2v_event *e, uint64_t value, uint64_t timeout_ns);
+m2v_status m2v_event_wait(struct m2v_event *e, uint64_t value, uint64_t timeout_ns);
 
-m2v_status m2v_queue_signal_event(m2v_queue *q, m2v_event *e, uint64_t value);
+m2v_status m2v_queue_signal_event(struct m2v_queue *q, struct m2v_event *e, uint64_t value);
 
 /**
  * Queue the next submit on this queue behind the event value.
  */
-m2v_status m2v_queue_wait_event(m2v_queue *q, m2v_event *e, uint64_t value);
+m2v_status m2v_queue_wait_event(struct m2v_queue *q, struct m2v_event *e, uint64_t value);
 
-m2v_status m2v_library_from_bytes(m2v_device *d,
+m2v_status m2v_library_from_bytes(struct m2v_device *d,
                                   const uint8_t *data,
                                   uintptr_t len,
-                                  m2v_library **out);
+                                  struct m2v_library **out);
 
-void m2v_library_release(m2v_library *l);
+void m2v_library_release(struct m2v_library *l);
 
-uint32_t m2v_library_function_count(m2v_library *l);
+uint32_t m2v_library_function_count(struct m2v_library *l);
 
 /**
  * Function name by index; valid until the next call on this thread.
  */
-const char *m2v_library_function_name(m2v_library *l, uint32_t index);
+const char *m2v_library_function_name(struct m2v_library *l, uint32_t index);
 
-m2v_status m2v_device_create_pipeline(m2v_device *d,
-                                      m2v_library *l,
+m2v_status m2v_device_create_pipeline(struct m2v_device *d,
+                                      struct m2v_library *l,
                                       const char *name,
                                       const struct m2v_constant *constants,
                                       uintptr_t n_constants,
-                                      m2v_pipeline **out);
+                                      struct m2v_pipeline **out);
 
 /**
  * Ask how to run kernel `name` of library `l`. On OK, `*route` is set and, for CHECKED and FALLBACK_*, the reference name is
  * copied NUL-terminated into `reference` (capacity `cap`; truncation is an INVALID error). A kernel with no trusted
  * translation and no fallback returns UNSUPPORTED and `m2v_last_error` names it.
  */
-m2v_status m2v_route_kernel(m2v_device *d,
-                            m2v_library *l,
+m2v_status m2v_route_kernel(struct m2v_device *d,
+                            struct m2v_library *l,
                             const char *name,
                             m2v_route *route,
                             char *reference,
@@ -205,49 +228,49 @@ m2v_status m2v_route_kernel(m2v_device *d,
  * Result of the first-use check requested by a CHECKED route. `matched` enables the translated kernel for the rest of the
  * process; a mismatch disables it for good and later routes return the fallback. `detail` is logged (max error, tolerance).
  */
-void m2v_report_check(m2v_device *d,
+void m2v_report_check(struct m2v_device *d,
                       const char *name,
                       bool matched,
                       const char *detail);
 
-void m2v_pipeline_release(m2v_pipeline *p);
+void m2v_pipeline_release(struct m2v_pipeline *p);
 
-uint32_t m2v_pipeline_max_threads_per_threadgroup(m2v_pipeline *p);
+uint32_t m2v_pipeline_max_threads_per_threadgroup(struct m2v_pipeline *p);
 
-uint32_t m2v_pipeline_thread_execution_width(m2v_pipeline *p);
+uint32_t m2v_pipeline_thread_execution_width(struct m2v_pipeline *p);
 
-uint32_t m2v_pipeline_static_threadgroup_memory(m2v_pipeline *p);
+uint32_t m2v_pipeline_static_threadgroup_memory(struct m2v_pipeline *p);
 
-void m2v_buffer_release(m2v_buffer *b);
+void m2v_buffer_release(struct m2v_buffer *b);
 
-uint8_t *m2v_buffer_contents(m2v_buffer *b);
+uint8_t *m2v_buffer_contents(struct m2v_buffer *b);
 
-uint64_t m2v_buffer_len(m2v_buffer *b);
+uint64_t m2v_buffer_len(struct m2v_buffer *b);
 
-uint64_t m2v_buffer_gpu_address(m2v_buffer *b);
+uint64_t m2v_buffer_gpu_address(struct m2v_buffer *b);
 
-m2v_status m2v_queue_new_command_buffer(m2v_queue *q, m2v_cmdbuf **out);
+m2v_status m2v_queue_new_command_buffer(struct m2v_queue *q, struct m2v_cmdbuf **out);
 
-m2v_status m2v_cmdbuf_begin(m2v_cmdbuf *c, m2v_encoder **out);
+m2v_status m2v_cmdbuf_begin(struct m2v_cmdbuf *c, struct m2v_encoder **out);
 
-m2v_status m2v_cmdbuf_end(m2v_cmdbuf *c);
+m2v_status m2v_cmdbuf_end(struct m2v_cmdbuf *c);
 
-void m2v_cmdbuf_release(m2v_cmdbuf *c);
+void m2v_cmdbuf_release(struct m2v_cmdbuf *c);
 
-m2v_status m2v_encoder_set_pipeline(m2v_encoder *e, m2v_pipeline *p);
+m2v_status m2v_encoder_set_pipeline(struct m2v_encoder *e, struct m2v_pipeline *p);
 
-m2v_status m2v_encoder_set_address(m2v_encoder *e, uint32_t index, uint64_t gpu_address);
+m2v_status m2v_encoder_set_address(struct m2v_encoder *e, uint32_t index, uint64_t gpu_address);
 
-m2v_status m2v_encoder_set_bytes(m2v_encoder *e,
+m2v_status m2v_encoder_set_bytes(struct m2v_encoder *e,
                                  uint32_t index,
                                  const uint8_t *bytes,
                                  uintptr_t len);
 
-m2v_status m2v_encoder_set_threadgroup_memory_length(m2v_encoder *e,
+m2v_status m2v_encoder_set_threadgroup_memory_length(struct m2v_encoder *e,
                                                      uint32_t index,
                                                      uint32_t bytes);
 
-m2v_status m2v_encoder_dispatch_threadgroups(m2v_encoder *e,
+m2v_status m2v_encoder_dispatch_threadgroups(struct m2v_encoder *e,
                                              uint32_t gx,
                                              uint32_t gy,
                                              uint32_t gz,
@@ -255,7 +278,7 @@ m2v_status m2v_encoder_dispatch_threadgroups(m2v_encoder *e,
                                              uint32_t ty,
                                              uint32_t tz);
 
-m2v_status m2v_encoder_dispatch_threads(m2v_encoder *e,
+m2v_status m2v_encoder_dispatch_threads(struct m2v_encoder *e,
                                         uint32_t gx,
                                         uint32_t gy,
                                         uint32_t gz,
@@ -263,7 +286,7 @@ m2v_status m2v_encoder_dispatch_threads(m2v_encoder *e,
                                         uint32_t ty,
                                         uint32_t tz);
 
-m2v_status m2v_encoder_dispatch_indirect(m2v_encoder *e,
+m2v_status m2v_encoder_dispatch_indirect(struct m2v_encoder *e,
                                          uint64_t gpu_address,
                                          uint32_t tx,
                                          uint32_t ty,
@@ -272,8 +295,8 @@ m2v_status m2v_encoder_dispatch_indirect(m2v_encoder *e,
 /**
  * vkCmdFillBuffer; start/end must be 4-byte aligned.
  */
-m2v_status m2v_encoder_fill(m2v_encoder *e,
-                            m2v_buffer *dst,
+m2v_status m2v_encoder_fill(struct m2v_encoder *e,
+                            struct m2v_buffer *dst,
                             uint64_t start,
                             uint64_t end,
                             uint8_t value);
@@ -281,39 +304,41 @@ m2v_status m2v_encoder_fill(m2v_encoder *e,
 /**
  * vkCmdCopyBuffer; offsets and size 4-byte aligned.
  */
-m2v_status m2v_encoder_copy(m2v_encoder *e,
-                            m2v_buffer *src,
+m2v_status m2v_encoder_copy(struct m2v_encoder *e,
+                            struct m2v_buffer *src,
                             uint64_t src_offset,
-                            m2v_buffer *dst,
+                            struct m2v_buffer *dst,
                             uint64_t dst_offset,
                             uint64_t size);
 
-m2v_status m2v_encoder_barrier(m2v_encoder *e);
+m2v_status m2v_encoder_barrier(struct m2v_encoder *e);
 
-void m2v_encoder_push_debug_group(m2v_encoder *e, const char *name);
+void m2v_encoder_push_debug_group(struct m2v_encoder *e, const char *name);
 
-void m2v_encoder_pop_debug_group(m2v_encoder *e);
+void m2v_encoder_pop_debug_group(struct m2v_encoder *e);
 
-m2v_status m2v_encoder_write_timestamp(m2v_encoder *e, m2v_timestamp_pool *pool, uint32_t index);
+m2v_status m2v_encoder_write_timestamp(struct m2v_encoder *e,
+                                       struct m2v_timestamp_pool *pool,
+                                       uint32_t index);
 
 /**
  * Closes the encoder (consumes the handle in all cases, success or failure).
  */
-m2v_status m2v_encoder_end(m2v_encoder *e);
+m2v_status m2v_encoder_end(struct m2v_encoder *e);
 
-void m2v_encoder_release(m2v_encoder *e);
+void m2v_encoder_release(struct m2v_encoder *e);
 
-m2v_status m2v_device_create_timestamp_pool(m2v_device *d,
+m2v_status m2v_device_create_timestamp_pool(struct m2v_device *d,
                                             uint32_t count,
-                                            m2v_timestamp_pool **out);
+                                            struct m2v_timestamp_pool **out);
 
-void m2v_timestamp_pool_release(m2v_timestamp_pool *p);
+void m2v_timestamp_pool_release(struct m2v_timestamp_pool *p);
 
 /**
  * Fill `out` (capacity `capacity`) with nanosecond timestamps; 0 = not written.
  * `*out_len` receives the pool size.
  */
-m2v_status m2v_timestamp_pool_results(m2v_timestamp_pool *p,
+m2v_status m2v_timestamp_pool_results(struct m2v_timestamp_pool *p,
                                       uint64_t *out,
                                       uint32_t capacity,
                                       uint32_t *out_len);
@@ -322,8 +347,8 @@ m2v_status m2v_timestamp_pool_results(m2v_timestamp_pool *p,
  * Submit in order; the callback (called once, on the queue's waiter thread)
  * receives the GPU start/end timestamps around the whole submission.
  */
-m2v_status m2v_queue_submit(m2v_queue *q,
-                            m2v_cmdbuf *const *cbs,
+m2v_status m2v_queue_submit(struct m2v_queue *q,
+                            struct m2v_cmdbuf *const *cbs,
                             uintptr_t n,
                             void (*on_complete)(m2v_status, uint64_t, uint64_t, void*),
                             void *user);
