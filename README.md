@@ -135,12 +135,13 @@ Measured on an Apple M1 Max (G13C) with the fork ICD, Mesa 26.3.0-devel. "Hand k
 
 | kernel (uzu source, unmodified) | result | translated | hand kernel |
 | --- | --- | --- | --- |
-| Softmax f32, 4096 x 4096 (`simd_max`, `simd_sum`, threadgroup memory) | max abs error 2.4e-7 | 750 us | 771 us |
-| Softmax f16, 4096 x 4096 | max abs error 2.4e-4 | 365 us | 408 us |
-| Activation SILU f32 / f16, 8M elements | max rel error 3.5e-7 / 3.8e-4 | 254 us / 251 us | not comparable (mlx composes it from several ops) |
-| 8x8 tile matmul from uzu's `SimdgroupMMA`, 1024^3 f32 | max rel error 1.4e-6 | 0.8 TFLOP/s | 4.1 TFLOP/s (tiled GEMM) |
+| Softmax f32, 4096 x 4096 (`simd_max`, `simd_sum`, threadgroup memory) | max abs error 2.4e-7 | 733 us | 773 us |
+| Softmax f16, 4096 x 4096 | max abs error 2.4e-4 | 358 us | 403 us |
+| Activation SILU f32 / f16, 8M elements | max rel error 3.5e-7 / 3.8e-4 | 340 us / 340 us | not comparable (mlx composes it from several ops) |
+| 8x8 tile matmul from uzu's `SimdgroupMMA`, 1024^3 f32, one tile per subgroup, no reuse | max rel error 1.4e-6 | 0.81 TFLOP/s | 4.1 TFLOP/s (tiled GEMM) |
 | the same tile kernel, shuffle emulation instead of cooperative matrix | max rel error 1.4e-6 | 0.03 TFLOP/s | |
-| uzu `Gemm` (`gemm.metal`, SimdgroupMmaCore, f32) | front end passes for every tiling | blocked in clspv, see below | |
+| 4x4 register-tiled matmul from the same header, 1024^3 f32 | max rel error 1.1e-6 | 4.27 TFLOP/s | 4.07 TFLOP/s (tiled GEMM) |
+| uzu `Gemm` (`gemm.metal`, SimdgroupMmaCore, f32, Tile64x64x32), 1024^3 | max rel error 1.2e-6 | 1.42 TFLOP/s (0.35x of the hand GEMM; at 256^3 0.36 TFLOP/s) | 4.07 TFLOP/s |
 
 uzu `Gemm` and clspv. The front end instantiates the whole SimdgroupMmaCore path, and with the typed-GEP front end route
 (the default, see `compile.sh`) clspv accepts it and the SPIR-V validates for the 8x32x32, 32x32x32 and 64x64x32 tilings. The three
