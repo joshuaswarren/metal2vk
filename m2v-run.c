@@ -8,6 +8,9 @@
 #include <time.h>
 #include <vulkan/vulkan.h>
 
+// Most storage buffers one dispatch can bind (the fused oMLX kernels take 17 and more).
+#define M2V_MAX_BUFS 64
+
 #define CK(x) do { VkResult r_ = (x); if (r_ != VK_SUCCESS) { fprintf(stderr, "%s failed: %d (line %d)\n", #x, r_, __LINE__); exit(2); } } while (0)
 
 static void* readf(const char* p, size_t* n) {
@@ -20,13 +23,13 @@ int main(int argc, char** argv) {
   if (argc < 6) { fprintf(stderr, "usage: m2v-run SPV ENTRY GX GY GZ [--iters N] [--push F] [--buf F]... [--dump I:F]...\n"); return 1; }
   const char* spv = argv[1]; const char* entry = argv[2];
   uint32_t g[3] = { atoi(argv[3]), atoi(argv[4]), atoi(argv[5]) };
-  int iters = 1; uint32_t local[3] = {0, 0, 0}; const char* pushf = NULL; const char* bufs[16]; int nb = 0; const char* dumps[16]; int nd = 0;
+  int iters = 1; uint32_t local[3] = {0, 0, 0}; const char* pushf = NULL; const char* bufs[M2V_MAX_BUFS]; int nb = 0; const char* dumps[M2V_MAX_BUFS]; int nd = 0;
   for (int i = 6; i < argc; i++) {
     if (!strcmp(argv[i], "--iters")) iters = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--local")) { local[0] = atoi(argv[++i]); local[1] = atoi(argv[++i]); local[2] = atoi(argv[++i]); }
     else if (!strcmp(argv[i], "--push")) pushf = argv[++i];
-    else if (!strcmp(argv[i], "--buf")) bufs[nb++] = argv[++i];
-    else if (!strcmp(argv[i], "--dump")) dumps[nd++] = argv[++i];
+    else if (!strcmp(argv[i], "--buf")) { if (nb >= M2V_MAX_BUFS) { fprintf(stderr, "m2v-run: more than %d buffers\n", M2V_MAX_BUFS); return 2; } bufs[nb++] = argv[++i]; }
+    else if (!strcmp(argv[i], "--dump")) { if (nd >= M2V_MAX_BUFS) { fprintf(stderr, "m2v-run: more than %d dumps\n", M2V_MAX_BUFS); return 2; } dumps[nd++] = argv[++i]; }
   }
   VkApplicationInfo ai = { VK_STRUCTURE_TYPE_APPLICATION_INFO, 0, "m2v", 1, "m2v", 1, VK_API_VERSION_1_3 };
   VkInstanceCreateInfo ici = { VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, 0, 0, &ai };
@@ -60,7 +63,7 @@ int main(int argc, char** argv) {
     if ((mp.memoryTypes[i].propertyFlags & want_f) == want_f) { mt = i; break; }
   }
   if (mt == ~0u) { fprintf(stderr, "no host-visible coherent memory\n"); return 4; }
-  VkBuffer buf[16]; VkDeviceMemory mem[16]; void* map[16]; size_t sz[16];
+  VkBuffer buf[M2V_MAX_BUFS]; VkDeviceMemory mem[M2V_MAX_BUFS]; void* map[M2V_MAX_BUFS]; size_t sz[M2V_MAX_BUFS];
   for (int i = 0; i < nb; i++) {
     void* d = readf(bufs[i], &sz[i]);
     VkBufferCreateInfo bi = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, 0, 0, sz[i] ? sz[i] : 4, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT };
@@ -71,7 +74,7 @@ int main(int argc, char** argv) {
     CK(vkMapMemory(dev, mem[i], 0, VK_WHOLE_SIZE, 0, &map[i])); memcpy(map[i], d, sz[i]); free(d);
   }
   size_t pn = 0; void* pd = pushf ? readf(pushf, &pn) : NULL;
-  VkDescriptorSetLayoutBinding lb[16]; for (int i = 0; i < nb; i++) lb[i] = (VkDescriptorSetLayoutBinding){ i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0 };
+  VkDescriptorSetLayoutBinding lb[M2V_MAX_BUFS]; for (int i = 0; i < nb; i++) lb[i] = (VkDescriptorSetLayoutBinding){ i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT, 0 };
   VkDescriptorSetLayoutCreateInfo dli = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, 0, 0, nb, lb };
   VkDescriptorSetLayout dl; CK(vkCreateDescriptorSetLayout(dev, &dli, 0, &dl));
   VkPushConstantRange pcr = { VK_SHADER_STAGE_COMPUTE_BIT, 0, (uint32_t)pn };
@@ -91,7 +94,7 @@ int main(int argc, char** argv) {
   VkDescriptorPool dp; CK(vkCreateDescriptorPool(dev, &dpi, 0, &dp));
   VkDescriptorSetAllocateInfo dai = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, 0, dp, 1, &dl };
   VkDescriptorSet ds; CK(vkAllocateDescriptorSets(dev, &dai, &ds));
-  VkDescriptorBufferInfo bin[16]; VkWriteDescriptorSet wr[16];
+  VkDescriptorBufferInfo bin[M2V_MAX_BUFS]; VkWriteDescriptorSet wr[M2V_MAX_BUFS];
   for (int i = 0; i < nb; i++) { bin[i] = (VkDescriptorBufferInfo){ buf[i], 0, VK_WHOLE_SIZE };
     wr[i] = (VkWriteDescriptorSet){ VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, 0, ds, i, 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 0, &bin[i] }; }
   vkUpdateDescriptorSets(dev, nb, wr, 0, 0);
