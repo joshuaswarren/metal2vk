@@ -161,6 +161,7 @@ typedef vec<half, 4> packed_half4;
 // rejects the LLVM bfloat type, so sweep/bfloat_to_i16.py retypes the module to i16 before clspv.
 typedef __bf16 bfloat;
 #else
+#define M2V_BFLOAT_STRUCT 1
 // Storage struct on older clangs. Both implicit conversions (float->bfloat ctor, bfloat->float operator) mean
 // `c ? bfloat : float` is ambiguous here - the conditional rule needs the real type above.
 struct bfloat {
@@ -179,7 +180,7 @@ struct bfloat {
 // Same finite set as float (8-bit exponent, 7-bit mantissa), built from raw bit patterns: max 0x7F7F, smallest
 // normal 0x0080, epsilon 0x3C00 (2^-7), denorm_min 0x0001, infinity 0x7F80, quiet NaN 0x7FC0.
 template <> struct numeric_limits<bfloat> {
-  static bfloat from_bits(ushort b) { bfloat r; r.bits = b; return r; }
+  static bfloat from_bits(ushort b) { return __builtin_bit_cast(bfloat, b); }
   static bfloat max() { return from_bits(0x7F7F); }
   static bfloat min() { return from_bits(0x0080); }
   static bfloat lowest() { return from_bits(0xFF7F); }
@@ -196,6 +197,7 @@ template <> struct numeric_limits<bfloat> {
 // assignment are user provided so every copy from a device pointer becomes typed member loads instead of a memcpy
 // through the generic address space. The element interface keeps bfloat semantics, including round-to-nearest-even
 // narrowing on every write.
+#ifdef M2V_BFLOAT_STRUCT
 template <int N> struct vec_sel<bfloat, N, false> {
   struct type {
     ushort v[N];
@@ -223,6 +225,7 @@ template <int N> struct vec_sel<bfloat, N, false> {
     METAL_FUNC ref operator[](int i) { return ref{&v[i], 0}; }
   };
 };
+#endif
 
 template <typename T, typename U> METAL_FUNC T as_type(U u) { return __builtin_bit_cast(T, u); }
 

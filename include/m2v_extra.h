@@ -165,6 +165,7 @@ M2V_FAST_VEC(tanh, ::tanh)
 M2V_FAST_VEC(sin, native_sin)
 M2V_FAST_VEC(cos, native_cos)
 
+#ifdef M2V_BFLOAT_STRUCT
 // ---- bfloat vectors (storage + conversion; arithmetic goes through float) ----
 // Fields are raw i16 at the IR level (see the vec_sel<bfloat, N> note in metal_stdlib); the element interface keeps
 // bfloat semantics with round-to-nearest-even narrowing on every write.
@@ -221,6 +222,54 @@ M2V_BUILTIN1(sqrt, ::sqrt) M2V_BUILTIN1(rsqrt, ::rsqrt) M2V_BUILTIN1(tanh, ::tan
 #define packed_float4(...) m2v::mk<packed_float4>(__VA_ARGS__)
 #define packed_half2(...) m2v::mk<packed_half2>(__VA_ARGS__)
 #define packed_half4(...) m2v::mk<packed_half4>(__VA_ARGS__)
+
+#else
+// ---- bfloat vectors (storage + conversion; arithmetic goes through float) ----
+#define M2V_BFVEC_COMMON(NAME, N)                                                                                      \
+  static constexpr int m2v_n = N;                                                                                      \
+  METAL_FUNC NAME() = default;                                                                                         \
+  METAL_FUNC bfloat& operator[](int i) { return (&x)[i]; }                                                             \
+  METAL_FUNC const bfloat& operator[](int i) const { return (&x)[i]; }                                                 \
+  template <typename E> METAL_FUNC NAME(E v) { for (int i = 0; i < N; i++) (&x)[i] = bfloat((float)v[i]); }
+struct bfloat2 { bfloat x, y;
+  M2V_BFVEC_COMMON(bfloat2, 2)
+  METAL_FUNC bfloat2(bfloat a, bfloat b) : x(a), y(b) {} };
+struct bfloat3 { bfloat x, y, z;
+  M2V_BFVEC_COMMON(bfloat3, 3)
+  METAL_FUNC bfloat3(bfloat a, bfloat b, bfloat c) : x(a), y(b), z(c) {} };
+struct bfloat4 { bfloat x, y, z, w;
+  M2V_BFVEC_COMMON(bfloat4, 4)
+  METAL_FUNC bfloat4(bfloat a, bfloat b, bfloat c, bfloat d) : x(a), y(b), z(c), w(d) {} };
+
+// ---- metal::array ----
+template <typename T, size_t N> struct array {
+  T _data[N];
+  METAL_FUNC constexpr size_t size() const { return N; }
+  METAL_FUNC T& operator[](size_t i) { return _data[i]; }
+  METAL_FUNC const T& operator[](size_t i) const { return _data[i]; }
+  METAL_FUNC T* data() { return _data; }
+};
+
+// ---- Apple built-ins that standard-library headers wrap (glm_glue.metal re-declares bfloat math through them) ----
+#define __METAL_MAYBE_FAST_MATH__ 0
+#define M2V_BUILTIN1(N, F) template <typename T> METAL_FUNC T __metal_##N(T x, int) { return F(x); }
+M2V_BUILTIN1(fabs, ::fabs) M2V_BUILTIN1(exp, ::exp) M2V_BUILTIN1(exp2, ::exp2) M2V_BUILTIN1(log, ::log) M2V_BUILTIN1(log2, ::log2)
+M2V_BUILTIN1(sqrt, ::sqrt) M2V_BUILTIN1(rsqrt, ::rsqrt) M2V_BUILTIN1(tanh, ::tanh) M2V_BUILTIN1(sin, ::sin) M2V_BUILTIN1(cos, ::cos)
+
+} // namespace metal
+
+// packed_* vector constructors
+#define packed_char4(...) m2v::mk<packed_char4>(__VA_ARGS__)
+#define packed_uchar4(...) m2v::mk<packed_uchar4>(__VA_ARGS__)
+#define packed_short4(...) m2v::mk<packed_short4>(__VA_ARGS__)
+#define packed_int4(...) m2v::mk<packed_int4>(__VA_ARGS__)
+#define packed_uint4(...) m2v::mk<packed_uint4>(__VA_ARGS__)
+#define packed_float2(...) m2v::mk<packed_float2>(__VA_ARGS__)
+#define packed_float4(...) m2v::mk<packed_float4>(__VA_ARGS__)
+#define packed_half2(...) m2v::mk<packed_half2>(__VA_ARGS__)
+#define packed_half4(...) m2v::mk<packed_half4>(__VA_ARGS__)
+
+#endif
 
 // float2(bfloat2) and friends
 namespace m2v {
