@@ -13,7 +13,6 @@ pub struct Encoder {
     push_data: Vec<u8>,
     tg_lengths: Vec<(u32, u32)>,
     desc_set: Option<vk::DescriptorSet>,
-    bottom_written: bool,
 }
 
 /// Single source of truth for push-vs-fallback descriptors: the queue creates
@@ -32,7 +31,6 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
             push_data: Vec::new(),
             tg_lengths: Vec::new(),
             desc_set: None,
-            bottom_written: false,
         }
     }
 
@@ -142,7 +140,6 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
                 offset,
             );
         }
-        self.dispatched();
         Ok(())
     }
 
@@ -265,15 +262,13 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
 
     /// Close the encoder; the command buffer stays open until [`CommandBuffer::end`].
     pub fn end(self) -> Result<()> {
-        if !self.bottom_written {
-            unsafe {
-                self.cb.device.device.cmd_write_timestamp(
-                    self.cb.raw,
-                    vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                    self.cb.query_pool,
-                    1,
-                );
-            }
+        unsafe {
+            self.cb.device.device.cmd_write_timestamp(
+                self.cb.raw,
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                self.cb.query_pool,
+                1,
+            );
         }
         {
             let mut st = self.cb.state.lock();
@@ -446,13 +441,10 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
             );
         }
         self.cb.device.device.cmd_dispatch(self.cb.raw, grid[0], grid[1], grid[2]);
-        self.dispatched();
         Ok(())
     }
 
-    fn dispatched(&mut self) {
-        self.bottom_written = true;
-    }
+
 }
 
 impl Drop for Encoder {

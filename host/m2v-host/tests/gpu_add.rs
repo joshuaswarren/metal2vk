@@ -75,14 +75,14 @@ fn add_kernel_end_to_end() {
     }
     cb.end().unwrap();
     let (start, end) = run(&queue, &cb);
-    eprintln!("add gpu span: {} us", (end - start) / 1000);
+    eprintln!("add gpu span: {} us", (end.saturating_sub(start)) / 1000);
 
     let pb = b.contents() as *const f32;
     for i in 0..N {
         let got = unsafe { *pb.add(i) };
         assert!((got - i as f32).abs() < 1e-6, "mismatch at {i}: got {got}");
     }
-    println!("PASS add_kernel_end_to_end ({} elements, {} us GPU span)", N, (end - start) / 1000);
+    println!("PASS add_kernel_end_to_end ({} elements, {} us GPU span)", N, (end.saturating_sub(start)) / 1000);
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn push_constant_kernel_end_to_end() {
     }
     cb.end().unwrap();
     let (start, end) = run(&queue, &cb);
-    eprintln!("add_offset gpu span: {} us", (end - start) / 1000);
+    eprintln!("add_offset gpu span: {} us", (end.saturating_sub(start)) / 1000);
 
     let pb = b.contents() as *const f32;
     for i in 0..N {
@@ -124,6 +124,6 @@ fn push_constant_kernel_end_to_end() {
     println!(
         "PASS push_constant_kernel_end_to_end ({} elements, {} us GPU span)",
         N,
-        (end - start) / 1000
+        (end.saturating_sub(start)) / 1000
     );
 }
