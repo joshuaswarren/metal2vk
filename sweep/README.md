@@ -12,9 +12,10 @@ python3 sweep/report.py OUT/run1.json --table sweep/results/table.tsv --features
 python3 sweep/report.py OUT/run1.json --primary                      # rank by the first error of each entry (what blocks it first)
 ```
 
-`--dir` needs no uzu or TensorFold checkout (`--set` defaults to none when `--dir` is given). An entry whose own text uses Metal 4
-tensor ops (`dextents`, `tensor<`, `mpp::`) gets a `refused` row naming the construct instead of a compile attempt: they have no
-Vulkan 1.3 lowering here, so report.py counts them separately from failures.
+`--dir` needs no uzu or TensorFold checkout (`--set` defaults to none when `--dir` is given). An entry that fails and whose first
+diagnostic names a Metal 4 tensor op (`dextents`, `tensor<`, `mpp::`) gets a `refused` row naming the construct instead of a failure:
+the mpp shim emulates some of these, so only the failing diagnostic decides and entries that compile are never touched. report.py
+counts refused separately from failures.
 
 The run stage needs a GPU host and goes through the GPU queue wrapper (`gpu-job.sh` logs estimated and actual seconds):
 

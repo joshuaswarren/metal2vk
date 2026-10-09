@@ -29,8 +29,9 @@ env:   UZU_ROOT (uzu checkout), TF_ROOT (TensorFold checkout), CLANG (default cl
        OPT (the LLVM opt of CLANG's version), M2V_OPT (clang optimisation flags; default is the typed-GEP route of compile.sh),
        M2V_INCLUDE=DIR uses another shim include directory (a baseline run)
 --dir sweeps every *.metal directly in PATH as an extra set named after the directory (include search: PATH itself and its parent), without
-any TensorFold root layout. An entry whose own text uses Metal 4 tensor ops (dextents, tensor<, mpp::) gets a `refused` row instead of a
-compile: those constructs have no Vulkan 1.3 lowering here, so the row is counted separately, not as a failure.
+any TensorFold root layout. An entry that fails and whose first diagnostic names a Metal 4 tensor op (dextents, tensor<, mpp::) gets a
+`refused` row naming the construct instead of a failure: the mpp shim emulates some of these, so only the failing diagnostic decides, and
+entries that compile are never touched. report.py counts refused separately, not as failures.
 """
 import argparse
 import concurrent.futures as cf
@@ -451,8 +452,11 @@ def variant_sets(entry, text):
     return out
 
 
-# Metal 4 tensor ops have no Vulkan 1.3 lowering on this pipeline: they get a refusal, not a failure.
+# Metal 4 tensor ops (dextents, tensor<, mpp::): the mpp shim emulates some of them, so presence in the source is not a
+# refusal — an entry is refused only when it fails and its first diagnostic names one of the constructs (diagnostics name
+# the bare type or namespace, source spans the call-like forms).
 M4_OPS = (("dextents", r"\bdextents\b"), ("tensor<", r"\btensor\s*<"), ("mpp::", r"\bmpp\s*::"))
+M4_ERR_OPS = (("dextents", r"\bdextents\b"), ("tensor", r"\btensor\b"), ("mpp::", r"\bmpp\s*::"))
 
 
 def m4_construct(blanked, entry):
@@ -463,6 +467,18 @@ def m4_construct(blanked, entry):
         if re.search(rx, blanked[s:e]):
             return name
     return None
+
+
+def refused_row(row, construct):
+    """A failure reclassified as a refusal: the entry needs a Metal 4 tensor-op lowering this pipeline does not provide, so the row is not a bug."""
+    r = dict(row)
+    r.update({"parse": "refused", "ir": "", "spv": "", "val": "", "kernel": "", "args": [],
+              "error": f"refused: Metal 4 tensor ops ({construct}) are not translatable to G13",
+              "features": ["refused:" + construct]})
+    r.pop("detail", None)
+    r.pop("tag", None)
+    r.pop("primary", None)
+    return r
 
 
 def dsl_constraints(text):
@@ -1309,7 +1325,7 @@ def process(job):
     syms = list(syms)
     row = None
     for _ in range(4):
-        row, undecl, missing = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms)
+        row, undecl, missing, m4 = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms)
         new = sorted(n for n in undecl if not any(d.startswith("-D" + n + "=") for d in defs))
         add_syms = [g for g in missing if g not in syms] if setname == "tf" and row["parse"] == "FAIL" else []
         if "tf_frag" in add_syms and "namespace tfp" in src_path.read_text(errors="replace"):
@@ -1321,6 +1337,12 @@ def process(job):
             break
         defs += [f"-D{n}={TF_DEFAULTS.get(n, 'bfloat' if undecl[n] == 'type' else MACRO_DEFAULT)}" for n in new]
         syms += add_syms
+    if row["val"] != "ok" and row["parse"] != "n/a":
+        # a failure whose first diagnostic names a Metal 4 tensor op is a refusal, not a bug: the retry has run, so this is final
+        first = ((row.get("detail") or row["error"]).splitlines() or [""])[0]
+        named = next((n for n, rx in M4_ERR_OPS if re.search(rx, first)), None)
+        if named:
+            row = refused_row(row, m4 or named)
     if defs:
         row["defs"] = [d[2:] for d in defs]
     if syms:
@@ -1355,14 +1377,15 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["parse"] = "FAIL"
         row["error"] = "entry not found after preprocessing"
         row["features"] = [row["error"]]
-        return row, {}, []
+        return row, {}, [], None
     entry = allent[eidx]
+    m4 = m4_construct(blanked, entry)
     src, wsrc, params = build_source(text0, blanked, entry, kname, targs, [o for i, o in enumerate(allent) if i != eidx])
     if src is None:
         row["parse"] = "FAIL"
         row["error"] = "wrapper: " + next((getattr(p, "note", "") for p in params if p.kind == "unsupported"), "unsupported parameter")
         row["features"] = [row["error"]]
-        return row, {}, []
+        return row, {}, [], m4
     row["kernel"] = kname
     row["args"] = [{"kind": p.kind, "name": p.name, "type": p.type, "dims": p.dims, "tags": {k: v for k, v in p.tags.items()},
                     "attrs": p.attrs} for p in params]
@@ -1394,7 +1417,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             if " error: " in ln or "fatal error" in ln:
                 row["detail"] = "\n".join(lines[i:i + 3])[:600]
                 break
-        return row, undeclared_macros(errs), missing_host_symbols(errs)
+        return row, undeclared_macros(errs), missing_host_symbols(errs), m4
     row["parse"] = "ok"
     txt = ll.read_text()
     if "-O0" in FE_OPT:
@@ -1406,12 +1429,12 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["error"] = ([x for x in out.splitlines() if x.strip() and "failed to create target machine" not in x] or [f"opt exit {rc}"])[0][:140]
             row["features"] = ["opt:" + norm_msg(row["error"])]
             row["primary"] = row["features"][0]
-            return row, {}, []
+            return row, {}, [], m4
         pathlib.Path(str(ll) + ".opt").replace(ll)
         txt = ll.read_text()
     row["ir"] = "ok"
     if not use_spv:
-        return row, {}, []
+        return row, {}, [], m4
     txt = re.sub(r", !(alias\.scope|noalias) ![0-9]+", "", txt)
     txt = re.sub(r"^\s*(?:tail |musttail |notail )?call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
     ll.write_text(txt)
@@ -1423,7 +1446,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["error"] = (out.strip().splitlines() or ["bfloat_to_i16 failed"])[-1][:140]
             row["features"] = ["bfp:" + norm_msg(row["error"])]
             row["primary"] = row["features"][0]
-            return row, {}, []
+            return row, {}, [], m4
         txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
@@ -1435,7 +1458,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["clspv:" + norm_msg(row["error"])]
         row["primary"] = row["features"][0]
         row["detail"] = "\n".join(lines[:6])[:600]
-        return row, {}, []
+        return row, {}, [], m4
     row["spv"] = "ok"
     rc, out, _ = sh([SPIRV_VAL, "--target-env", "vulkan1.3", str(spv)])
     if rc != 0:
@@ -1444,9 +1467,9 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["spirv-val:" + row["error"]]
         row["primary"] = row["features"][0]
         row["detail"] = out.strip()[:400]
-        return row, {}, []
+        return row, {}, [], m4
     row["val"] = "ok"
-    return row, {}, []
+    return row, {}, [], m4
 
 
 def inventory(args):
@@ -1482,16 +1505,10 @@ def inventory(args):
                              "error": "no entry point (header/library file)", "features": [], "kernel": "", "args": []})
                 continue
             for ei, e in enumerate(ents):
-                m4 = m4_construct(blanked, e)
                 for kname, targs, err in variant_sets(e, blanked):
                     if err:
                         rows.append({"set": name, "file": rel, "entry": kname, "variant": "-", "parse": "FAIL", "ir": "", "spv": "", "val": "",
                                      "error": "wrapper: " + err, "features": ["wrapper:" + err], "kernel": "", "args": []})
-                    elif m4:
-                        rows.append({"set": name, "file": rel, "entry": kname, "variant": targs[:60] if targs else "-", "parse": "refused",
-                                     "ir": "", "spv": "", "val": "",
-                                     "error": f"refused: Metal 4 tensor ops ({m4}) are not translatable to G13",
-                                     "features": ["refused:" + m4], "kernel": "", "args": []})
                     else:
                         jobs.append((name, f, rel, ei, kname, targs, args.out, fincs, use_spv, defs, []))
     return jobs, rows, [nm for nm, _b, _i, _f in sets]
