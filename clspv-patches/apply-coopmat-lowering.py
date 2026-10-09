@@ -161,6 +161,58 @@ if "__opencl_c_generic_address_space" not in c:
     comp.write_text(c)
     print("patched Compiler.cpp")
 
+# 9. GroupVectorUntilSizeEquals loops forever when a step does not grow the vector (and its llvm_unreachable is undefined
+# behaviour in a Release build). Fail loudly with the offending types instead of hanging.
+bu = root / "lib/BitcastUtils.cpp"
+b = bu.read_text()
+if "M2V: cannot group" not in b:
+    x = "  while ((ValueEleSize * ValueNumEle) < TySize) {\n    if (ValueNumEle == 2) {\n      // <2 x i16> -> <4 x i16>"
+    assert x in b
+    b = b.replace(x, "  unsigned M2vIter = 0;\n  while ((ValueEleSize * ValueNumEle) < TySize) {\n    if (++M2vIter > 64) {\n      errs() << \"M2V: cannot group a \" << *ValueTy << \" value up to \" << *Ty << \" (now \" << ValueNumEle << \" x \" << ValueEleSize << \" bits, values \" << Values.size() << \")\\n\";\n      exit(3);\n    }\n    if (ValueNumEle == 2) {\n      // <2 x i16> -> <4 x i16>", 1)
+    bu.write_text(b)
+    print("patched BitcastUtils.cpp")
+
+# 10. SimplifyPointerBitcastPass iterates its sub-passes to a fixpoint; on some inputs two of them undo each other and it
+# never ends. Report which ones change things (and stop) instead of spinning.
+sp = root / "lib/SimplifyPointerBitcastPass.cpp"
+q = sp.read_text()
+if "M2V: SimplifyPointerBitcast" not in q:
+    a = q.index("  bool changed = true;\n  while (changed) {\n    changed = false;\n\n    changed |= runOnTrivialBitcast(M);")
+    b = q.index("  return PA;", a)
+    body = """  bool changed = true;
+  unsigned M2vIter = 0;
+  while (changed) {
+    changed = false;
+    bool c[9];
+    c[0] = runOnTrivialBitcast(M);
+    c[1] = runOnBitcastFromBitcast(M);
+    c[2] = runOnImplicitGEP(M);
+    c[3] = false;
+    while (runOnUpgradeableConstantCasts(M)) {
+      c[3] = true;
+    }
+    c[4] = runOnUnneededIndices(M);
+    c[5] = runOnImplicitCasts(M);
+    c[6] = runOnAllocaNotAliasing(M);
+    c[7] = runOnPHIFromGEP(M);
+    c[8] = runOnGEPFromGEP(M);
+    for (bool x : c)
+      changed |= x;
+    if (++M2vIter > 200) {
+      errs() << "M2V: SimplifyPointerBitcast does not converge; changing sub-passes:";
+      for (int i = 0; i < 9; i++)
+        if (c[i])
+          errs() << " " << i;
+      errs() << "\\n";
+      exit(3);
+    }
+  }
+
+"""
+    q = q[:a] + body + q[b:]
+    sp.write_text(q)
+    print("patched SimplifyPointerBitcastPass.cpp")
+
 rl = root / "lib/ReplaceLLVMIntrinsicsPass.cpp"
 t = rl.read_text()
 if "case Intrinsic::trap:" in t:

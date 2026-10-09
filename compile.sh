@@ -18,7 +18,7 @@ for c in $CASES; do
   echo "== $c"
   # shellcheck disable=SC2086
   "$CLANG" --target=spir -x cl -cl-std=clc++2021 -Xclang -finclude-default-header \
-    -cl-ext=-__opencl_c_generic_address_space -O2 -fno-strict-return -cl-kernel-arg-info -w ${M2V_DEFS:-} \
+    -cl-ext=-__opencl_c_generic_address_space -O2 -fno-slp-vectorize -fno-vectorize -mllvm -inline-threshold=100000 -fno-strict-return -cl-kernel-arg-info -w ${M2V_DEFS:-} \
     -I"$H/include" -I"$K" -I"$K/generated" -S -emit-llvm "$H/cases/$c.cl" -o "$OUT/$c.ll" 2>&1 | head -"${LINES_MAX:-20}"
   [ -s "$OUT/$c.ll" ] || continue
   # clang -O2 inlining attaches scoped-alias metadata in a form the LLVM inside clspv rejects; the metadata is only an optimisation hint
