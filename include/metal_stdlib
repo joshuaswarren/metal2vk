@@ -299,6 +299,20 @@ METAL_FUNC void simdgroup_multiply_accumulate(
   D.el[0] = (TD)r.x;
   D.el[1] = (TD)r.y;
 }
+#ifdef M2V_F16_COOPMAT
+} // namespace metal
+// half A and B with an f32 accumulator: lowered to the f16/f16/f32 8x8x8 cooperative matrix shape (clspv-patches/apply-coopmat-f16.py).
+extern "C" float2 m2v_mma_f16(half2 a, half2 b, float2 c) __attribute__((convergent, const));
+namespace metal {
+template <typename TD, typename TC>
+METAL_FUNC void simdgroup_multiply_accumulate(
+    simdgroup_matrix<TD, 8, 8>& D, simdgroup_matrix<half, 8, 8>& A, simdgroup_matrix<half, 8, 8>& B,
+    simdgroup_matrix<TC, 8, 8>& Cm) {
+  const float2 r = m2v_mma_f16(A.el, B.el, float2{(float)Cm.el[0], (float)Cm.el[1]});
+  D.el[0] = (TD)r.x;
+  D.el[1] = (TD)r.y;
+}
+#endif
 #endif
 
 } // namespace metal
