@@ -22,28 +22,7 @@ Counted by the entry's first error. The per-entry messages are in `sweep/results
 
 | # | class | entries | fix route | owner | status |
 |---|---|---|---|---|---|
-| 1 | Metal 4 tensor ops (`mpp::tensor_ops`, `tensor`, `dextents`, `execution_simdgroups`, cooperative tensors) | 98 | real shim: `include/MetalPerformancePrimitives/MetalPerformancePrimitives.h` (tensor views, `matmul2d` descriptors and `run`, cooperative tensors on the MLX/uzu/flashnext fragment layout, plain fp32 loops, subgroup shuffles for cooperative sources); the nax.h frag family and uzu fragment helpers still stop on our `vec` alias (template argument deduction through `using vec = typename vec_sel<T,N>::type` is a non-deduced context, Apple's `vec` is a class template) | mpp slice | shim landed; counts from the next full sweep |
-
-Class 1 construct table (entries whose sources reach each construct, over all 609; class 1 blocked first on 98 entries in 53 files at the c23 sweep):
-
-| construct | entries | status |
-|---|---|---|
-| `tensor<T, dextents<int32_t, 2>, tensor_inline>` views over device/threadgroup memory, `slice`, strides | 77 | shim: implemented |
-| `uint4b_format` elements (two per byte) | 36 | shim: implemented |
-| `matmul2d_descriptor` (transposes, relaxed flag, multiply / multiply_accumulate) + `matmul2d<desc, scope>` | 77 | shim: implemented (descriptor passed as integer NTTP via constexpr conversion) |
-| `run(tensor, tensor, coop)` and mixed tensor/cooperative operands | 77 | shim: implemented, fp32 accumulate |
-| `get_destination_cooperative_tensor` + per-element `operator[]` | 77 | shim: implemented |
-| `execution_simdgroup` scope | 41 | shim: implemented |
-| `execution_simdgroups<2>` scope (column bands; 32-row tiles row-banded) | 36 | shim: implemented |
-| `get_multidimensional_index` (ids[0] = column, ids[1] = row) | 36 | shim: implemented |
-| `get_left/right_input_cooperative_tensor`, the left one also initialized from another op's tensor | 16 | shim: implemented |
-| `metal::remove_addrspace_t` | 48 | metal_stdlib: implemented |
-| nax.h frag family + `mma_16x32` | 48 | blocked behind the `vec` deduction gap above |
-
-The fragment layout the shim implements (MLX steel NAX, uzu `MxuFragmentOps<true>`, flashnext and nemotron all pack for it): lane l of a 32-lane group holds x = (l & 8) + 4 * (l & 1), y = 4 * ((l >> 4) & 1) + ((l >> 1) & 3); element i of a 16-row tile is at row y + 8 * ((i >> 2) & 1), column x + (i & 3) + 16 * (i >> 3); with `execution_simdgroups<N>` the 32-lane groups tile columns (or rows, for 32-row tiles). uzu's `MxuStrictFragmentOps` packs for the other (strict) hardware layout; under the emulation its mma results land permuted - valid modules, Apple-relative numerics differ (no strict-layout users among the sweep entries except `gdn/tree_verify/out.metal`'s `use_mxu` variants).
-
-| # | class | entries | fix route | owner | status |
-|---|---|---|---|---|---|
+| 1 | Metal 4 tensor ops (`mpp::tensor_ops`, `tensor`, `dextents`, `execution_simdgroups`, cooperative tensors) | 138 | emulation: `matmul2d` and cooperative tensors on top of `simdgroup_matrix` and the cooperative matrix lowering | coopmat slice | open: gap list handed over |
 | 2 | clspv does not finish (90 s limit; still no result at 400 s for the seven checked) | 42 | clspv patch: find the loop (pointer passes on large unrolled kernels), or an IR pre-pass that shrinks the module | sweep slice | open |
 | 3 | clspv pointer passes (`OpPhi` of a `[4 x i8]` pointer and a typed pointer: 37, `Invalid bitcast`: 2, bitcast of a non-numeric type: 2) | 41 | IR post-pass in front of clspv that retypes the pointer, or a clspv patch | sweep slice | open |
 | 4 | `c ? bfloat : float` is ambiguous (bfloat converts both ways) | 0 | closed on clang 23: `bfloat` is `__bf16` (a real arithmetic type, so Metal's rule - a conditional of bfloat and float is float - holds in C++), with `sweep/bfloat_to_i16.py` retyping the LLVM bfloat to i16 for clspv; the clang 19 struct fallback keeps the class open there | sweep slice | closed |
