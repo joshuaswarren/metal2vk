@@ -18,9 +18,9 @@ correct on Honeykrisp. uzu's tiled GEMM parses through the shim; the clspv stage
 kernel.metal  +  cases/<name>.cl (entry wrapper)
         |
         |  clang --target=spir -x cl -cl-std=clc++2021
-        |        -cl-ext=-__opencl_c_generic_address_space -O2 -I include/
+        |        -cl-ext=-__opencl_c_generic_address_space -O0 -Xclang -disable-O0-optnone -I include/
         v
-   LLVM IR   (sed strips !alias.scope / !noalias, which clspv's LLVM rejects)
+   LLVM IR   (typed: noinline dropped, `opt` inliner + SROA, no InstCombine; sed strips !alias.scope / !noalias, which clspv's LLVM rejects)
         |
         |  clspv -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5   (patched, see below)
         v
@@ -31,6 +31,13 @@ kernel.metal  +  cases/<name>.cl (entry wrapper)
 when extending the shim.
 
 Why these choices:
+
+- The IR is kept typed on purpose (`M2V_PIPELINE=typed`, the default; `o2` is the old clang -O2 route). clang 23's InstCombine rewrites
+  `getelementptr float` into byte-offset `getelementptr i8` forms, and clspv's pointer passes then lose the element type: a `float2`
+  fragment load becomes eight byte loads per lane (the 8x8 tile matmul ran 4x slower), and uzu's Gemm ended in an `OpPhi` of a float
+  pointer and a `[4 x i8]` pointer that fails validation. At -O0 clang marks every function `noinline` and leaves closure allocas with a
+  generic address space `this`; dropping `noinline` and running LLVM's inliner plus SROA (without InstCombine) removes both, and clspv
+  optimises the result itself. The route needs `opt` from the same LLVM as clang (`OPT=` selects it).
 
 - clang is the front end, not clspv's own, because C++ for OpenCL with the generic address space disabled makes the implicit
   `this`, unqualified pointers and references private. That is exactly what Metal's `thread` means, and it is the only way
@@ -88,7 +95,9 @@ subgroup shuffles (about 30x slower).
    function-scope matrix variables, plus the capability, extension, types and the Vulkan memory model that requires;
 2. the SPIR-V binary writer learns `OpTypeCooperativeMatrixKHR` and `OpCooperativeMatrixMulAddKHR`;
 3. `llvm.trap` is removed (fall-off-the-end paths in Metal kernels);
-4. C++ for OpenCL is compiled with the generic address space, pipes and device enqueue features disabled.
+4. C++ for OpenCL is compiled with the generic address space, pipes and device enqueue features disabled;
+5. the `Coherent` decoration is not emitted for modules that use `m2v_mma_f32`: the Vulkan memory model that cooperative matrix
+   requires bans it, and clspv adds it to storage buffers reached through atomics or volatile accesses (uzu's Gemm does).
 
 ## Running a kernel
 
