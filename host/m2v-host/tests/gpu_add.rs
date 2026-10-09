@@ -64,7 +64,7 @@ fn add_kernel_end_to_end() {
     }
 
     let pipeline = device.create_pipeline(&library, "add", &[]).expect("pipeline add");
-    let mut cb = queue.new_command_buffer().expect("command buffer");
+    let cb = queue.new_command_buffer().expect("command buffer");
     {
         let mut enc = cb.begin().expect("encoder");
         enc.set_pipeline(&pipeline).unwrap();
@@ -101,7 +101,7 @@ fn push_constant_kernel_end_to_end() {
     let pipeline = device
         .create_pipeline(&library, "add_offset", &[])
         .expect("pipeline add_offset");
-    let mut cb = queue.new_command_buffer().expect("command buffer");
+    let cb = queue.new_command_buffer().expect("command buffer");
     {
         let mut enc = cb.begin().expect("encoder");
         enc.set_pipeline(&pipeline).unwrap();

@@ -87,18 +87,18 @@ impl Buffer {
                 .device
                 .map_memory(memory, 0, vk::WHOLE_SIZE, vk::MemoryMapFlags::empty())?;
 
-            let mut buffer = Arc::new(Buffer {
+            let va = device.map.reserve(size as u64);
+            let buffer = Arc::new(Buffer {
                 inner: BufferInner {
                     device: Arc::downgrade(device),
                     buffer,
                     memory,
                     ptr: ptr.cast(),
                     len: size,
-                    va: 0, // filled right after the map insert below
+                    va,
                 },
             });
-            let va = device.map.insert(&buffer, size as u64);
-            Arc::get_mut(&mut buffer).expect("single owner until return").va = va;
+            device.map.register(va, &buffer, size as u64);
             Ok(buffer)
         }
     }

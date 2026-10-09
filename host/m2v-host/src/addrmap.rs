@@ -33,14 +33,18 @@ impl AddressMap {
         }
     }
 
-    /// Reserve an aligned region for `buffer`; returns its base address.
-    pub(crate) fn insert(self: &Arc<Self>, buffer: &Arc<Buffer>, len: u64) -> u64 {
+    /// Reserve an aligned region; returns its base address. Call
+    /// [`AddressMap::register`] once the buffer Arc exists (weak references
+    /// would make `Arc::get_mut` fail, so reserve before publishing the Arc).
+    pub(crate) fn reserve(&self, len: u64) -> u64 {
         let len = len.max(1);
-        let va = self.next_va.fetch_add(Self::va_span(len), Ordering::Relaxed);
+        self.next_va.fetch_add(Self::va_span(len), Ordering::Relaxed)
+    }
+
+    pub(crate) fn register(self: &Arc<Self>, va: u64, buffer: &Arc<Buffer>, len: u64) {
         self.ranges
             .lock()
-            .insert(va, AddrEntry { buffer: Arc::downgrade(buffer), len });
-        va
+            .insert(va, AddrEntry { buffer: Arc::downgrade(buffer), len: len.max(1) });
     }
 
     fn va_span(len: u64) -> u64 {
@@ -78,8 +82,10 @@ mod tests {
         let map = Arc::new(AddressMap::new());
         let a = buf();
         let b = buf();
-        let va_a = map.insert(&a, 1); // rounds up to one 16 KiB block
-        let va_b = map.insert(&b, VA_ALIGN * 3);
+        let va_a = map.reserve(1); // rounds up to one 16 KiB block
+        map.register(va_a, &a, 1);
+        let va_b = map.reserve(VA_ALIGN * 3);
+        map.register(va_b, &b, VA_ALIGN * 3);
         assert_eq!(va_a % VA_ALIGN, 0);
         assert_eq!(va_b % VA_ALIGN, 0);
         assert_eq!(va_b - va_a, VA_ALIGN); // 1-byte buffer occupies one block
@@ -89,14 +95,18 @@ mod tests {
         let (got, off) = map.resolve(va_b + VA_ALIGN * 2 + 3).unwrap();
         assert!(Arc::ptr_eq(&got, &b));
         assert_eq!(off, VA_ALIGN * 2 + 3);
-        assert!(map.resolve(va_a + 1).is_none(), "offset inside the reserved block but outside the 1-byte buffer");
+        assert!(
+            map.resolve(va_a + 1).is_none(),
+            "offset inside the reserved block but outside the 1-byte buffer"
+        );
     }
 
     #[test]
     fn resolve_misses_outside_ranges() {
         let map = Arc::new(AddressMap::new());
         let a = buf();
-        let va = map.insert(&a, 1024);
+        let va = map.reserve(1024);
+        map.register(va, &a, 1024);
         assert!(map.resolve(va + 1024).is_none(), "one past the end");
         assert!(map.resolve(va - 1).is_none(), "before any range");
         assert!(map.resolve(1).is_none());
@@ -108,11 +118,13 @@ mod tests {
         let va;
         {
             let a = buf();
-            va = map.insert(&a, 4096);
+            va = map.reserve(4096);
+            map.register(va, &a, 4096);
         }
         assert!(map.resolve(va).is_none(), "dropped buffer must not resolve");
         let b = buf();
-        let va2 = map.insert(&b, 4096);
+        let va2 = map.reserve(4096);
+        map.register(va2, &b, 4096);
         assert!(va2 > va, "address space never rewinds, regions never reused");
         let (got, off) = map.resolve(va2 + 4095).unwrap();
         assert!(Arc::ptr_eq(&got, &b));
@@ -124,8 +136,10 @@ mod tests {
         let map = Arc::new(AddressMap::new());
         let a = buf();
         let b = buf();
-        let va_a = map.insert(&a, VA_ALIGN);
-        let va_b = map.insert(&b, VA_ALIGN);
+        let va_a = map.reserve(VA_ALIGN);
+        map.register(va_a, &a, VA_ALIGN);
+        let va_b = map.reserve(VA_ALIGN);
+        map.register(va_b, &b, VA_ALIGN);
         assert_eq!(va_b, va_a + VA_ALIGN);
         let (got, _) = map.resolve(va_a + VA_ALIGN - 1).unwrap();
         assert!(Arc::ptr_eq(&got, &a));
