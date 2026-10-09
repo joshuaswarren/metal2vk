@@ -22,7 +22,7 @@ kernel.metal  +  cases/<name>.cl (entry wrapper)
         v
    LLVM IR   (typed: noinline dropped, `opt` inliner + SROA, no InstCombine; sed strips !alias.scope / !noalias, which clspv's LLVM rejects)
         |
-        |  clspv -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5   (patched, see below)
+        |  clspv -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 --long-vector   (patched, see below)
         v
    SPIR-V    ->  spirv-val --target-env vulkan1.3  ->  vkCreateComputePipelines
 ```
