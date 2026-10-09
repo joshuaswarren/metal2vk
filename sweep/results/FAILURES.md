@@ -5,7 +5,7 @@ The first message of every failing entry, grouped by stage and normalized messag
 ## front end: overload:frag_get (19)
 
 ```
-out7core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:192:13: error: no matching function for call to 'frag_get'
+out8core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:192:13: error: no matching function for call to 'frag_get'
   192 |             frag_get(b[j][i], (const threadgroup bfloat*)tile, PAD, tn + 16 * i, kk + 16 * j, home);
       |             ^~~~~~~~
 ```
@@ -15,7 +15,7 @@ Entries: `core/affine_mm.metal:tf_affine_row_sums`, `core/affine_mm.metal:tf_aff
 ## front end: overload:frag_get_in (19)
 
 ```
-out7glm_attn_metal__glm_latent_scores_f9e7009f.cl:139:5: error: no matching function for call to 'frag_get_in'
+out8glm_attn_metal__glm_latent_scores_f9e7009f.cl:139:5: error: no matching function for call to 'frag_get_in'
   139 |     frag_get_in(a, q, 512, row0, k0, home, 64, 512);
       |     ^~~~~~~~~~~
 ```
@@ -52,10 +52,11 @@ error: line 205: [VUID-StandaloneSpirv-None-12295] Having 8 components for TypeV
 
 Entries: `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_a803238811388b40-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 3 more
 
-## clspv: clspv:timeout (10)
+## spirv-val: spirv-val:error: line N: Capability UntypedPointersKHR is not allowed by Vulkan N.N specification (or requires (10)
 
 ```
-timeout
+error: line 6: Capability UntypedPointersKHR is not allowed by Vulkan 1.3 specification (or requires extension)
+  OpCapability UntypedPointersKHR
 ```
 
 Entries: `kimi/dense_mma.metal:k3_slice_mma`, `kimi/synth.metal:k3_mma_peak`, `prefill/qmm_nax.metal:custom_kernel_tf_qmm_splitk_pa`, `qwen3_5/qmm_16_2048.metal:custom_kernel_qwen35_qmm_16_20`, `qwen3_5/qmm_2048_2048.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_2048_6144.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_248320_2048.metal:custom_kernel_qwen35_qmm_24832`, `qwen3_5/qmm_4096_2048.metal:custom_kernel_qwen35_qmm_4096_` and 2 more
@@ -63,7 +64,7 @@ Entries: `kimi/dense_mma.metal:k3_slice_mma`, `kimi/synth.metal:k3_mma_peak`, `p
 ## front end: overload:load_paired_vectors (6)
 
 ```
-out7gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:889:13: error: no matching function for call to 'load_paired_vectors'
+out8gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:889:13: error: no matching function for call to 'load_paired_vectors'
   889 |             load_paired_vectors(cooperative_right, right_col_0, right_col_1);
       |             ^~~~~~~~~~~~~~~~~~~
 ```
@@ -81,7 +82,7 @@ Entries: `kimi/mla.metal:k3_mla_cache`, `kimi/mla.metal:k3_mla_qlat`, `kimi/mla.
 ## front end: overload:row_reduce (4)
 
 ```
-out7attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no matching member function for call to 'row_reduce'
+out8attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no matching member function for call to 'row_reduce'
  1502 |     score_fragment.row_reduce(block_max, -INFINITY, [](AccumType a, AccumType b) { return metal::max(a, b); });
       |     ~~~~~~~~~~~~~~~^~~~~~~~~~
 ```
@@ -99,7 +100,7 @@ Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g
 ## front end: other: from vector 'X' (vector of N 'X' values) to vector 'X' (aka 'X') of different size (3)
 
 ```
-out7ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274:25: error:  from vector 'float4' (vector of 4 'float' values) to vector 'vec<__bf16, 4>' (aka 'typename vec_sel<__bf16, 4>::type') of different size
+out8ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274:25: error:  from vector 'float4' (vector of 4 'float' values) to vector 'vec<__bf16, 4>' (aka 'typename vec_sel<__bf16, 4>::type') of different size
   274 |         values = float4(vec<T, 4>(values)) + float4(load_hadamard_vector(bias + first_index));
       |                         ^~~~~~~~~~~~~~~~~
 ```
@@ -109,7 +110,7 @@ Entries: `activation_transform/activation_transform.metal:ActivationTransform_v1
 ## front end: other:variable in constant address space must be initialized (2)
 
 ```
-out7sampling_unified_sampling_metal__UnifiedSampling_v0_1a2c2607.cl:203:31: error: variable in constant address space must be initialized
+out8sampling_unified_sampling_metal__UnifiedSampling_v0_1a2c2607.cl:203:31: error: variable in constant address space must be initialized
   203 |   static const constant Logit LOWEST;
       |                               ^
 ```
@@ -119,7 +120,7 @@ Entries: `sampling/unified_sampling.metal:UnifiedSampling_v0`, `sampling/unified
 ## front end: overload:store_hadamard_vector (2)
 
 ```
-out7ion_transform_activation_transform_metal__ActivationTransform_v0_cbcb1dd7.cl:276:7: error: no matching function for call to 'store_hadamard_vector'
+out8ion_transform_activation_transform_metal__ActivationTransform_v0_cbcb1dd7.cl:276:7: error: no matching function for call to 'store_hadamard_vector'
   276 |       store_hadamard_vector(fp_out + element_index, values);
       |       ^~~~~~~~~~~~~~~~~~~~~
 ```
@@ -138,7 +139,7 @@ Entries: `glm/router.metal:custom_kernel_tf_glm5_fused_ro`, `glm/router.metal:cu
 ## front end: other:excess elements in scalar initializer (1)
 
 ```
-out7convolution_separable_causal_conv_metal__SeparableCausalConv_v0_c4e1e48c.cl:93:37: error: excess elements in scalar initializer
+out8convolution_separable_causal_conv_metal__SeparableCausalConv_v0_c4e1e48c.cl:93:37: error: excess elements in scalar initializer
    93 |     const AccumulatorBlock weight = AccumulatorBlock(
       |                                     ^
 ```
@@ -148,7 +149,7 @@ Entries: `convolution/separable_causal_conv.metal:SeparableCausalConv_v0`
 ## front end: other:redefinition of 'X' (1)
 
 ```
-out7ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:236:15: error: redefinition of 'frag_home'
+out8ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:236:15: error: redefinition of 'frag_home'
   236 | inline short2 frag_home(ushort l) {
       |               ^
 ```
@@ -158,7 +159,7 @@ Entries: `ops/nax_gemm.metal:tf_nax_gemm_nn_bf16`
 ## front end: other:static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allowed (1)
 
 ```
-out7matmul_gemv_gemv_metal__Gemv_v0_616987e7.cl:531:35: error: static_cast from 'I4' (aka 'typename vec_sel<__bf16, 4>::type') to 'float4' (vector of 4 'float' values) is not allowed
+out8matmul_gemv_gemv_metal__Gemv_v0_616987e7.cl:531:35: error: static_cast from 'I4' (aka 'typename vec_sel<__bf16, 4>::type') to 'float4' (vector of 4 'float' values) is not allowed
   531 |       const float4 input_values = static_cast<float4>(*reinterpret_cast<const device I4*>(input));
       |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
@@ -168,7 +169,7 @@ Entries: `matmul/gemv/gemv.metal:Gemv_v0`
 ## front end: overload:Mark (1)
 
 ```
-out7nemotron_sample_metal__tf_sample_full_8ad6ba3f.cl:266:44: error: no matching constructor for initialization of 'Mark'
+out8nemotron_sample_metal__tf_sample_full_8ad6ba3f.cl:266:44: error: no matching constructor for initialization of 'Mark'
   266 |   if (!(cum + mass(r, m, norm, lo, b, top, END, false, s) >= top_p)) return END;
       |                                            ^~~
 ```
@@ -178,7 +179,7 @@ Entries: `nemotron_sample.metal:tf_sample_full`
 ## front end: overload:mma_16x32 (1)
 
 ```
-out7prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:366:9: error: no matching function for call to 'mma_16x32'
+out8prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:366:9: error: no matching function for call to 'mma_16x32'
   366 |         mma_16x32<false, false>(acc[d], acc[d + 1], s[k], v0, v1);
       |         ^~~~~~~~~~~~~~~~~~~~~~~
 ```
