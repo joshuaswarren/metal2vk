@@ -63,11 +63,14 @@ impl Buffer {
             let buffer = device.device.create_buffer(
                 &vk::BufferCreateInfo {
                     size: size as u64,
+                    // No SHADER_DEVICE_ADDRESS: the shim's gpu_address() is a
+                    // virtual VA resolved by Device::resolve, and honeykrisp
+                    // segfaults at dispatch on device-address buffers
+                    // (G13C, found against m2v-run, 2026-10-09).
                     usage: vk::BufferUsageFlags::STORAGE_BUFFER
                         | vk::BufferUsageFlags::TRANSFER_SRC
                         | vk::BufferUsageFlags::TRANSFER_DST
-                        | vk::BufferUsageFlags::INDIRECT_BUFFER
-                        | vk::BufferUsageFlags::SHADER_DEVICE_ADDRESS,
+                        | vk::BufferUsageFlags::INDIRECT_BUFFER,
                     ..Default::default()
                 },
                 None,
