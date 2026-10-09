@@ -1,6 +1,6 @@
 name: sweep
 
-# Three jobs. `clspv` builds the patched clspv once and saves it in the cache; `gate` compiles the five reference cases and fails on any missing
+# Three jobs. `clspv` builds the patched clspv once and saves it in the cache; `gate` compiles the four reference cases and fails on any missing
 # or invalid SPIR-V (a shim change that breaks the real pipeline fails here, in minutes); `sweep` runs every uzu and TensorFold Zig kernel
 # (compile only, clang 23) and fails if an entry that had valid Vulkan SPIR-V loses it.
 # The floor is sweep/coverage-floor.txt; raise it with `sweep/check_coverage.py RESULT.json --update` in the PR that gains entries.
@@ -43,7 +43,8 @@ jobs:
           cd clspv
           git checkout -q "$CLSPV_SHA"
           python3 utils/fetch_sources.py --shallow
-          for p in "$GITHUB_WORKSPACE"/clspv-patches/apply-*.py; do python3 "$p" .; done
+          # order matters: the f16 script needs the lowering; list a new patch here
+          for p in apply-coopmat-lowering.py apply-coopmat-f16.py; do python3 "$GITHUB_WORKSPACE/clspv-patches/$p" .; done
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
           ninja -C build clspv
 
