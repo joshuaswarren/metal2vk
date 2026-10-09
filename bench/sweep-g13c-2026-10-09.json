@@ -1,7 +1,6 @@
 {
  "device": "g13c",
  "date": "2026-10-09",
- "host": "jw16-linux",
  "kernels": {
   "activation_f32_8388608": {
    "variants": [
@@ -179,5 +178,7 @@
    ],
    "winner": "chains4"
   }
- }
+ },
+ "device_name": "Apple M1 Max (G13C C0)",
+ "driver": "Mesa 26.3.0-devel (git-6543eeb7df)"
 }

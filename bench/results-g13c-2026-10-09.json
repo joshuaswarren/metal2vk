@@ -1,10 +1,6 @@
 {
  "device": "g13c",
- "icd": "/home/joshuawarren/.local/share/coreglass/vulkan-6543eeb7df/honeykrisp_icd.aarch64.json",
  "date": "2026-10-09",
- "host": "jw16-linux",
- "runner": "/home/joshuawarren/scratch/metal2vk/m2v-run",
- "spvdir": "/home/joshuawarren/scratch/m2v-bench-out/spv",
  "rows": {
   "activation_f32": {
    "us": 343.482,
@@ -218,5 +214,7 @@
     }
    }
   }
- }
+ },
+ "device_name": "Apple M1 Max (G13C C0)",
+ "driver": "Mesa 26.3.0-devel (git-6543eeb7df)"
 }

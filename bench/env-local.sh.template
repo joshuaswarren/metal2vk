@@ -1,0 +1,6 @@
+# local (untracked) env for bench/run-all.sh; copy to bench/env-local.sh and fill in.
+# run-all.sh sources bench/env-local.sh when present. Keep host paths out of the repo.
+export UZU_ROOT=/path/to/uzu
+export CLSPV=/path/to/patched/clspv
+export PYTHON=/path/to/python-with-mlx
+export M2V_ICD=/path/to/icd.json

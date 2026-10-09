@@ -1,10 +1,5 @@
 {
-  "g13c": {
-    "comment": "Apple M1 Max; jw16 (Linux) fork ICD that exposes VK_KHR_cooperative_matrix",
-    "icd": "/home/joshuawarren/.local/share/coreglass/vulkan-6543eeb7df/honeykrisp_icd.aarch64.json"
-  },
-  "g14c": {
-    "comment": "Apple M2 Max; no ICD registered on jw16 — set icd here or pass --icd when running on a g14c host",
-    "icd": null
-  }
+  "comment": "Device tag registry for --device. The ICD comes from the M2V_ICD env (or --icd / VK_DRIVER_FILES); no host paths are committed. Tags are the GPU family from vulkaninfo deviceName, e.g. g13c = M1 Max class, g14c = M2 Max class.",
+  "g13c": { "icd": null },
+  "g14c": { "icd": null }
 }

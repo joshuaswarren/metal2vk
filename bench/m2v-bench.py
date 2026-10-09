@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """metal2vk bench: translated (m2v-run) vs hand (mlx) on one table.
 
-Usage (on the GPU host, under gpu-turn or flock):
+Usage (on the GPU host, under the GPU queue wrapper or flock):
     m2v-bench.py OUTDIR [--spvdir DIR] [--runner PATH] [--cases c,c,...]
                         [--device TAG] [--icd PATH] [--mlx-python PATH]
 
 Prints one table per kernel+dtype and writes OUTDIR/results-<device>-<date>.json.
 Registered cases: activation (f32/f16), softmax (f32/f16), tilematmul (256,1024),
 plus anything else that has merged to main as cases/*.cl with a driver here.
-`--device g14c` only changes the output tag and the VK_DRIVER_FILES env (looked
-up in bench/devices.json if present); without it the tag is derived from
-vulkaninfo deviceName.
+`--device g14c` only changes the output tag and the ICD env (M2V_ICD, or the tag
+lookup in bench/devices.json); without it the tag is derived from vulkaninfo
+deviceName. Receipts carry the device name, driver string and relative paths only.
 """
 import argparse
 import datetime
@@ -25,7 +25,7 @@ import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# (case, dtype, rows/cols or n) — same shapes as m2v-test.py / m2v-mlx-base.py.
+# (case, dtype, rows/cols or n), same shapes as m2v-test.py / m2v-mlx-base.py.
 CASES = [
     ("activation", "f32", 1 << 23),
     ("activation", "f16", 1 << 23),
@@ -43,17 +43,18 @@ LOCAL = {"activation": (256, 1, 1), "softmax": (256, 1, 1), "tilematmul": (32, 1
          "tilematmul_rt": (32, 1, 1)}
 
 
-def device_tag():
-    """G13C from `Apple M1 Max (G13C C0)` -> g13c."""
+def device_info():
+    """(tag, deviceName, driverInfo) from vulkaninfo; tag is `g13c` from `Apple M1 Max (G13C C0)`."""
     try:
         out = subprocess.run(["vulkaninfo", "--summary"], capture_output=True, text=True,
                              timeout=30).stdout
-        m = re.search(r"deviceName\s*=\s*(.+)", out)
-        name = m.group(1).strip() if m else ""
-        t = re.search(r"\(([A-Z0-9]+)", name)
-        return (t.group(1) if t else name or "unknown").lower().replace(" ", "")
+        name = (re.search(r"deviceName\s*=\s*(.+)", out) or [None, ""])[1].strip() if "deviceName" in out else ""
+        drv = (re.search(r"driverInfo\s*=\s*(.+)", out) or [None, ""])[1].strip()
+        t = re.search(r"\(([A-Za-z0-9]+)", name)
+        tag = (t.group(1) if t else name or "unknown").lower().replace(" ", "")
+        return tag, name, drv
     except Exception:
-        return "unknown"
+        return "unknown", "", ""
 
 
 def load_device_map():
@@ -229,7 +230,7 @@ def mlx_case(case, dt, n, batch=40):
 
 
 def hand(case, dt, n, batch=40):
-    """Wall time of a batch of independent evals / batch (one sync), best of 3 — same as m2v-mlx-base.py."""
+    """Wall time of a batch of independent evals / batch (one sync), best of 3, same as m2v-mlx-base.py."""
     import time
     import mlx.core as mx  # noqa: F401  (fail loudly here if mlx is missing)
     spec = mlx_case(case, dt, n, batch)
@@ -259,8 +260,8 @@ def hand(case, dt, n, batch=40):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
-    ap.add_argument("--spvdir", default=os.environ.get("SPVDIR", os.path.join(os.environ.get("HOME", "."), "scratch/metal2vk/bench-out")))
-    ap.add_argument("--runner", default=os.path.join(os.environ.get("HOME", "."), "scratch/metal2vk/m2v-run"))
+    ap.add_argument("--spvdir", default=os.environ.get("M2V_SPVDIR", "bench-out"))
+    ap.add_argument("--runner", default=os.environ.get("M2V_RUNNER", "m2v-run"))
     ap.add_argument("--cases", default=",".join(sorted({c for c, _, _ in CASES})))
     ap.add_argument("--device", default=None, help="output tag + ICD env override, e.g. g14c")
     ap.add_argument("--icd", default=None, help="VK_DRIVER_FILES value (overrides devices.json)")
@@ -270,19 +271,23 @@ def main():
     os.makedirs(args.outdir, exist_ok=True)
     want = set(args.cases.split(","))
 
-    tag = (args.device or device_tag()).lower()
+    tag, devname, drv = (args.device or device_info()[0]).lower(), None, ""
+    if not args.device:
+        tag, devname, drv = device_info()
     dm = load_device_map().get(tag, {})
-    icd = args.icd or dm.get("icd") or os.environ.get("VK_DRIVER_FILES")
-    # the tag switch only changes the output tag and the ICD env (devices.json or --icd)
-    if args.icd or (dm.get("icd") and not os.environ.get("VK_DRIVER_FILES")):
+    icd = args.icd or os.environ.get("M2V_ICD") or dm.get("icd") or os.environ.get("VK_DRIVER_FILES")
+    # the tag switch only changes the output tag and the ICD env (M2V_ICD / --icd / devices.json)
+    if args.icd or os.environ.get("M2V_ICD") or (dm.get("icd") and not os.environ.get("VK_DRIVER_FILES")):
         os.environ["VK_DRIVER_FILES"] = icd
 
     date = datetime.date.today().isoformat()
-    results = {"device": tag, "icd": icd, "date": date,
-               "host": os.uname().nodename, "runner": args.runner, "spvdir": args.spvdir,
+    # receipts carry device name, driver string and relative paths only (no host names or home paths)
+    results = {"device": tag, "device_name": devname, "driver": drv, "icd": "M2V_ICD" if icd else None,
+               "date": date, "runner": os.path.basename(args.runner),
+               "spvdir": os.path.relpath(args.spvdir) if not os.path.isabs(args.spvdir) else os.path.basename(args.spvdir),
                "rows": {}}
 
-    print(f"# metal2vk bench  device={tag}  host={results['host']}  icd={icd or 'system'}")
+    print(f"# metal2vk bench  device={tag} ({devname or 'tag override'})  driver={drv or 'n/a'}  icd={'M2V_ICD' if icd else 'system'}")
     hdr = f"{'kernel':<22}{'translated':>14}{'hand':>12}{'ratio':>8}  {'check':<18}{'metric':>22}"
     print(hdr)
     print("-" * len(hdr))
@@ -294,7 +299,7 @@ def main():
             continue
         spv = os.path.join(args.spvdir, f"{case}.spv")
         if not os.path.exists(spv):
-            results["rows"][key] = {"skip": f"no {spv} (compile failed or case not merged)"}
+            results["rows"][key] = {"skip": f"no {os.path.basename(spv)} in spvdir (compile failed or case not merged)"}
             print(f"{key:<22}{'-':>14}{'-':>12}{'-':>8}  {'-':<18}  skip")
             continue
         got = translated(args.outdir, args.runner, args.spvdir, case, dt, n)

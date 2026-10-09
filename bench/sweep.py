@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compile every tuning variant of the registered cases, validate + time it, record the winner.
 
-Usage (on the GPU host, under gpu-turn): sweep.py OUTDIR [--spvroot DIR]
+Usage (on the GPU host, under the GPU queue wrapper): sweep.py OUTDIR [--spvroot DIR]
 Env: UZU_ROOT, CLSPV (passed to compile.sh).
 Writes OUTDIR/sweep-<device>-<date>.json. The default (no M2V_DEFS) variant is
 always measured as the baseline.
@@ -48,18 +48,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
     ap.add_argument("--spvroot", default=None)
-    ap.add_argument("--runner", default=os.path.join(os.environ.get("HOME", "."), "scratch/metal2vk/m2v-run"))
+    ap.add_argument("--runner", default=os.environ.get("M2V_RUNNER", "m2v-run"))
     args = ap.parse_args()
     os.makedirs(args.outdir, exist_ok=True)
     spvroot = args.spvroot or os.path.join(args.outdir, "spv-sweep")
     env = dict(os.environ)
     if not env.get("UZU_ROOT"):
         sys.exit("sweep: set UZU_ROOT")
-    env.setdefault("CLSPV", os.path.join(os.environ.get("HOME", "."), "scratch/metal2vk/clspv/build/bin/clspv"))
 
-    tag = b.device_tag()
+    tag, devname, drv = b.device_info()
     date = datetime.date.today().isoformat()
-    report = {"device": tag, "date": date, "host": os.uname().nodename, "kernels": {}}
+    # receipts carry device name, driver string and relative paths only (no host names or home paths)
+    report = {"device": tag, "device_name": devname, "driver": drv, "date": date, "kernels": {}}
 
     for (case, dt, n), variants in VARIANTS.items():
         rows = []
