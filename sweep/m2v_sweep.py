@@ -636,12 +636,14 @@ def build_inplace(text0, blanked, entry, kname, targs, others):
     b0, b1 = entry["body"]
     body = subst(text0[b0 + 1:b1], vals)
     kern = f"__kernel void {kname}({', '.join(kargs)}) {{\n  " + "\n  ".join(pre) + "\n" + body + "}\n"
-    edits = [((th[0] if th else entry["head"][0]), b1 + 1, kern)]
+    own = th[0] if th else attr_run_start(text0, entry["head"][0])
+    edits = [(own, b1 + 1, kern)]
     for i in entry["inst"]:
         edits.append((i["span"][0], i["span"][1], ""))
     for o in others:
         oth = o["tmpl"]
-        edits.append((oth[0] if oth else o["head"][0], o["body"][1] + 1, ""))
+        st = oth[0] if oth else attr_run_start(text0, o["head"][0])
+        edits.append((st, o["body"][1] + 1, ""))
         for i in o["inst"]:
             edits.append((i["span"][0], i["span"][1], ""))
     out, pos = [], 0
@@ -715,7 +717,7 @@ TF_DEFAULTS = {"TF_UNROLL": "4", "TF_COL": "4", "TF_GROUP": "64", "TF_OUT_T": "b
 # symbols is missing, the group is injected before the kernel text and recorded in the row ("host_syms"). Definitions are
 # verbatim host code (mma_16x32 stays out behind M2V_NAX_MPP: it needs the mpp tensor-op emulation).
 HOST_SYMBOL_TRIGGERS = {
-    "tf_frag": ("frag", "frag_home"),
+    "tf_frag": ("frag", "frag_home", "frag_get", "frag_get_in", "frag_put", "frag_put_in"),
     "tfq6_store": ("tfq6::store", "tfq6::k_loop6"),
     "tf_math": ("bsig", "bsilu", "fsig", "fsoftplus", "log1p_", "simd_topk", "simd_topk_all"),
     "kda_quad_dot": ("quad_dot",),
@@ -1117,6 +1119,9 @@ def missing_host_symbols(errs):
         m = re.search(r"no member named '([^']+)' in namespace '([^']+)'", ln)
         if m:
             seen.add(m.group(2) + "::" + m.group(1))
+        m = re.search(r"no matching function for call to '([^']+)'", ln)
+        if m:
+            seen.add(m.group(1))
     # HOST_SYMBOL_TRIGGERS order is the dependency order (tf_frag defines the macros tfq6_store uses).
     return [g for g, ids in HOST_SYMBOL_TRIGGERS.items() if seen.intersection(ids)]
 
@@ -1188,6 +1193,8 @@ def process(job):
         row, undecl, missing = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms)
         new = sorted(n for n in undecl if not any(d.startswith("-D" + n + "=") for d in defs))
         add_syms = [g for g in missing if g not in syms] if setname == "tf" and row["parse"] == "FAIL" else []
+        if "tf_frag" in add_syms and "namespace tfp" in src_path.read_text(errors="replace"):
+            add_syms.remove("tf_frag")  # the file defines its own tfp (qmm_nax): its frag_* overloads are that slice's gap
         if add_syms:
             skip = set().union(*(HOST_GROUP_MACROS[g] for g in add_syms + syms))
             new = [n for n in new if n not in skip]
