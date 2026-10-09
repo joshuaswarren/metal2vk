@@ -1,0 +1,60 @@
+uzu metal unit tests on Linux/vulkan-host - receipt 2026-10-09
+Lane: bindgen kernel pipeline + unit-test sweep (slice/host-bindgen)
+
+Chip labels
+- Translation/build host: x86_64 container (CPU only), clang-19 + patched clspv.
+- Test host: Apple M1 Max (G13C), aarch64 Linux, CPU-only niced runs, no GPU jobs.
+
+1. Merge of origin/main into slice/host-bindgen
+   - merged f2a6ab8 (slice/receipts C header, coopmat f16, lazy compat gate)
+   - cargo check -p uzu-engine --no-default-features --features metal,vulkan-host
+     -> CHECK-RC=0 (log line "CHECK-RC=0" observed twice: once for the merge
+     check, once for the final pipeline check)
+
+2. Kernel translation pipeline (CT, CPU only)
+   Round counts from OUT_DIR/m2v-kernels.json via host/tools/kernel-report.py:
+   - start of session: 0 translated / 761 failed (KERNELS.md at 335422b)
+   - round 1 (strip_param_attrs rewrite + slot alias defines +
+     first_diag_lines anchors on the first `error:` line):
+     19 translated / 742 failed
+   - round 3 (+ mirror-first include path, const-qualified `constant T&`
+     front template params): 24 translated / 737 failed
+   - round 4 (+ path-independent include guards on mirrored headers, slot
+     preamble for fallback chunks): 23 translated / 738 failed
+   - count stopped growing; iteration stopped at the 40-minute box.
+   - top failure reasons at close (first real `error:` line each):
+     338 x redefinition of 'GemmAPrologueKind'
+     241 x program scope variable must reside in global or constant address space
+      47 x redefinition of '__m2v_spec_0'
+     (raw 3-line diagnostics in OUT_DIR/m2v-kernels.json; regenerated
+     host/KERNELS.md carries the top-5 table)
+
+3. host/uzu-linux.patch
+   - regenerated from the uzu worktree diff (18 files, +2943/-923) with the
+     __M2V_COMPAT__ placeholder (2 occurrences)
+   - ASCII hygiene: 3 non-ASCII lines in the patch, exactly the 3 upstream
+     `-`-comment lines (documented exception); added lines carry none
+   - git apply --check on a fresh detached c92723bd worktree -> PASS;
+     verify worktree removed afterwards
+
+4. Unit-test sweep (Apple M1 Max (G13C), CPU only)
+   - test binary build: cargo test -p uzu-engine --features metal,vulkan-host
+     --no-run, CARGO_BUILD_JOBS=6, nice 19. Dependency crates + build script
+     finished; final uzu-engine codegen still in flight at session close
+     (host compute saturated by an unrelated service; load ~19-21).
+     No TESTBUILD-RC yet -> binary NOT linked this session.
+   - one attempt to run fp_policy_cases before the binary existed:
+     rc=124 (300 s timeout waiting in cargo's target lock). Not a failure
+     of the test; no PASS claimed.
+   - the 20 CPU-only policy/selection/routes tests are staged to run one
+     exact name at a time by the per-test runner script synced to the test
+     host's lane scratch dir, with timeout 300 each; 22 device-backed tests
+     are NOT-RUN (need a Metal device; exact commands in host/UZU-TESTS.md).
+   - no test result was invented: statuses are NOT-RUN with reasons in
+     host/UZU-TESTS.md.
+
+5. Cleanup state
+   - CT: scratch files under /tmp removed; no stray target dirs
+   - test host: target-aarch64 (15G) + clspv-aarch64 (4.5G) still in place
+     while the build unit finishes; delete after the sweep with a guarded
+     literal-path script (dry run first)
