@@ -427,13 +427,18 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
 
     unsafe fn record_dispatch(&mut self, pipeline: &Arc<Pipeline>, grid: [u32; 3]) -> Result<()> {
         self.bind_descriptors(pipeline)?;
-        self.cb.device.device.cmd_push_constants(
-            self.cb.raw,
-            pipeline.layout,
-            vk::ShaderStageFlags::COMPUTE,
-            0,
-            &self.push_data,
-        );
+        // Kernels without POD arguments have an empty push block; do not call
+        // vkCmdPushConstants with a zero-size range (honeykrisp G13C/G14C
+        // segfault on it, 2026-10-09).
+        if !self.push_data.is_empty() {
+            self.cb.device.device.cmd_push_constants(
+                self.cb.raw,
+                pipeline.layout,
+                vk::ShaderStageFlags::COMPUTE,
+                0,
+                &self.push_data,
+            );
+        }
         self.cb.device.device.cmd_dispatch(self.cb.raw, grid[0], grid[1], grid[2]);
         self.dispatched();
         Ok(())
