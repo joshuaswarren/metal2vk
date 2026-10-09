@@ -99,6 +99,24 @@ for case in cases:
                 err = float(np.max(np.abs(got - ref)))
                 res[f"softmax_{dt}"] = {"rows": rows, "cols": cols, "max_abs_err": err, "tol": tol, "ok": bool(err < tol), "us": t,
                                        "info": info, "GBps": (None if t is None else 2 * rows * cols * np.dtype(npdt).itemsize / (t * 1e3))}
+        elif case == "tilematmul_rt":
+            # register-tiled variants: one subgroup owns an MR x NR block of 8x8 tiles (cases/tilematmul_rt.cl)
+            for name, mr, nr in (("tile_matmul_rt2x2_f32", 2, 2), ("tile_matmul_rt4x2_f32", 4, 2), ("tile_matmul_rt4x4_f32", 4, 4)):
+                for M in (256, 1024):
+                    N = K = M
+                    A = rng.standard_normal((M, K)).astype(np.float32)
+                    B = rng.standard_normal((K, N)).astype(np.float32)
+                    bufs = [w("mm_a.bin", A), w("mm_b.bin", B), w("mm_c.bin", np.zeros((M, N), np.float32)),
+                            w("mm_dims.bin", np.array([M, N, K], np.uint32))]
+                    grid = (N // (8 * nr), M // (8 * mr), 1)
+                    push0 = struct.pack("<4I", 0, 0, 0, 0)
+                    t, info = timed(os.path.join(spvdir, "tilematmul_rt.spv"), name, grid, bufs, push0)
+                    run(os.path.join(spvdir, "tilematmul_rt.spv"), name, grid, bufs, push0, 1, dump=f"2:{os.path.join(out, 'mm_res.bin')}")
+                    got = np.fromfile(os.path.join(out, "mm_res.bin"), np.float32).reshape(M, N).astype(np.float64)
+                    ref = A.astype(np.float64) @ B.astype(np.float64)
+                    err = float(np.max(np.abs(got - ref)) / (np.max(np.abs(ref)) + 1e-9))
+                    res[f"{name}_{M}"] = {"M": M, "max_rel_err": err, "tol": 1e-5, "ok": bool(err < 1e-5), "us": t, "info": info,
+                                          "GFLOPs": (None if t is None else 2.0 * M * N * K / (t * 1e3))}
         elif case == "tilematmul":
             for M in (256, 1024):
                 N = K = M
