@@ -71,6 +71,7 @@ pub struct Device {
     pub(crate) inner: Arc<DeviceInner>,
     /// Physical device name; queried lazily, once.
     name_str: std::sync::OnceLock<String>,
+    policy: crate::Policy,
 }
 
 impl Device {
@@ -244,7 +245,20 @@ impl Device {
             has_debug_utils: debug_utils_flag,
             map: Arc::new(AddressMap::new()),
         });
-        Ok(Arc::new(Device { inner, name_str: std::sync::OnceLock::new() }))
+        Ok(Arc::new(Device { inner, name_str: std::sync::OnceLock::new(), policy: crate::Policy::from_env()? }))
+    }
+
+    /// Kernel routing policy of this device (gate table from `M2V_POLICY_FILE`, fallbacks, first-use checks).
+    pub fn policy(&self) -> &crate::Policy {
+        &self.policy
+    }
+
+    /// How to run `kernel` from `lib`: translated, translated with a first-use check, a fallback, or `Error::Refused`.
+    /// Call this before creating the pipeline; only [`crate::Route::Translated`] and
+    /// [`crate::Route::TranslatedChecked`] may be followed by `create_pipeline`.
+    pub fn route_kernel(&self, lib: &crate::Library, kernel: &str) -> Result<crate::Route> {
+        let translated = lib.function_names().iter().any(|n| n == kernel);
+        self.policy.route(kernel, translated)
     }
 
     pub fn name(&self) -> &str {
