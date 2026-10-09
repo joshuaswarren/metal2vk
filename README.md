@@ -157,6 +157,13 @@ The tile matmul is a deliberately naive kernel built from uzu's header (no opera
 little about the lowering; the tiled `Gemm` is the real comparison and is the open item. A parse level census of all 55 uzu
 `.metal` files is in `census.py`.
 
+### Bulk sweep
+
+`sweep/` runs every uzu `.metal` file and every TensorFold Zig `.metal` file (609 entry points: kernel variants and host_name instantiations) through
+the shim, clang, clspv and spirv-val and keeps a per-kernel table. With this shim 346 of 609 entries produce valid Vulkan SPIR-V (56.8%; main's shim
+gave 225, 36.9%). The ranked list of what still blocks the rest and the first clspv or spirv-val message of every failing entry are in
+`sweep/results/` (`FEATURES.md`, `FAILURES.md`, `table.tsv`). `sweep/README.md` says how to rerun it.
+
 ## Working on it
 
 Branches are per slice (`slice/coopmat`, `slice/sweep`, `slice/host`, `slice/bench`), merged into `main` through pull

@@ -609,12 +609,15 @@ def preprocess(path, include_dirs, defs):
 
 
 def undeclared_macros(errs):
-    """ALL_CAPS identifiers the compiler reports as undeclared: host-injected macros (the Zig host passes them as -D)."""
-    out = set()
+    """ALL_CAPS names the compiler reports as undeclared: host-injected macros (the Zig host passes them as -D). -> {name: kind}"""
+    out = {}
     for ln in errs:
         m = re.search(r"use of undeclared identifier '([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)'", ln)
         if m:
-            out.add(m.group(1))
+            out[m.group(1)] = "value"
+        m = re.search(r"unknown type name '([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)'", ln)
+        if m:
+            out[m.group(1)] = "type"
     return out
 
 
@@ -689,7 +692,7 @@ def process(job):
         new = sorted(n for n in undecl if not any(d.startswith("-D" + n + "=") for d in defs))
         if setname != "tf" or row["parse"] != "FAIL" or not new:
             break
-        defs += [f"-D{n}={TF_DEFAULTS.get(n, MACRO_DEFAULT)}" for n in new]
+        defs += [f"-D{n}={TF_DEFAULTS.get(n, 'bfloat' if undecl[n] == 'type' else MACRO_DEFAULT)}" for n in new]
     if defs:
         row["defs"] = [d[2:] for d in defs]
     return row
@@ -705,14 +708,14 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["parse"] = "FAIL"
         row["error"] = "entry not found after preprocessing"
         row["features"] = [row["error"]]
-        return row, set()
+        return row, {}
     entry = allent[eidx]
     src, wsrc, params = build_source(text0, blanked, entry, kname, targs, [o for i, o in enumerate(allent) if i != eidx])
     if src is None:
         row["parse"] = "FAIL"
         row["error"] = "wrapper: " + next((getattr(p, "note", "") for p in params if p.kind == "unsupported"), "unsupported parameter")
         row["features"] = [row["error"]]
-        return row, set()
+        return row, {}
     row["kernel"] = kname
     row["args"] = [{"kind": p.kind, "name": p.name, "type": p.type, "dims": p.dims, "tags": {k: v for k, v in p.tags.items()},
                     "attrs": p.attrs} for p in params]
@@ -748,10 +751,10 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     row["parse"] = "ok"
     row["ir"] = "ok"
     if not use_spv:
-        return row, set()
+        return row, {}
     txt = ll.read_text()
     txt = re.sub(r", !(alias\.scope|noalias) ![0-9]+", "", txt)
-    txt = re.sub(r"^\s*call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
+    txt = re.sub(r"^\s*(?:tail |musttail |notail )?call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
     ll.write_text(txt)
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
@@ -759,11 +762,11 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:
         row["spv"] = "FAIL"
-        row["error"] = (lines[0] if lines else out.strip()[:100])[:140]
+        row["error"] = (lines[0] if lines else (f"clspv exit {rc} without a diagnostic (crash)" if rc != 124 else "timeout"))[:140]
         row["features"] = ["clspv:" + norm_msg(row["error"])]
         row["primary"] = row["features"][0]
         row["detail"] = "\n".join(lines[:6])[:600]
-        return row, set()
+        return row, {}
     row["spv"] = "ok"
     rc, out, _ = sh([SPIRV_VAL, "--target-env", "vulkan1.3", str(spv)])
     if rc != 0:
@@ -772,9 +775,9 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["spirv-val:" + row["error"]]
         row["primary"] = row["features"][0]
         row["detail"] = out.strip()[:400]
-        return row, set()
+        return row, {}
     row["val"] = "ok"
-    return row, set()
+    return row, {}
 
 
 def inventory(args):
