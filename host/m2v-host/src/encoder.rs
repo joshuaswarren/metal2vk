@@ -390,6 +390,7 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
                             .device
                             .allocate_descriptor_sets(&vk::DescriptorSetAllocateInfo {
                                 descriptor_pool: pool,
+                                descriptor_set_count: 1,
                                 p_set_layouts: set_layouts.as_ptr(),
                                 ..vk::DescriptorSetAllocateInfo::default()
                             })?[0];
