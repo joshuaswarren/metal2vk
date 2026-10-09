@@ -1,4 +1,4 @@
-# host/UZU-TESTS.md — uzu metal unit-test status on Linux/vulkan-host
+# host/UZU-TESTS.md - uzu metal unit-test status on Linux/vulkan-host
 
 Baseline: uzu c92723bd + host/uzu-linux.patch (`apply-uzu.sh`). All 42 tests under
 `crates/uzu-engine/unit/backends/metal` are gated `#![cfg(backend = "metal")]`; the
@@ -7,10 +7,10 @@ patched build script sets that on Linux with the `vulkan-host` feature.
 ## Status summary
 
 - NOT-BUILT: all 42. The metal backend does not compile on Linux yet because the
-  macOS-generated kernel bindings (`OUT_DIR/metal.rs`) are absent — blocking error
+  macOS-generated kernel bindings (`OUT_DIR/metal.rs`) are absent - blocking error
   below. No test reached the GPU; none was skipped or failed at runtime.
 
-## Per-test inventory (unit/backends/metal, all NOT-BUILT — backend does not compile)
+## Per-test inventory (unit/backends/metal, all NOT-BUILT - backend does not compile)
 
 - kernel/matmul/gemv/policy_test.rs: fp_policy_cases, quant_policy_cases,
   gpu_core_count_boundary_selects_large_policy, quantized_policy_edges,
@@ -46,7 +46,7 @@ uzu's macOS `MetalCompiler` (crates/uzu-engine/build/metal/compiler.rs) produces
 `.metal` source, `<source>.rs` shards containing:
 
 - `const MTLB_<blake3-of-relpath-UPPERCASE>: [&[u8]; N] =
-  [include_bytes!(<shard>.metallib), ...];` — on Linux the bytes must be the `.m2vlib`
+  [include_bytes!(<shard>.metallib), ...];` - on Linux the bytes must be the `.m2vlib`
   produced by make-m2vlib.py, one entry per shard (`num_shards` from shard_footers),
 - struct `XyzMetalKernel` per kernel holding
   `pipeline: Retained<ProtocolObject<dyn MTLComputePipelineState>>` plus config fields,
@@ -85,5 +85,5 @@ error: couldn't find file `<target-dir>/debug/build/uzu-engine/<hash>/out/metal.
 error: could not compile `uzu-engine` (lib) due to 1 previous error
 ```
 
-That is the ONLY error: everything else — the compat crates, the whole metal
-backend, the Linux `DeviceExt` forwards, LZFSE decode, the manifest swap — compiles.
+That is the ONLY error: everything else - the compat crates, the whole metal
+backend, the Linux `DeviceExt` forwards, LZFSE decode, the manifest swap - compiles.

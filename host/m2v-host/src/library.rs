@@ -31,6 +31,26 @@ pub struct PushWordJson {
     pub size: u32,
 }
 
+/// Whether a translated kernel has passed its correctness check against a reference.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum GateState {
+    Verified,
+    #[default]
+    Unverified,
+}
+
+/// Per-function verification gate. `evidence` names the check that justifies `Verified`
+/// (a test name, receipt path or commit); it is empty for `Unverified`. Libraries written
+/// before the field existed read as unverified.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GateJson {
+    #[serde(default)]
+    pub state: GateState,
+    #[serde(default)]
+    pub evidence: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PushJson {
     pub size: u32,
@@ -86,6 +106,9 @@ pub struct FunctionJson {
     pub threadgroup: Vec<ThreadgroupJson>,
     #[serde(default)]
     pub uses_coopmat: bool,
+    /// Verification gate; defaults to unverified when the library does not carry it.
+    #[serde(default)]
+    pub gate: GateJson,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,6 +288,38 @@ mod tests {
         assert_eq!(f.constants[0].ty, ConstantType::F32);
         assert_eq!(lib.spv_blob(f).unwrap(), spv.as_slice());
         assert_eq!(f.spv.offset, spv_off);
+        assert_eq!(f.gate, GateJson::default(), "no gate field reads as unverified");
+        assert_eq!(f.gate.state, GateState::Unverified);
+    }
+
+    #[test]
+    fn gate_field_round_trips() {
+        let spv = fake_spv(128);
+        let with_gate = |gate: &str| {
+            let j = sample_json(0, spv.len() as u64).replace(
+                r#""uses_coopmat":false"#,
+                &format!(r#""uses_coopmat":false,"gate":{gate}"#),
+            );
+            let mut off = 0u64;
+            for _ in 0..4 {
+                let j = j.replace("\"offset\":0,", &format!("\"offset\":{off},"));
+                let next = (12 + j.len()).next_multiple_of(4) as u64;
+                if next == off {
+                    break;
+                }
+                off = next;
+            }
+            container(&j.replace("\"offset\":0,", &format!("\"offset\":{off},")), &spv)
+        };
+        let lib = Library::from_bytes_inner(&with_gate(r#"{"state":"verified","evidence":"gpu_add on G13C"}"#))
+            .expect("verified gate parses");
+        let g = &lib.function("add").unwrap().gate;
+        assert_eq!(g.state, GateState::Verified);
+        assert_eq!(g.evidence, "gpu_add on G13C");
+        let lib = Library::from_bytes_inner(&with_gate(r#"{"evidence":"x"}"#)).expect("state defaults");
+        assert_eq!(lib.function("add").unwrap().gate.state, GateState::Unverified);
+        let err = Library::from_bytes_inner(&with_gate(r#"{"state":"maybe"}"#)).err().expect("bad state refused").to_string();
+        assert!(err.contains("maybe") || err.contains("variant"), "unknown state must be refused: {err}");
     }
 
     #[test]

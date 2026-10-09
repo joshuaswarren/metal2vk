@@ -4471,7 +4471,7 @@ index 85c1b93a..2c115795 100644
 -        compilers.iter().map(|c| c.build(&gpu_types, &enum_paths)).collect::<anyhow::Result<Vec<_>>>()?;
 +    // slice/host (vulkan-host on Linux): the metal backend compiles without the
 +    // macOS kernel compiler; the generated kernel bindings (OUT_DIR/metal.rs)
-+    // must be pre-supplied — see metal2vk host/STATUS.md.
++    // must be pre-supplied - see metal2vk host/STATUS.md.
 +    let backends_kernels = if compilers.is_empty() {
 +        Vec::new()
 +    } else {

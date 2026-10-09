@@ -52,6 +52,7 @@ def function_desc(kernel, spv_off, spv_len, constants_by_name, regions):
         "constants": constants_by_name.get(kernel["name"], []),
         "threadgroup": threadgroup,
         "uses_coopmat": False,
+        "gate": {"state": "unverified", "evidence": ""},
     }
 
 
@@ -64,6 +65,8 @@ def main():
     ap.add_argument("--uses-coopmat", action="store_true",
                     help="mark the module as needing VK_KHR_cooperative_matrix "
                          "(m2v-reflect.py detects the capability itself when given)")
+    ap.add_argument("--gates", help='JSON file {"kernel": {"state": "verified", "evidence": "<test or receipt>"}}; '
+                                    'kernels not listed stay unverified')
     args = ap.parse_args()
 
     with open(args.spv, "rb") as f:
@@ -80,6 +83,15 @@ def main():
     else:
         uses_coopmat = args.uses_coopmat
 
+    gates = {}
+    if args.gates:
+        with open(args.gates) as f:
+            gates = json.load(f)
+        for name, g in gates.items():
+            if g.get("state") not in ("verified", "unverified"):
+                sys.exit(f"gate for {name}: state must be verified or unverified, got {g.get('state')!r}")
+            if g["state"] == "verified" and not g.get("evidence"):
+                sys.exit(f"gate for {name}: a verified kernel needs an evidence string")
     wg_spec_ids = refl.get("workgroup_size_spec_constant_ids")
 
     header_len = 12
@@ -91,6 +103,8 @@ def main():
         for k in refl["kernels"]:
             d = function_desc(k, spv_off, len(spv), constants, refl.get("push_constant_regions", {}))
             d["uses_coopmat"] = uses_coopmat
+            if k["name"] in gates:
+                d["gate"] = {"state": gates[k["name"]]["state"], "evidence": gates[k["name"]].get("evidence", "")}
             if wg_spec_ids and not k.get("workgroup_size"):
                 d["workgroup_size_spec_ids"] = wg_spec_ids
             descs.append(d)

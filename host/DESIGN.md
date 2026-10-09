@@ -85,7 +85,8 @@ json = {
      "push": {"size": 24, "words": [ {"arg": 7, "offset": 16, "size": 4} ]}, // POD args, slot -> push constant offset
      "constants": [ {"index": 0, "spec_id": 3, "type": "bool|u32|i32|f32"} ],  // Metal function constant index -> SpecId
      "threadgroup": [ {"arg": 0, "spec_id": 4} ] | [],    // dynamic threadgroup memory: OpenCL local pointer args become spec-sized arrays
-     "uses_coopmat": false
+     "uses_coopmat": false,
+     "gate": {"state": "unverified", "evidence": ""}  // state: verified | unverified (default). verified needs an evidence string: a test name, receipt path or commit. Written by make-m2vlib.py --gates
   } ]
 }
 ```
