@@ -453,7 +453,7 @@ def variant_sets(entry, text):
 
 
 # Metal 4 tensor ops (dextents, tensor<, mpp::): the mpp shim emulates some of them, so presence in the source is not a
-# refusal — an entry is refused only when it fails and its first diagnostic names one of the constructs (diagnostics name
+# refusal: an entry is refused only when it fails and its first diagnostic names one of the constructs (diagnostics name
 # the bare type or namespace, source spans the call-like forms).
 M4_OPS = (("dextents", r"\bdextents\b"), ("tensor<", r"\btensor\s*<"), ("mpp::", r"\bmpp\s*::"))
 M4_ERR_OPS = (("dextents", r"\bdextents\b"), ("tensor", r"\btensor\b"), ("mpp::", r"\bmpp\s*::"))
