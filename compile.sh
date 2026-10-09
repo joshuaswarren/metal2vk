@@ -44,6 +44,8 @@ for c in $CASES; do
   # scoped-alias metadata (and the noalias.scope.decl calls that carry its domains) is in a form the LLVM inside clspv rejects; it is
   # only an optimisation hint
   sed -i -E 's/, !(alias\.scope|noalias) ![0-9]+//g; /llvm\.experimental\.noalias\.scope\.decl/d' "$OUT/$c.ll"
+  # the shim's bfloat is a real __bf16 on clang 20+; clspv rejects that LLVM type, so retype it to i16 first (no-op otherwise)
+  grep -qE '(^|[^A-Za-z0-9_.])bfloat\b' "$OUT/$c.ll" && python3 "$H/sweep/bfloat_to_i16.py" "$OUT/$c.ll"
   "$CLSPV" -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 "$OUT/$c.ll" -o "$OUT/$c.spv" 2>&1 \
     | grep -v "^warning: \(overriding the module target\|Linking two modules\)" | grep -v "^$" | head -"${LINES_MAX:-20}"
   [ -s "$OUT/$c.spv" ] && spirv-val --target-env vulkan1.3 "$OUT/$c.spv" 2>&1 | head -5 && echo "spirv-val rc=$? size=$(stat -c %s "$OUT/$c.spv")"

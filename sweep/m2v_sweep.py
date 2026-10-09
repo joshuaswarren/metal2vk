@@ -780,6 +780,16 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     txt = re.sub(r", !(alias\.scope|noalias) ![0-9]+", "", txt)
     txt = re.sub(r"^\s*(?:tail |musttail |notail )?call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
     ll.write_text(txt)
+    # the shim's bfloat is a real __bf16 on clang 20+; clspv rejects that LLVM type, so retype it to i16 first (no-op otherwise)
+    if re.search(r"(?<![\w.])bfloat\b", txt):
+        rc, out, _ = sh([sys.executable, str(HERE / "bfloat_to_i16.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["bfloat_to_i16 failed"])[-1][:140]
+            row["features"] = ["bfp:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}
+        txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
