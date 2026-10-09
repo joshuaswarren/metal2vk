@@ -1,0 +1,220 @@
+{
+ "device": "g13c",
+ "date": "2026-10-09",
+ "rows": {
+  "activation_f32": {
+   "us": 343.482,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=343.48",
+   "err": 3.5129223203378244e-07,
+   "ok": true,
+   "tol": 2e-05,
+   "metric": "GBps",
+   "value": 195.37811006108035,
+   "dtype": "f32",
+   "n": 8388608,
+   "hand": {
+    "fused": {
+     "us": 1787.75,
+     "GBps": 37.5
+    },
+    "unfused": {
+     "us": 739.42,
+     "GBps": 90.8
+    }
+   }
+  },
+  "activation_f16": {
+   "us": 330.8272,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=330.83",
+   "err": 0.00038303539174362066,
+   "ok": true,
+   "tol": 0.002,
+   "metric": "GBps",
+   "value": 101.42585615693027,
+   "dtype": "f16",
+   "n": 8388608,
+   "hand": {
+    "fused": {
+     "us": 211.45,
+     "GBps": 158.7
+    },
+    "unfused": {
+     "us": 315.51,
+     "GBps": 106.3
+    }
+   }
+  },
+  "softmax_f32": {
+   "us": 742.266,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=742.27",
+   "err": 2.3616258582048744e-07,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GBps",
+   "value": 180.82160303718612,
+   "dtype": "f32",
+   "n": 4096,
+   "hand": {
+    "fused": {
+     "us": 770.91,
+     "GBps": 174.1
+    }
+   }
+  },
+  "softmax_f16": {
+   "us": 358.05920000000003,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=358.06",
+   "err": 0.00024079057576986695,
+   "ok": true,
+   "tol": 0.002,
+   "metric": "GBps",
+   "value": 187.42393436616067,
+   "dtype": "f16",
+   "n": 4096,
+   "hand": {
+    "fused": {
+     "us": 410.89,
+     "GBps": 163.3
+    }
+   }
+  },
+  "tilematmul_f32_256": {
+   "us": 38.54,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=38.54",
+   "err": 6.692287485780203e-07,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 870.6391281785159,
+   "dtype": "f32",
+   "n": 256,
+   "hand": {
+    "fused": {
+     "us": 12.31,
+     "GFLOPs": 2726.1
+    }
+   }
+  },
+  "tilematmul_f32_1024": {
+   "us": 2667.754378818737,
+   "info": "iters=491 ts_per_us=0.10 wall_per_us=2667.75",
+   "err": 1.2735948627504326e-06,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 804.9780238579874,
+   "dtype": "f32",
+   "n": 1024,
+   "hand": {
+    "fused": {
+     "us": 530.87,
+     "GFLOPs": 4045.2
+    }
+   }
+  },
+  "rt2x2_256": {
+   "us": 32.6094,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=32.61",
+   "err": 6.692287485780203e-07,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 1028.9803553576576,
+   "dtype": "f32",
+   "n": 256,
+   "hand": {
+    "fused": {
+     "us": 21.4,
+     "GFLOPs": 1568.0
+    }
+   }
+  },
+  "rt4x2_256": {
+   "us": 45.2798,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=45.28",
+   "err": 6.692287485780203e-07,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 741.0463827137045,
+   "dtype": "f32",
+   "n": 256,
+   "hand": {
+    "fused": {
+     "us": 21.4,
+     "GFLOPs": 1568.0
+    }
+   }
+  },
+  "rt4x4_256": {
+   "us": 65.13,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=65.13",
+   "err": 6.692287485780203e-07,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 515.1916474742823,
+   "dtype": "f32",
+   "n": 256,
+   "hand": {
+    "fused": {
+     "us": 21.4,
+     "GFLOPs": 1568.0
+    }
+   }
+  },
+  "rt2x2_1024": {
+   "us": 1323.4303571428572,
+   "info": "iters=280 ts_per_us=0.20 wall_per_us=1323.43",
+   "err": 1.2735948627504326e-06,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 1622.664642993519,
+   "dtype": "f32",
+   "n": 1024,
+   "hand": {
+    "fused": {
+     "us": 526.04,
+     "GFLOPs": 4082.4
+    }
+   }
+  },
+  "rt4x2_1024": {
+   "us": 1076.2733999999998,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=1076.27",
+   "err": 1.2735948627504326e-06,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 1995.2956637226193,
+   "dtype": "f32",
+   "n": 1024,
+   "hand": {
+    "fused": {
+     "us": 526.04,
+     "GFLOPs": 4082.4
+    }
+   }
+  },
+  "rt4x4_1024": {
+   "us": 489.6266,
+   "info": "iters=500 ts_per_us=0.10 wall_per_us=489.63",
+   "err": 1.2735948627504326e-06,
+   "ok": true,
+   "tol": 1e-05,
+   "metric": "GFLOPs",
+   "value": 4385.961971837314,
+   "dtype": "f32",
+   "n": 1024,
+   "hand": {
+    "fused": {
+     "us": 526.04,
+     "GFLOPs": 4082.4
+    }
+   }
+  }
+ },
+ "device_name": "Apple M1 Max (G13C C0)",
+ "driver": "Mesa 26.3.0-devel (git-6543eeb7df)"
+}

@@ -1,0 +1,5 @@
+{
+  "comment": "Device tag registry for --device. The ICD comes from the M2V_ICD env (or --icd / VK_DRIVER_FILES); no host paths are committed. Tags are the GPU family from vulkaninfo deviceName, e.g. g13c = M1 Max class, g14c = M2 Max class.",
+  "g13c": { "icd": null },
+  "g14c": { "icd": null }
+}
