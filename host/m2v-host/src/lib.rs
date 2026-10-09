@@ -12,6 +12,7 @@ mod encoder;
 mod error;
 mod library;
 mod pipeline;
+mod policy;
 mod queue;
 
 pub use buffer::Buffer;
@@ -23,6 +24,7 @@ pub use library::{
     PushJson, PushWordJson, SpvRange, ThreadgroupJson, M2VLIB_MAGIC, M2VLIB_VERSION,
 };
 pub use pipeline::Pipeline;
+pub use policy::{Fallback, GateEntry, GateState, Policy, PolicyJson, Route};
 pub use queue::{CommandBuffer, Completion, Event, Queue};
 
 pub(crate) use device::DeviceInner;

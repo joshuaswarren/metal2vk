@@ -119,6 +119,7 @@ fn fail(e: &crate::Error) -> m2v_status {
     match e {
         crate::Error::Unsupported(_) => m2v_status::UNSUPPORTED,
         crate::Error::Invalid(_) => m2v_status::INVALID,
+        crate::Error::Refused(_) => m2v_status::UNSUPPORTED,
         crate::Error::Vulkan(_) => m2v_status::ERROR,
     }
 }
