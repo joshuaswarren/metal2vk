@@ -222,3 +222,22 @@ else:
     assert old in t
     rl.write_text(t.replace(old, "  case Intrinsic::lifetime_end:\n  // llvm.trap marks a fall-off-the-end path; SPIR-V has no trap, drop the call.\n  case Intrinsic::trap:\n    return removeIntrinsicDeclaration(F);", 1))
     print("patched", rl)
+
+# 9. The Vulkan memory model (required by cooperative matrix, step 7) bans the Coherent decoration. clspv adds Coherent to storage
+# buffers that a kernel reaches through atomics or volatile accesses (uzu's Gemm does, through its threadgroup helpers). Under the
+# memory model coherence comes from the per-access scope operands, so the decoration is dropped for modules that use m2v_mma_f32.
+s = prod.read_text()
+if "M2vModuleUsesMma" in s:
+    print("coherent guard already patched")
+else:
+    a = "using namespace llvm;\n"
+    assert a in s
+    s = s.replace(a, a + "static bool M2vModuleUsesMma(const Module *M) { return M && M->getFunction(\"m2v_mma_f32\") != nullptr; }\n", 1)
+    b = "    if (info->coherent) {\n      // Decorate with Coherent if required for the variable.\n"
+    assert b in s
+    s = s.replace(b, "    if (info->coherent && !M2vModuleUsesMma(module.get())) {\n      // Decorate with Coherent if required for the variable.\n", 1)
+    c = "      if (CalledWithCoherentResource(Arg)) {"
+    assert c in s
+    s = s.replace(c, "      if (CalledWithCoherentResource(Arg) && !M2vModuleUsesMma(module.get())) {", 1)
+    prod.write_text(s)
+    print("patched coherent guard")

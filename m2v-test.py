@@ -12,7 +12,8 @@ rng = np.random.default_rng(7)
 res = {}
 
 
-LOCAL = {"activation": "256 1 1", "softmax": "256 1 1", "tile_matmul": "32 1 1"}
+LOCAL = {"activation": "256 1 1", "softmax": "256 1 1", "tile_matmul": "32 1 1", "gemm_f32_t8x": "32 1 1", "gemm_f32_t32x": "32 2 2",
+         "gemm_f32_t64x": "32 2 2"}
 
 
 def run(spv, entry, grid, bufs, push=None, iters=1, dump=None):
@@ -99,6 +100,31 @@ for case in cases:
                 err = float(np.max(np.abs(got - ref)))
                 res[f"softmax_{dt}"] = {"rows": rows, "cols": cols, "max_abs_err": err, "tol": tol, "ok": bool(err < tol), "us": t,
                                        "info": info, "GBps": (None if t is None else 2 * rows * cols * np.dtype(npdt).itemsize / (t * 1e3))}
+        elif case == "gemm":
+            # uzu Gemm (cases/gemm.cl), f32, transposed B (B is [N, K]); entry from M2V_GEMM_ENTRY (default the 64x64x32 tiling), sizes from M2V_SIZES
+            entry = os.environ.get("M2V_GEMM_ENTRY", "gemm_f32_t64x64x32")
+            bm, bn, bk = [int(x) for x in entry.split("_t")[1].split("x")]
+            for M in [int(x) for x in os.environ.get("M2V_SIZES", "256,1024").split(",")]:
+                N = K = M
+                A = rng.standard_normal((M, K)).astype(np.float32)
+                B = rng.standard_normal((N, K)).astype(np.float32)
+                tpc, tpr = (M + bm - 1) // bm, (N + bn - 1) // bn
+                params = struct.pack("<13I?3xf", M, N, K, K, K, 0, 0, 0, 0, N, tpc, tpr, K // bk, False, 1.0)
+                dummy = np.zeros(4, np.uint32)
+                bufs = [w("gm_a.bin", A), w("gm_b.bin", B), w("gm_c.bin", np.zeros((M, N), np.float32))]
+                bufs += [w(f"gm_dummy{i}.bin", dummy) for i in range(8)]  # scales, biases, zero_points, output_bias, rht, a_int8, a_scales, a_group_sums
+                bufs += [w("gm_params.bin", np.frombuffer(params.ljust(64, b"\0"), np.uint8)), w("gm_counts.bin", np.array([tpr, tpc, 1], np.uint32))]
+                # scalar arguments after the buffers: transform_bits, alignment_bits (clspv push constants after the 16 byte offsets block)
+                align = 0
+                push = struct.pack("<4I", 0, 0, 0, 0) + struct.pack("<2I", 0, align)
+                grid = (tpr, tpc, 1)
+                t, info = timed(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push)
+                run(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push, 1, dump=f"2:{os.path.join(out, 'gm_res.bin')}")
+                got = np.fromfile(os.path.join(out, "gm_res.bin"), np.float32).reshape(M, N).astype(np.float64)
+                ref = A.astype(np.float64) @ B.astype(np.float64).T
+                err = float(np.max(np.abs(got - ref)) / (np.max(np.abs(ref)) + 1e-9))
+                res[f"{entry}_{M}"] = {"M": M, "max_rel_err": err, "tol": 1e-5, "ok": bool(err < 1e-5), "us": t, "info": info,
+                                       "GFLOPs": (None if t is None else 2.0 * M * N * K / (t * 1e3))}
         elif case == "tilematmul_rt":
             # register-tiled variants: one subgroup owns an MR x NR block of 8x8 tiles (cases/tilematmul_rt.cl)
             for name, mr, nr in (("tile_matmul_rt2x2_f32", 2, 2), ("tile_matmul_rt4x2_f32", 4, 2), ("tile_matmul_rt4x4_f32", 4, 4)):
