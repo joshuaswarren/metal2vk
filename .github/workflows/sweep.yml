@@ -43,7 +43,7 @@ jobs:
           git checkout -q "$CLSPV_SHA"
           python3 utils/fetch_sources.py --shallow
           # order matters: the f16 script needs the lowering; list a new patch here
-          for p in apply-coopmat-lowering.py apply-coopmat-f16.py apply-undef-pointer-type.py apply-simplify-ptr-bitcast-converge.py apply-untyped-gep-predicate.py apply-untyped-capability-gate.py apply-implicit-casts-converge.py apply-implicit-casts-hash-break.py apply-simplify-iteration-hash-break.py apply-simplify-no-exit.py; do python3 "$GITHUB_WORKSPACE/clspv-patches/$p" .; done
+          for p in apply-coopmat-lowering.py apply-coopmat-f16.py apply-m2v-marker.py apply-spec-constants.py apply-undef-pointer-type.py apply-simplify-ptr-bitcast-converge.py apply-untyped-gep-predicate.py apply-untyped-capability-gate.py apply-implicit-casts-converge.py apply-implicit-casts-hash-break.py apply-simplify-iteration-hash-break.py apply-simplify-no-exit.py; do python3 "$GITHUB_WORKSPACE/clspv-patches/$p" .; done
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
           ninja -C build clspv
 
