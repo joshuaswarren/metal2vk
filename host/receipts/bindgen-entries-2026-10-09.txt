@@ -1,0 +1,60 @@
+metal2vk bindgen per-entry translation units - 2026-10-09
+Branch: slice/bindgen-entries (uzu build-script side exported to host/uzu-linux.patch)
+
+WHAT CHANGED (crates/uzu-engine/build/metal/toolchain_m2v.rs, wrapper.rs)
+- compile(): one translation unit per kernel variant instead of one per shard;
+  whole-shard compile + fallback_per_kernel removed (clean cutover).
+- preprocess_front(): one clang -E -P -dD pass per shard against the kernel
+  mirror, empty stubs for every shim metal_*/simd* header (sweep stub policy),
+  shim -include per unit; stub-miss retry loop.
+- split_variants(): every unit gets the shared footer head (slot globals, name
+  defines, typed wrappers) plus only its own defines/body; continuation leak
+  fixed.
+- transform_footer(): exact-repeat dedupe of constant lines; typed spec-constant
+  wrappers rewritten to raw uint constant + constructing macro.
+- parse_slot_line/slot_decl_name: unsigned/signed type spellings.
+- lower_function_constant_slots: DSL constexpr constructors lose their thread
+  qualifier in the translate-only copy; unsigned slots lowered.
+- compile_module: spirv-val in-pipeline; clspv exit status reported when a run
+  dies without a diagnostic.
+- wrapper.rs: ThreadContext initializer reads the identifier it declares.
+
+ROUND-BY-ROUND (761 kernels, run ids in OUT_DIR/m2v-kernels.json)
+- baseline (whole-shard + fallback, origin/slice/host-bindgen):  23 translated / 738 failed
+- run 3  (per-entry units, preprocess-once, split fix, slot dedupe):  53 / 708
+- run 5  (chunk head to every unit, front slot lowering relaxed,
+          MPP shim include):  36 / 725   (regression: shim text inlined twice)
+- run 6  (stub policy: every shim metal_*/simd* header stubbed):  43 / 718
+- run 7  (-dD keeps the front's variant macros):  45 / 716
+
+TOP FAILURE CAUSES after run 7
+- 235 x no matching function for call to 'load_paired_vectors'
+  (gdn/chunked/output_and_state.metal)
+- 144 x clang frontend command failed with exit code 139 (gdn/chunked/causal_inv)
+- 137 x no matching member function for call to 'decode' (matmul/gemv/gemm.metal;
+  main's sweep does not translate this family either)
+- 111 x clspv killed by a signal (11) without a diagnostic (gdn/conv_scan.metal;
+  reproduced by hand: clang ok, clspv SIGSEGV; exit status now reported)
+-  40 x cannot convert 'const __global I4' (bfloat device vectors, gemv family)
+
+VERIFICATION
+- cargo check -p uzu-engine --no-default-features --features metal,vulkan-host:
+  CHECK-RC=0 after every round (systemd units, logs in logs/entries-r1.log).
+- host/uzu-linux.patch regenerated from the uzu worktree diff (6975 lines);
+  git apply --check passes on a fresh detached c92723bd worktree (worktree
+  removed after the check). The 3 non-ASCII lines are the documented upstream
+  removals in the mtl-rs table.
+
+COMMAND LINES
+- pipeline: cargo check -p uzu-engine --no-default-features --features metal,vulkan-host
+  with CARGO_BUILD_JOBS=6 BUILD_ALWAYS=1 CLANG=clang-19 (LLVM 19) and the
+  sweep lane's patched clspv (f2b01dd6-era, m2v spec-constant patches present)
+- clspv stage flags: -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points
+  --spv-version=1.5 ; validation: spirv-val --target-env vulkan1.3
+
+LEFT OPEN
+- the four remaining failure classes above are DSL-template address-space /
+  overload walls, not pipeline structure; the sweep fails the same families
+- a locally patched clspv (m2v patches on the newer coopmat base) was building
+  from the shared checkout copy when the session ended; the local build tree
+  can be removed or resumed

@@ -6,7 +6,7 @@
 // Under C23 the enum tag already names the type, so that #else typedef would
 // collide; Zig 0.17's translate-c (whose clang runs in C23 mode) rejects the
 // pattern outright. We normalize to the plain C99 form
-// `typedef enum m2v_status m2v_status;` — valid C99, C23 and C++ — before
+// `typedef enum m2v_status m2v_status;` - valid C99, C23 and C++ - before
 // writing the file.
 fn main() {
     let crate_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR");

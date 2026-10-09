@@ -1,44 +1,91 @@
-# host/UZU-TESTS.md - uzu metal unit-test status on Linux/vulkan-host
+# host/UZU-TESTS.md  -  uzu metal unit-test status on Linux/vulkan-host
 
-Baseline: uzu c92723bd + host/uzu-linux.patch (`apply-uzu.sh`). All 42 tests under
-`crates/uzu-engine/unit/backends/metal` are gated `#![cfg(backend = "metal")]`; the
-patched build script sets that on Linux with the `vulkan-host` feature.
+Baseline: uzu c92723bd + host/uzu-linux.patch at `596b11f`. All 42 tests under
+`crates/uzu-engine/unit/backends/metal` are gated `#![cfg(backend = "metal")]`;
+the patched build script sets that on Linux with the `vulkan-host` feature.
 
-## Status summary
+## Status summary (2026-10-09 session)
 
-- NOT-BUILT: all 42. The metal backend does not compile on Linux yet because the
-  macOS-generated kernel bindings (`OUT_DIR/metal.rs`) are absent - blocking error
-  below. No test reached the GPU; none was skipped or failed at runtime.
+- 0 PASS / 0 FAIL / 42 NOT-RUN. The aarch64 test binary (`cargo test -p
+  uzu-engine --features metal,vulkan-host --no-run`, CPU-only, chip label
+  Apple M1 Max (G13C)) was still linking at session close: the build script
+  and all dependency crates compile and the final `uzu-engine` codegen was
+  in flight for ~50 min on a host whose compute is saturated by an
+  unrelated service (build niced 19 as required). The build unit was left
+  running; `TESTBUILD-RC` will appear in its log when linking completes.
+- One execution attempt was made before the binary existed:
+  `fp_policy_cases` returned rc=124 (300 s timeout) because it waited in
+  cargo's target-dir lock behind the unfinished build. Not a test failure.
+- Every test's exact command is listed below; rerun them one exact name at
+  a time (the custom harness takes a single whole-name filter) once the
+  binary links:
+  `cargo test -q -p uzu-engine --features metal,vulkan-host -- <name>`
+- Kernels needed at runtime come from the translation pipeline
+  (host/KERNELS.md: 23/761 translated). Tests that construct a Metal device
+  are NOT-RUN here because G13C runs the vulkan-host path with no Metal
+  device; they need the exact command above on a host that can satisfy
+  `MetalDevice::new()`.
 
-## Per-test inventory (unit/backends/metal, all NOT-BUILT - backend does not compile)
+## Per-test inventory (unit/backends/metal)
 
-- kernel/matmul/gemv/policy_test.rs: fp_policy_cases, quant_policy_cases,
-  gpu_core_count_boundary_selects_large_policy, quantized_policy_edges,
-  untuned_quantized_io_uses_only_the_generated_fallback,
-  block_unaligned_quantized_k_stays_on_gemv,
-  specialization_preserves_quantized_route_and_accumulate_tail,
-  gathered_group_major_is_a_gemv_route
-- kernel/matmul/qmv/routes_test.rs: table_is_complete_and_fingerprint_is_stable,
-  exact_lookup_rejects_non_matrix_inputs,
-  normal_routing_handles_inputs_outside_the_frozen_matrix,
-  family_lookup_requires_one_unanimous_route
-- kernel/matmul/gemm/selection_test.rs: policy_boundaries_are_preserved,
-  selection_fallbacks_and_split_k_are_preserved,
-  trellis_plan_matches_projection_cases, forced_engine_errors_are_preserved,
-  gemv_gemm_route_boundaries_are_preserved
-- kernel/attention/gemm_grouped_policy_test.rs: measured_and_fallback_boundaries,
-  should_encode_boundaries, long_prefill_split_selection_boundaries
-- kernel/attention/kernel_test.rs: test_single_pass_attention_basic,
-  test_matrix_attention_matches_vector_and_cpu_seq256,
-  test_single_pass_attention_with_sinks,
-  test_single_pass_attention_with_sinks_long_sequence, test_single_pass_attention_gqa,
-  test_two_pass_attention, test_two_pass_attention_gqa, attention_kernel_matches_cpu,
-  attention_kernel_reuses_instance_for_flat_and_trie,
-  attention_kernel_ring_matches_full_on_wrap
-- kernel/attention/gemm_test.rs: test_basic_f32, test_basic_bf16, test_causal_f32,
-  test_causal_bf16, test_gqa_f32, test_gqa_bf16, test_head_dim_128_f32,
-  test_head_dim_128_bf16, test_unaligned_f32, test_unaligned_bf16, test_prefill_mxu
-- kernel/gdn/chunked_test.rs: chunked_prefill_matches_recurrent_prefill
+### kernel/matmul/gemv/policy_test.rs  -  CPU-only, NOT-RUN (binary linking)
+
+- fp_policy_cases  -  NOT-RUN (needs GPU: no; binary still linking; attempted
+  once at rc=124, see summary)
+- quant_policy_cases  -  NOT-RUN (needs GPU: no; binary still linking)
+- gpu_core_count_boundary_selects_large_policy  -  NOT-RUN (same)
+- quantized_policy_edges  -  NOT-RUN (same)
+- untuned_quantized_io_uses_only_the_generated_fallback  -  NOT-RUN (same)
+- block_unaligned_quantized_k_stays_on_gemv  -  NOT-RUN (same)
+- specialization_preserves_quantized_route_and_accumulate_tail  -  NOT-RUN (same)
+- gathered_group_major_is_a_gemv_route  -  NOT-RUN (same)
+
+### kernel/matmul/qmv/routes_test.rs  -  CPU-only, NOT-RUN (binary linking)
+
+- table_is_complete_and_fingerprint_is_stable  -  NOT-RUN (same)
+- exact_lookup_rejects_non_matrix_inputs  -  NOT-RUN (same)
+- normal_routing_handles_inputs_outside_the_frozen_matrix  -  NOT-RUN (same)
+- family_lookup_requires_one_unanimous_route  -  NOT-RUN (same)
+
+### kernel/matmul/gemm/selection_test.rs  -  CPU-only, NOT-RUN (binary linking)
+
+- policy_boundaries_are_preserved  -  NOT-RUN (same)
+- selection_fallbacks_and_split_k_are_preserved  -  NOT-RUN (same)
+- trellis_plan_matches_projection_cases  -  NOT-RUN (same)
+- forced_engine_errors_are_preserved  -  NOT-RUN (same)
+- gemv_gemm_route_boundaries_are_preserved  -  NOT-RUN (same)
+
+### kernel/attention/gemm_grouped_policy_test.rs  -  CPU-only, NOT-RUN (binary linking)
+
+- measured_and_fallback_boundaries  -  NOT-RUN (same)
+- should_encode_boundaries  -  NOT-RUN (same)
+- long_prefill_split_selection_boundaries  -  NOT-RUN (same)
+
+### kernel/attention/kernel_test.rs  -  NOT-RUN (needs GPU: Metal device)
+
+- test_single_pass_attention_basic  -  NOT-RUN (needs GPU:
+  `cargo test -q -p uzu-engine --features metal,vulkan-host -- test_single_pass_attention_basic`)
+- test_matrix_attention_matches_vector_and_cpu_seq256  -  NOT-RUN (needs GPU, same form)
+- test_single_pass_attention_with_sinks  -  NOT-RUN (needs GPU, same form)
+- test_single_pass_attention_with_sinks_long_sequence  -  NOT-RUN (needs GPU, same form)
+- test_single_pass_attention_gqa  -  NOT-RUN (needs GPU, same form)
+- test_two_pass_attention  -  NOT-RUN (needs GPU, same form)
+- test_two_pass_attention_gqa  -  NOT-RUN (needs GPU, same form)
+- attention_kernel_matches_cpu  -  NOT-RUN (needs GPU, same form)
+- attention_kernel_reuses_instance_for_flat_and_trie  -  NOT-RUN (needs GPU, same form)
+- attention_kernel_ring_matches_full_on_wrap  -  NOT-RUN (needs GPU, same form)
+
+### kernel/attention/gemm_test.rs  -  NOT-RUN (needs GPU: Metal device)
+
+- test_basic_f32, test_basic_bf16, test_causal_f32, test_causal_bf16,
+  test_gqa_f32, test_gqa_bf16, test_head_dim_128_f32, test_head_dim_128_bf16,
+  test_unaligned_f32, test_unaligned_bf16, test_prefill_mxu  -  NOT-RUN
+  (needs GPU: `cargo test -q -p uzu-engine --features metal,vulkan-host -- <name>`
+  for each)
+
+### kernel/gdn/chunked_test.rs  -  NOT-RUN (needs GPU: Metal device)
+
+- chunked_prefill_matches_recurrent_prefill  -  NOT-RUN (needs GPU, same form)
 
 ## What the kernel pipeline must emit on Linux
 
@@ -46,7 +93,7 @@ uzu's macOS `MetalCompiler` (crates/uzu-engine/build/metal/compiler.rs) produces
 `.metal` source, `<source>.rs` shards containing:
 
 - `const MTLB_<blake3-of-relpath-UPPERCASE>: [&[u8]; N] =
-  [include_bytes!(<shard>.metallib), ...];` - on Linux the bytes must be the `.m2vlib`
+  [include_bytes!(<shard>.metallib), ...];`  -  on Linux the bytes must be the `.m2vlib`
   produced by make-m2vlib.py, one entry per shard (`num_shards` from shard_footers),
 - struct `XyzMetalKernel` per kernel holding
   `pipeline: Retained<ProtocolObject<dyn MTLComputePipelineState>>` plus config fields,
@@ -70,20 +117,19 @@ uzu's macOS `MetalCompiler` (crates/uzu-engine/build/metal/compiler.rs) produces
 On Linux these items must be generated with identical names/signatures; only the
 library byte constants change (`.m2vlib` instead of `.metallib`).
 
-## Blocking error (raw, cargo check tail, 2026-10-09)
+## Build state (raw tail, session close)
 
-`cargo check -p uzu-engine --no-default-features --features metal,vulkan-host`
-(build log from the 2026-10-09 run):
+`cargo test -p uzu-engine --features metal,vulkan-host --no-run` on
+Apple M1 Max (G13C), aarch64, niced:
 
 ```
-warning: `mtl-rs` (lib) generated 4 warnings
-error: couldn't find file `<target-dir>/debug/build/uzu-engine/<hash>/out/metal.rs`
-  --> crates/uzu-engine/src/backends/metal/kernel/mod.rs:24:1
+warning: `uzu-engine` (build script) generated 2 warnings
    |
-24 | include!(concat!(env!("OUT_DIR"), "/metal.rs"));
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-error: could not compile `uzu-engine` (lib) due to 1 previous error
+   |
+warning: `mtl-rs` (lib) generated 8 warnings (run `cargo fix --lib -p mtl-rs` to apply 2 suggestions)
 ```
 
-That is the ONLY error: everything else - the compat crates, the whole metal
-backend, the Linux `DeviceExt` forwards, LZFSE decode, the manifest swap - compiles.
+Compile of the uzu-engine library was still in flight; no TESTBUILD-RC line
+yet. The earlier stage of the same log shows the dependency crates and the
+build script completed (the build script runs the full kernel translation
+pipeline; host/KERNELS.md records its diagnostics).
