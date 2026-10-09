@@ -2,15 +2,15 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
-## front end: ident:mpp (60)
+## front end: member:metal::remove_addrspace_t (43)
 
 ```
-attention_attention_gemm_metal__AttentionGemm_v0_fd07b578.cl:697:22: error: use of undeclared identifier 'mpp'
-  697 |   using MatmulMode = mpp::tensor_ops::matmul2d_descriptor::mode;
-      |                      ^
+core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:106:68: error: no member named 'remove_addrspace_t' in namespace 'metal'
+  106 |   auto acc = op.template get_destination_cooperative_tensor<metal::remove_addrspace_t<decltype(left)>,
+      |                                                                    ^~~~~~~~~~~~~~~~~~
 ```
 
-Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGroupedCombine_v1`, `gdn/chunked/gram.metal:DeltaNetChunkedGram_v0`, `gdn/chunked/gram.metal:DeltaNetChunkedGram_v1`, `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v0` and 52 more
+Entries: `core/affine_mm.metal:tf_affine_row_sums`, `core/affine_mm.metal:tf_affine_mm`, `core/affine_mm.metal:tf_affine_gather_32`, `core/affine_mm.metal:tf_affine_gather_64`, `core/affine_mm.metal:tf_affine_gather_scatter_32`, `core/affine_mm.metal:tf_affine_gather_scatter_64`, `glm_absorb_nax.metal:glm_absorb_nax`, `glm_attn.metal:glm_latent_scores` and 35 more
 
 ## front end: ident:execution_simdgroups (36)
 
@@ -22,15 +22,15 @@ nemotron_coop_down_1_0_metal__custom_kernel_lane_qmm_coop_b8e6f3fa04e5_0403615e.
 
 Entries: `nemotron/coop_down_1_0.metal:custom_kernel_lane_qmm_coop_b8`, `nemotron/coop_down_2_0.metal:custom_kernel_lane_qmm_coop_04`, `nemotron/coop_down_2_1.metal:custom_kernel_lane_qmm_coop_0c`, `nemotron/coop_draft_1_0.metal:custom_kernel_lane_qmm_coop_4c`, `nemotron/coop_draft_2_0.metal:custom_kernel_lane_qmm_coop_af`, `nemotron/coop_draft_2_1.metal:custom_kernel_lane_qmm_coop_d7`, `nemotron/coop_eh_1_0.metal:custom_kernel_lane_qmm_coop_9e`, `nemotron/coop_eh_1_0_sk.metal:custom_kernel_lane_qmm_coop_sk` and 28 more
 
-## front end: overload:__private dextents<int32_t, 2> (33)
+## front end: overload:__private dextents<int32_t, 2> (34)
 
 ```
-tes_grouped_1134f4f64c06078d_lanes_metal__custom_kernel_lane_qmm_bytes_grouped_113_354ef955.cl:93:102: error: no matching constructor for initialization of '__private dextents<int32_t, 2>' (aka '__private dextents<int, 2>')
-   93 |   tensor<device bfloat, dextents<int32_t, 2>, tensor_inline> tA((device bfloat*)X + (int64_t)rb * K, dextents<int32_t, 2>(K, M - rb));
-      |                                              
+decode_fn_lane_metal__fz_lane_aef0a838.cl:89:84: error: no matching constructor for initialization of '__private dextents<int32_t, 2>' (aka '__private dextents<int, 2>')
+   89 |   tensor<device bfloat, dextents<int32_t, 2>, tensor_inline> tA((device bfloat*)X, dextents<int32_t, 2>(64, M));
+      |                                                                                    ^                    ~~~~~
 ```
 
-Entries: `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9.metal:custom_kernel_lane_qmm_bytes_g` and 25 more
+Entries: `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 26 more
 
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'. (32)
 
@@ -55,17 +55,27 @@ Entries: `kimi/experts.metal:k3_xp_up_r1`, `kimi/experts.metal:k3_xp_up_r4`, `ki
 timeout
 ```
 
-Entries: `attention/attention_two_pass.metal:AttentionTwoPass2_v0`, `attention/attention_two_pass.metal:AttentionTwoPass2_v1`, `qwen3_5/qmm_16_2048.metal:custom_kernel_qwen35_qmm_16_20`, `qwen3_5/qmm_2048_2048.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_2048_6144.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_248320_2048.metal:custom_kernel_qwen35_qmm_24832`, `qwen3_5/qmm_4096_2048.metal:custom_kernel_qwen35_qmm_4096_`, `qwen3_5/qmm_512_2048.metal:custom_kernel_qwen35_qmm_512_2` and 1 more
+Entries: `kimi/dense_mma.metal:k3_slice_mma`, `kimi/synth.metal:k3_mma_peak`, `qwen3_5/qmm_16_2048.metal:custom_kernel_qwen35_qmm_16_20`, `qwen3_5/qmm_2048_2048.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_2048_6144.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_248320_2048.metal:custom_kernel_qwen35_qmm_24832`, `qwen3_5/qmm_4096_2048.metal:custom_kernel_qwen35_qmm_4096_`, `qwen3_5/qmm_512_2048.metal:custom_kernel_qwen35_qmm_512_2` and 1 more
 
-## front end: template:frag (4)
+## front end: member:mpp::tensor_ops::matmul2d<0, metal::execution_simdgroup>::get_left_input_cooperative_tensor (6)
 
 ```
-prefill_qmm6_nax_b_metal__tf_mm_bf16_f32_t_nax_a4a1ffe5.cl:54:32: error: no template named 'frag'
-   54 | inline void k_loop_bf16(thread frag<float> (&acc)[TM][2], const device T* x, int K, int live, bool inside,
-      |                                ^
+gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:806:46: error: no member named 'get_left_input_cooperative_tensor' in 'mpp::tensor_ops::matmul2d<0, metal::execution_simdgroup>'
+  806 |   auto cooperative_left = matmul_op.template get_left_input_cooperative_tensor<LeftType, RightType, OutputType>();
+      |                           ~~~~~~~~~          ^
 ```
 
-Entries: `prefill/qmm6_nax_b.metal:tf_mm_bf16_f32_t_nax`, `prefill/qmm6_nax_b.metal:tf_qmm6_splitk_nax`, `prefill/qmm6_nax_b.metal:tf_parts_sum`, `prefill/qmm6_nax_b.metal:tf_attn256_nax`
+Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v1`, `gdn/tree_verify/tree_gram.metal:BuildTreeGram_v1`, `matmul/gemm/gemm.metal:Gemm_v1`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v0`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v1`
+
+## front end: overload:row_reduce (4)
+
+```
+attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no matching member function for call to 'row_reduce'
+ 1502 |     score_fragment.row_reduce(block_max, -INFINITY, [](AccumType a, AccumType b) { return metal::max(a, b); });
+      |     ~~~~~~~~~~~~~~~^~~~~~~~~~
+```
+
+Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`
 
 ## clspv: clspv:MNV: SimplifyPointerBitcast does not converge; changing sub-passes: N N (3)
 
@@ -85,14 +95,6 @@ ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274
 
 Entries: `activation_transform/activation_transform.metal:ActivationTransform_v1`, `gated_act_mul/gated_act_mul.metal:GatedActMul_v1`, `matmul/gemm/gemm_split_k_reduce.metal:GemmSplitKReduce_v1`
 
-## front end: other:? (3)
-
-```
-timeout
-```
-
-Entries: `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGroupedCombine_v0`
-
 ## clspv: clspv:Invalid bitcast (2)
 
 ```
@@ -106,25 +108,13 @@ Invalid bitcast
 
 Entries: `kimi/kda.metal:k3_kda`, `kimi/mla.metal:k3_mla_attend`
 
-## front end: ident:quad_dot (2)
+## clspv: clspv:error: undefined reference to 'X' (2)
 
 ```
-glm_kda_prompt_metal__glm_kda_pre_af477398.cl:96:18: error: use of undeclared identifier 'quad_dot'
-   96 |         result = quad_dot<4, PER>(x, wb, s, bb);
-      |                  ^~~~~~~~
+error: undefined reference to '_Z0Pfp9mma_16x32ILb0ELb1EEEvRU3AS4Dv8_fS3_RU3AS4KDv8_DF16bS6_S6_'
 ```
 
-Entries: `glm_kda_prompt.metal:glm_kda_pre`, `glm_kda_prompt.metal:glm_kda_pre_tp`
-
-## front end: ident:sq_acc (2)
-
-```
-glm_kda_prompt_metal__glm_kda_post_bf2222ec.cl:71:38: error: use of undeclared identifier 'sq_acc'
-   71 |     for (int i = 0; i < 4; ++i) po = sq_acc(po, float(SY[at + base + i]));
-      |                                      ^~~~~~
-```
-
-Entries: `glm_kda_prompt.metal:glm_kda_post`, `glm_kda_prompt.metal:glm_kda_post_tp`
+Entries: `prefill/qmm6_nax_b.metal:tf_mm_bf16_f32_t_nax`, `prefill/qmm6_nax_b.metal:tf_qmm6_splitk_nax`
 
 ## front end: other:variable in constant address space must be initialized (2)
 
@@ -164,56 +154,6 @@ error: line 455: Header block '359[%359]' is contained in the loop construct hea
 
 Entries: `ops/gemv.metal:tf_gemv_wide_bf16_v4_kl32`, `ops/gemv.metal:tf_gemv_wide_bf16_v5_kl32`
 
-## front end: ident:fsoftplus (1)
-
-```
-decode_fn_gdn_metal__fz_gdn_9852eab6.cl:79:61: error: use of undeclared identifier 'fsoftplus'
-   79 |     gates[r][0] = metal::exp(-metal::exp(float(ALOG[hv])) * fsoftplus(a + float(DT[hv])));
-      |                                                             ^~~~~~~~~
-```
-
-Entries: `decode/fn_gdn.metal:fz_gdn`
-
-## front end: ident:fz_tile (1)
-
-```
-decode_fn_lane_metal__fz_lane_aef0a838.cl:81:20: error: use of undeclared identifier 'fz_tile'
-   81 |   const int tile = fz_tile(int(tgx));
-      |                    ^~~~~~~
-```
-
-Entries: `decode/fn_lane.metal:fz_lane`
-
-## front end: ident:simd_topk_all (1)
-
-```
-prefill_fn_prompt_metal__pf_route_13a7f1e4.cl:71:3: error: use of undeclared identifier 'simd_topk_all'
-   71 |   simd_topk_all<NE, TOPK>(LG + size_t(r) * NL, lane, ids, picked);
-      |   ^~~~~~~~~~~~~
-```
-
-Entries: `prefill/fn_prompt.metal:pf_route`
-
-## front end: ident:simdgroup_load (1)
-
-```
-kimi_dense_mma_metal__k3_slice_mma_f8aa7f6b.cl:123:35: error: use of undeclared identifier 'simdgroup_load'
-  123 |       for (int i = 0; i < 4; ++i) simdgroup_load(wa[i], ws[q & 1] + (32 * sn + 8 * i) * LD + 8 * kk, LD);
-      |                                   ^~~~~~~~~~~~~~
-```
-
-Entries: `kimi/dense_mma.metal:k3_slice_mma`
-
-## front end: ident:simdgroup_store (1)
-
-```
-kimi_synth_metal__k3_mma_peak_1434bf41.cl:110:3: error: use of undeclared identifier 'simdgroup_store'
-  110 |   simdgroup_store(acc[0], out + (tg * 8 + sg) * 64, 8);
-      |   ^~~~~~~~~~~~~~~
-```
-
-Entries: `kimi/synth.metal:k3_mma_peak`
-
 ## front end: other:excess elements in scalar initializer (1)
 
 ```
@@ -224,22 +164,22 @@ convolution_separable_causal_conv_metal__SeparableCausalConv_v0_c4e1e48c.cl:93:3
 
 Entries: `convolution/separable_causal_conv.metal:SeparableCausalConv_v0`
 
-## front end: other:static assertion failed due to requirement 'X': group lane slices must contain complete chunks (1)
+## front end: other:redefinition of 'X' (1)
 
 ```
-matmul_gemv_gemv_metal__Gemv_v1_8d06dc40.cl:848:17: error: static assertion failed due to requirement 'VALUES_PER_LANE % CHUNK_VALUES == 0': group lane slices must contain complete chunks
-  848 |   static_assert(VALUES_PER_LANE % CHUNK_VALUES == 0, "group lane slices must contain complete chunks");
-      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:199:15: error: redefinition of 'frag_home'
+  199 | inline short2 frag_home(ushort l) {
+      |               ^
 ```
 
-Entries: `matmul/gemv/gemv.metal:Gemv_v1`
+Entries: `ops/nax_gemm.metal:tf_nax_gemm_nn_bf16`
 
-## front end: other:static assertion failed due to requirement 'X': output rows must divide row groups (1)
+## front end: other:static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allowed (1)
 
 ```
-matmul_gemv_gemv_metal__Gemv_v0_ee134002.cl:334:17: error: static assertion failed due to requirement 'OUTPUT_ROWS % (NUM_SIMDGROUPS / K_SPLIT) == 0': output rows must divide row groups
-  334 |   static_assert(OUTPUT_ROWS % (NUM_SIMDGROUPS / K_SPLIT) == 0, "output rows must divide row groups");
-      |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+matmul_gemv_gemv_metal__Gemv_v0_616987e7.cl:531:35: error: static_cast from 'I4' (aka 'typename vec_sel<__bf16, 4>::type') to 'float4' (vector of 4 'float' values) is not allowed
+  531 |       const float4 input_values = static_cast<float4>(*reinterpret_cast<const device I4*>(input));
+      |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
 
 Entries: `matmul/gemv/gemv.metal:Gemv_v0`
@@ -253,6 +193,16 @@ nemotron_sample_metal__tf_sample_full_8ad6ba3f.cl:266:44: error: no matching con
 ```
 
 Entries: `nemotron_sample.metal:tf_sample_full`
+
+## front end: overload:mma_16x32 (1)
+
+```
+prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:329:9: error: no matching function for call to 'mma_16x32'
+  329 |         mma_16x32<false, false>(acc[d], acc[d + 1], s[k], v0, v1);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~
+```
+
+Entries: `prefill/qmm6_nax_b.metal:tf_attn256_nax`
 
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer_uint]'. (1)
 
