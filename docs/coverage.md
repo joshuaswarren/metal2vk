@@ -16,6 +16,7 @@ module; raise the floor with `sweep/check_coverage.py RESULT.json --update` in t
 | per-pointer-type UndefValue cache (clspv patch) | 417 of 609 (68.5%) | 92 | 325 | +35; all 37 OpPhi StorageBuffer entries become valid (the 32 row_projection + 4 nemotron_experts + 1 flashnext), 0 regressions, the 2 `bitcast of a non-numeric type` (glm/router) entries stay failing and move to a separate class |
 | cov-frontend: host-preamble injection, CONSTRAINT-aware variants, simdgroup_load/store, vec conversions, `__generic` vector aliases (re-measured after the bfloat and ptr slices landed) | 401 of 609 (65.8%) | 102 | 299 | +19 over the 382 floor |
 | cov-mpp: the MetalPerformancePrimitives shim (tensor views, `matmul2d` + cooperative tensors on the MLX/uzu/flashnext fragment layout, fp32 loops with subgroup shuffles), `mma_16x32` live behind M2V_NAX_MPP in the injected preamble, and the bfloat_to_i16 pass proving out on the flashnext modules (the clspv bfloat diagnostic loop is gone - those entries fail fast on class 3 now) | 441 of 609 (72.4%) | 102 | 339 | +40 over the 401 floor, no regressions |
+| memcpy + ptr-array IR pre-passes (class 5 slice) | 446 of 609 (73.2%) | 102 | 344 | +45 over the 401 floor; all 12 `tf_qmv_wide` entries become valid (promote_ptr_arrays), the 3 `tf_gather_qmv` and 5 kimi/mla entries remain (pointer-as-runtime-data: needs a driver argument-model or clspv physical-pointer change); 2 new spirv-val loop-structure failures appeared in the uzu set |
 
 ## Failure classes
 
