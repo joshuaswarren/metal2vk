@@ -1366,6 +1366,17 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["primary"] = row["features"][0]
             return row, {}
         txt = ll.read_text()
+    # a pointer-typed field in an argument struct is pointer-as-data Vulkan cannot express;
+    # when nothing loads or stores a pointer, retype the fields to equally wide integers
+    if re.search(r"= type \{[^}]*\bptr\b", txt):
+        rc, out, _ = sh([sys.executable, str(HERE / "dead_ptr_fields.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["dead_ptr_fields failed"])[-1][:140]
+            row["features"] = ["dpf:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}
+        txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
