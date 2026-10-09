@@ -3,6 +3,8 @@
 //! Contract: see `host/DESIGN.md`. All handles are `Arc<...>`; errors are [`Error`].
 //! The same model is exposed to C through `m2v_host::capi` (see `include/metal2vk.h`).
 
+mod addrmap;
+pub mod capi;
 mod buffer;
 mod device;
 mod encoder;
@@ -12,7 +14,7 @@ mod pipeline;
 mod queue;
 
 pub use buffer::Buffer;
-pub use device::{Device, DeviceInfo, Event, TimestampPool};
+pub use device::{Device, DeviceInfo, TimestampPool};
 pub use encoder::Encoder;
 pub use error::Error;
 pub use library::{
@@ -20,6 +22,8 @@ pub use library::{
     PushJson, PushWordJson, SpvRange, ThreadgroupJson, M2VLIB_MAGIC, M2VLIB_VERSION,
 };
 pub use pipeline::Pipeline;
-pub use queue::{CommandBuffer, Completion, Queue};
+pub use queue::{CommandBuffer, Completion, Event, Queue};
+
+pub(crate) use device::DeviceInner;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

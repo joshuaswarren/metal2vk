@@ -10,5 +10,10 @@ crate-type = ["rlib", "cdylib", "staticlib"]
 
 [dependencies]
 ash = { workspace = true }
+parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.29"
+
