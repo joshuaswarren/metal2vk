@@ -10,38 +10,38 @@ tf	core/hc_boundary.metal	tf_hc_first_mix	false	ok	ok	ok	ok			?	?
 tf	core/hc_boundary.metal	tf_hc_split	-	ok	ok	ok	ok			?	?	
 tf	core/moe_route.metal	tf_route_logits	-	ok	ok	ok	ok			?	?	
 tf	core/moe_route.metal	tf_route_select	-	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q2_bf16	4, 2, false, 2, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q2_f32	4, 2, false, 2, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q4_bf16	4, 2, false, 4, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q4_f32	4, 2, false, 4, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q6_bf16	4, 2, false, 6, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q6_f32	4, 2, false, 6, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q8_bf16	4, 2, false, 8, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_q8_f32	4, 2, false, 8, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_bf16	4, 2, true, 2, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_f32	4, 2, true, 2, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_bf16	4, 2, true, 4, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_f32	4, 2, true, 4, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_bf16	4, 2, true, 6, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_f32	4, 2, true, 6, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_bf16	4, 2, true, 8, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_f32	4, 2, true, 8, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q2_bf16	4, 2, 2, false, 2, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q2_f32	4, 2, 2, false, 2, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q4_bf16	4, 2, 2, false, 4, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q4_f32	4, 2, 2, false, 4, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q6_bf16	4, 2, 2, false, 6, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q6_f32	4, 2, 2, false, 6, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q8_bf16	4, 2, 2, false, 8, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_q8_f32	4, 2, 2, false, 8, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q2_bf16	4, 2, 2, true, 2, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q2_f32	4, 2, 2, true, 2, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q4_bf16	4, 2, 2, true, 4, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q4_f32	4, 2, 2, true, 4, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q6_bf16	4, 2, 2, true, 6, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q6_f32	4, 2, 2, true, 6, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q8_bf16	4, 2, 2, true, 8, true	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
-tf	core/row_projection.metal	tf_row_projection_relu2_q8_f32	4, 2, 2, true, 8, false	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'.
+tf	core/row_projection.metal	tf_row_projection_indexed_q2_bf16	4, 2, false, 2, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q2_f32	4, 2, false, 2, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q4_bf16	4, 2, false, 4, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q4_f32	4, 2, false, 4, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q6_bf16	4, 2, false, 6, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q6_f32	4, 2, false, 6, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q8_bf16	4, 2, false, 8, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_q8_f32	4, 2, false, 8, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_bf16	4, 2, true, 2, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_f32	4, 2, true, 2, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_bf16	4, 2, true, 4, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_f32	4, 2, true, 4, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_bf16	4, 2, true, 6, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_f32	4, 2, true, 6, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_bf16	4, 2, true, 8, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_f32	4, 2, true, 8, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q2_bf16	4, 2, 2, false, 2, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q2_f32	4, 2, 2, false, 2, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q4_bf16	4, 2, 2, false, 4, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q4_f32	4, 2, 2, false, 4, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q6_bf16	4, 2, 2, false, 6, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q6_f32	4, 2, 2, false, 6, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q8_bf16	4, 2, 2, false, 8, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_q8_f32	4, 2, 2, false, 8, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q2_bf16	4, 2, 2, true, 2, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q2_f32	4, 2, 2, true, 2, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q4_bf16	4, 2, 2, true, 4, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q4_f32	4, 2, 2, true, 4, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q6_bf16	4, 2, 2, true, 6, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q6_f32	4, 2, 2, true, 6, false	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q8_bf16	4, 2, 2, true, 8, true	ok	ok	ok	ok			?	?	
+tf	core/row_projection.metal	tf_row_projection_relu2_q8_f32	4, 2, 2, true, 8, false	ok	ok	ok	ok			?	?	
 tf	decode/fn_gdn.metal	fz_gdn	-	ok	ok	ok	ok			?	?	
 tf	decode/fn_lane.metal	fz_lane	-	ok	ok	FAIL				?	?	Invalid bitcast
 tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: [VUID-StandaloneSpirv-None-N] Having N components for TypeVector requires the VectorN
@@ -92,7 +92,7 @@ tf	flashnext/qa_hc_up_mma_68e89dda67027c57.metal	custom_kernel_qa_hc_up_mma_68e8
 tf	flashnext/qa_hc_up_mma_baf373fed50f01d7.metal	custom_kernel_qa_hc_up_mma_baf373fed50f01d7_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	flashnext/qa_hc_up_row_1e87f3c82e93adaa.metal	custom_kernel_qa_hc_up_row_1e87f3c82e93adaa_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	flashnext/qa_hc_up_row_bc634afbd2016a85.metal	custom_kernel_qa_hc_up_row_bc634afbd2016a85_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_ple_lookup_c9861329fad34fa4.metal	custom_kernel_qa_ple_lookup_c9861329fad34fa4_uint32_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer_uint]'.
+tf	flashnext/qa_ple_lookup_c9861329fad34fa4.metal	custom_kernel_qa_ple_lookup_c9861329fad34fa4_uint32_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	glm/gemv_scores.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_4_1_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 4, 1, 1, 32, 4, 4	ok	ok	ok	ok			?	?	
 tf	glm/gemv_scores_le32.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 4, 4	ok	ok	ok	ok			?	?	
 tf	glm/gemv_scores_lt4.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_1_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 1, 4	ok	ok	ok	ok			?	?	
@@ -200,10 +200,10 @@ tf	kimi/dense_mma.metal	k3_slice_out_f32	float	ok	ok	ok	ok			?	?
 tf	kimi/experts.metal	k3_route_plan	-	ok	ok	ok	ok			?	?	
 tf	kimi/experts.metal	k3_xp_combine	bfloat	ok	ok	ok	ok			?	?	
 tf	kimi/experts.metal	k3_xp_combine_f32	float	ok	ok	ok	ok			?	?	
-tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL				?	?	ptr addrspace(1)
+tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL				?	?	Invalid bitcast
+tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL				?	?	Invalid bitcast
+tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL				?	?	Invalid bitcast
+tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL				?	?	Invalid bitcast
 tf	kimi/kda.metal	k3_kda	-	ok	ok	FAIL				?	?	Invalid bitcast
 tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL				?	?	Invalid bitcast
 tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL				?	?	ptr addrspace(1)
@@ -360,18 +360,18 @@ tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			?	?
 tf	ops/qmv.metal	tf_qmv_fast_b4_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_fast_b6_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_fast_b8_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	FAIL				?	?	ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	ok	ok			?	?	
 tf	ops/route.metal	tf_route_topk	-	ok	ok	ok	ok			?	?	
 tf	ops/sdpa.metal	tf_sdpa_2p1_d128	-	ok	ok	ok	ok			?	?	
 tf	ops/sdpa.metal	tf_sdpa_2p1_d128_cqt	-	ok	ok	ok	ok			?	?	
