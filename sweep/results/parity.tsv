@@ -1,0 +1,33 @@
+kernel	status	max_abs	max_rel	first_diff	n_diff	n_nan	tol	mlx_est_s	mlx_actual_s	run_est_s	run_actual_s	note
+omlx_qwen35_moe_router_topk	mismatch				1	0	exact			0.02	0.0	None
+omlx_qwen35_moe_router_gemv	match	0	0		0	0	rel0.01			0.02	0.0	artifact grid over-launches 4x (s = tg.y*NSG covers 2048 experts for 512 weight rows); parity runs the kernel-consistent 128
+omlx_qwen35_moe_router_softmax_topk_row	match				0	0	exact			0.02	0.0	None
+omlx_qwen35_moe_router_softmax_topk_rows	match				0	0	exact			0.02	0.0	None
+omlx_qwen35_moe_combine_row	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen35_moe_gate_up_decode_b4g32f_shared_b4g32f_gate_b4g32s	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen35_moe_down_combine_decode_b4g32f_shared_b4g32f	match	0	0		0	0	rel0.01			0.02	0.0	artifact grid y=9216 writes y rows up to 18432 for a 2048-row output; parity runs the covering 1024
+omlx_qwen35_moe_gate_up_window_b4g32f_shared_b4g32f_gate_b4g32s	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen35_moe_down_combine_window_b4g32f_shared_b4g32f	match	0	0		0	0	rel0.01			0.02	0.0	artifact grid writes y rows up to 18428 for a 4x2048-row output; parity runs the covering 2048
+omlx_qwen35_moe_gate_up_topk_b4g32f_shared_b4g32f_gate_b4g32s	match	0	0		0	0	rel0.01			0.02	0.0	logits outside the 4-expert weight pool are pinned to -1000 so the folded top-k stays inside the small weight pool
+omlx_gdn_sigmoid_probe	match	0	0		0	0	rel1e-05			0.02	0.0	None
+omlx_gdn_norm_gate_eps1em06	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_gdn_verify_main_replay	skipped											metal2vk compile fails on metal::numeric_limits<half> (t1); mlx side still runs; metal2vk: no member named 'X' in 'X'; did you mean 'X'?
+omlx_verify_attn_wide_partial	skipped											metal2vk compile fails on the simdgroup_matrix store (t1); mlx side still runs; metal2vk: Err: SrcTy = %"struct.metal::simdgroup_matrix" = type { <2 x i16> } - DstTy = <2 x i16> - Ty = %"struct.metal:
+omlx_verify_attn_wide_combine	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_verify_attn_gqa_partial	skipped											metal2vk compile fails on the mpp tensor constructor (t1); artifact grid x=512 over-launches kv heads 256x; parity runs x=KVH; metal2vk: no viable constructor or deduction guide for deduction of template arguments of 'X'
+omlx_verify_attn_gqa_combine	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_chain_attn_partial	match	0	0		0	0	rel1e-05			0.02	0.0	artifact grid x=heads*256 indexes q[qh*D] out of bounds for 16 heads; parity runs x=heads
+omlx_chain_attn_combine	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen35_gdn_prework_S1	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_decode_prework	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_decode_step	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_batch_decode_step	skipped											metal2vk compile fails on threadgroup scope (t1); mlx side still runs; metal2vk: variables in the local address space can only be declared in the outermost scope of a kernel functio
+omlx_qwen4_gdn_decode_norm_gate	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_prefill_prework	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_prefill_norm_gate	match	0	0		0	0	rel0.01			0.02	0.0	grid y=64 re-runs the same 32 heads (the kernel has no row index); the duplicate writes are identical
+omlx_qwen4_gdn_verify_step	match	0	0		0	0	rel0.01			0.02	0.0	None
+omlx_qwen4_gdn_verify_step_states	match	0	0		0	0	rel0.01			0.02	0.0	None
+qwen35_gated_delta_step	match	0	0		0	0	rel0.01			0.02	0.0	None
+qwen35_ragged_sdpa_1p	match	0	0		0	0	rel0.01			0.02	0.0	None
+qwen35_ragged_sdpa_2p1	match	0	0		0	0	rel0.01			0.02	0.0	artifact grid (64,8,4) indexes 64 kv heads x 8 batches against a 2-kv-head template; parity runs (KVH, B, BLOCKS)
+qwen35_ragged_sdpa_2p2	match	0	0		0	0	rel0.01			0.02	0.0	BLOCKS=4 < BN=32 makes the combine loop degenerate (out is 0); the artifact template pins 4
