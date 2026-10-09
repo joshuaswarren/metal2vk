@@ -8,7 +8,7 @@ Stages per entry (a row stops at the first failing stage):
   val     spirv-val --target-env vulkan1.3 accepts the module
 run and ref (a GPU dispatch with synthetic data, a CPU reference for a few kernels) are m2v_sweep_run.py's, on a GPU host.
 
-Sources are preprocessed first (clang -E, the Metal system headers replaced by empty stand-ins in sweep/stubs) so project includes,
+Sources are preprocessed first (clang -E, the Metal system headers replaced by empty stand-ins generated into a temporary directory) so project includes,
 #if blocks and macros are resolved. Host-injected macros (TensorFold's -D constants) that turn out undeclared get a dummy value and the
 retry is recorded in the row ("defs"). uzu is preprocessed with -DDSL_ANALYZE, which turns its DSL macros (KERNEL, VARIANTS, SPECIALIZE,
 GROUPS, THREADS, AXIS, OPTIONAL) into clang::annotate attributes that the entry analysis reads.

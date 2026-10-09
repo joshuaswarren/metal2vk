@@ -1,0 +1,79 @@
+name: sweep
+
+# Runs every uzu and TensorFold Zig kernel through the pipeline (compile only) and fails if an entry that had valid Vulkan SPIR-V loses it.
+# The floor is sweep/coverage-floor.txt; raise it with `sweep/check_coverage.py RESULT.json --update` in the PR that gains entries.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  CLSPV_SHA: f2b01dd6dce7058585eb4bcdb5326997cfeebfd4
+  UZU_SHA: b8681daeab5e64ea5addc9ae993fe4febcc04404
+  TF_SHA: f8fe17d24629aedabf90bbf78279dd776e6d62e7
+
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain (clang 19, opt 19, spirv-tools)
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" | sudo tee /etc/apt/sources.list.d/llvm19.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19 llvm-19 spirv-tools cmake ninja-build python3
+
+      - name: clspv cache
+        id: clspv-cache
+        uses: actions/cache@v4
+        with:
+          path: clspv/build/bin/clspv
+          key: clspv-${{ env.CLSPV_SHA }}-${{ hashFiles('clspv-patches/**') }}
+
+      - name: Build clspv with the cooperative matrix patch
+        if: steps.clspv-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone -q https://github.com/google/clspv
+          cd clspv
+          git checkout -q "$CLSPV_SHA"
+          python3 utils/fetch_sources.py --shallow
+          python3 "$GITHUB_WORKSPACE/clspv-patches/apply-coopmat-lowering.py" .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
+          ninja -C build clspv
+
+      - name: Kernel sources
+        run: |
+          git clone -q https://github.com/trymirai/uzu && git -C uzu checkout -q "$UZU_SHA"
+          git clone -q --filter=blob:none https://github.com/ashhart/TensorFold && git -C TensorFold checkout -q "$TF_SHA"
+
+      - name: Sweep
+        env:
+          UZU_ROOT: ${{ github.workspace }}/uzu
+          TF_ROOT: ${{ github.workspace }}/TensorFold
+          CLANG: clang-19
+          OPT: opt-19
+          CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
+          M2V_CLSPV_TIMEOUT: "300"
+        run: python3 sweep/m2v_sweep.py out --set all --jobs "$(nproc)" --tag ci
+
+      - name: Coverage gate
+        run: python3 sweep/check_coverage.py out/ci.json | tee coverage.txt
+
+      - name: Failure report
+        if: always()
+        run: |
+          python3 sweep/report.py out/ci.json --features out/FEATURES.md --failures out/FAILURES.md || true
+          { echo '```'; head -n 1 coverage.txt; echo '```'; cat out/FEATURES.md; } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sweep
+          path: |
+            out/ci.json
+            out/FEATURES.md
+            out/FAILURES.md
