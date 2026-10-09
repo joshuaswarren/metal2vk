@@ -4354,7 +4354,7 @@ index acf8f632..e4bff7cd 100644
  [[package]]
  name = "zune-inflate"
 diff --git a/Cargo.toml b/Cargo.toml
-index 420503b9..a1909ca3 100644
+index 420503b9..d5e1a626 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -243,3 +243,9 @@ lto = "thin"
@@ -4544,7 +4544,7 @@ index 85c1b93a..b31258c9 100644
 -        compilers.iter().map(|c| c.build(&gpu_types, &enum_paths)).collect::<anyhow::Result<Vec<_>>>()?;
 +    // slice/host (vulkan-host on Linux): the metal backend compiles without the
 +    // macOS kernel compiler; the generated kernel bindings (OUT_DIR/metal.rs)
-+    // must be pre-supplied - see metal2vk host/STATUS.md.
++    // must be pre-supplied — see metal2vk host/STATUS.md.
 +    let backends_kernels = if compilers.is_empty() {
 +        Vec::new()
 +    } else {
@@ -4819,6 +4819,45 @@ index 41ace14b..39b4cfc6 100644
 +}
 +
 +pub use imp::decompress;
+diff --git a/crates/uzu-engine/src/backends/metal/heaps.rs b/crates/uzu-engine/src/backends/metal/heaps.rs
+index beda9b56..72eb22d8 100644
+--- a/crates/uzu-engine/src/backends/metal/heaps.rs
++++ b/crates/uzu-engine/src/backends/metal/heaps.rs
+@@ -99,7 +99,7 @@ impl MetalHeaps {
+         while remaining > 0
+             && let Some(mut nonfull_heap) = inner.nonfull_heaps.peek_mut()
+         {
+-            let heap_ptr = Retained::as_ptr(&nonfull_heap.heap) as usize;
++            let heap_ptr = ProtocolObject::host_addr(&nonfull_heap.heap);
+             let free_ranges = inner.free_ranges.get_mut(&heap_ptr).unwrap();
+ 
+             while remaining > 0
+@@ -144,7 +144,7 @@ impl MetalHeaps {
+             if allocated_pages < self.pages_per_heap {
+                 inner
+                     .free_ranges
+-                    .insert(Retained::as_ptr(&heap) as usize, once(allocated_pages..self.pages_per_heap).collect());
++                    .insert(ProtocolObject::host_addr(&heap), once(allocated_pages..self.pages_per_heap).collect());
+                 inner.nonfull_heaps.push(MetalHeapsInnerNonfull {
+                     heap,
+                     num_free_pages: self.pages_per_heap - allocated_pages,
+@@ -165,14 +165,14 @@ impl MetalHeaps {
+         let mut inner_locked = self.inner.lock();
+         let inner = &mut *inner_locked;
+ 
+-        match inner.free_ranges.entry(Retained::as_ptr(heap) as usize) {
++        match inner.free_ranges.entry(ProtocolObject::host_addr(heap)) {
+             Entry::Occupied(mut entry) => {
+                 entry.get_mut().insert(range.into());
+                 let mut nonfull = std::mem::take(&mut inner.nonfull_heaps).into_vec();
+                 let nonfull_idx = nonfull
+                     .iter()
+                     .enumerate()
+-                    .find(|(_, h)| (Retained::as_ptr(&h.heap) as usize) == *entry.key())
++                    .find(|(_, h)| ProtocolObject::host_addr(&h.heap) == *entry.key())
+                     .unwrap()
+                     .0;
+                 if entry.get().first().unwrap() == &(0..self.pages_per_heap) {
 diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
 index 653c31f4..fbfe8e63 100644
 --- a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
@@ -4842,21 +4881,24 @@ index 653c31f4..fbfe8e63 100644
          constants: Option<&MTLFunctionConstantValues>,
      ) -> Result<Retained<ProtocolObject<dyn MTLComputePipelineState>>, MetalError> {
 diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
-index 93142098..f9355534 100644
+index 93142098..dcea58bf 100644
 --- a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
 +++ b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
-@@ -1,83 +1,37 @@
+@@ -1,83 +1,25 @@
 -use core::mem::transmute;
 -use std::ffi::CString;
 -
--use metal::{MTLDevice, MTLGPUFamily};
++#[cfg(target_os = "macos")]
+ use metal::{MTLDevice, MTLGPUFamily};
 -use obfstr::obfstr;
 -use objc2::{
 -    Message,
 -    ffi::objc_msgSend,
 -    runtime::{NSObjectProtocol, ProtocolObject, Sel},
 -};
-+use metal::{MTLDevice, MTLDeviceExt, MTLGPUFamily};
++#[cfg(not(target_os = "macos"))]
++use metal::MTLDeviceExt;
++#[cfg(target_os = "macos")]
 +use objc2::{Message, NSObjectProtocol, runtime::ProtocolObject};
  
  use super::GpuFamilyExt;
@@ -4902,6 +4944,35 @@ index 93142098..f9355534 100644
 -        fallback
 -    }
 -}
+-
+-pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol + Sized {
+-    /// Number of GPU shader cores.
+-    fn gpu_core_count(&self) -> u32 {
+-        optional_selector_value(self, obfstr!("gpuCoreCount"), 8)
+-    }
+-
+-    /// Whether the GPU has a Matrix eXtension Unit (neural accelerator for compute).
+-    /// True on M5+ (Gen18+), false on M1-M4.
+-    fn supports_mxu(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsMXU"), false)
+-    }
+-
+-    /// Whether the GPU supports placement sparse resources.
+-    fn supports_placement_sparse_resources(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsPlacementSparse"), false)
+-    }
+-
+-    /// Newest Apple GPU family the device supports.
+-    fn newest_supported_apple_gpu_family(&self) -> MTLGPUFamily {
+-        MTLGPUFamily::all_cases()
+-            .into_iter()
+-            .rev()
+-            .find(|family| self.supports_family(*family))
+-            .expect("unsupported Metal device: uzu requires an Apple GPU")
+-    }
+-}
+-
+-impl DeviceExt for ProtocolObject<dyn MTLDevice> {}
 +// On Apple hosts the private device selectors (gpuCoreCount, supportsMXU,
 +// supportsPlacementSparse) are read through raw objc_msgSend behind obfuscated
 +// names. The m2v host layer answers the same queries from device properties, so
@@ -4909,40 +4980,27 @@ index 93142098..f9355534 100644
 +// family (M1-class), no MXU, no placement sparse (uzu takes its dense path).
 +#[cfg(target_os = "macos")]
 +include!("device_extensions_apple.rs");
- 
--pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol + Sized {
++
 +#[cfg(not(target_os = "macos"))]
-+pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol {
-     /// Number of GPU shader cores.
-     fn gpu_core_count(&self) -> u32 {
--        optional_selector_value(self, obfstr!("gpuCoreCount"), 8)
-+        MTLDeviceExt::gpu_core_count(self)
-     }
- 
--    /// Whether the GPU has a Matrix eXtension Unit (neural accelerator for compute).
--    /// True on M5+ (Gen18+), false on M1-M4.
-+    /// MXU is an M5-generation feature; every host part reports false.
-     fn supports_mxu(&self) -> bool {
--        optional_selector_value(self, obfstr!("supportsMXU"), false)
-+        MTLDeviceExt::supports_mxu(self)
-     }
- 
--    /// Whether the GPU supports placement sparse resources.
-     fn supports_placement_sparse_resources(&self) -> bool {
--        optional_selector_value(self, obfstr!("supportsPlacementSparse"), false)
-+        MTLDeviceExt::supports_placement_sparse_resources(self)
-     }
- 
-     /// Newest Apple GPU family the device supports.
-     fn newest_supported_apple_gpu_family(&self) -> MTLGPUFamily {
--        MTLGPUFamily::all_cases()
--            .into_iter()
--            .rev()
--            .find(|family| self.supports_family(*family))
--            .expect("unsupported Metal device: uzu requires an Apple GPU")
-+        MTLDeviceExt::newest_supported_apple_gpu_family(self)
-     }
- }
- 
++/// The m2v host layer answers uzu's private device selectors from device
++/// properties (see the compat crate's `MTLDeviceExt`), so the Linux trait is
++/// a pure alias: no method of its own, hence no ambiguity at call sites.
++pub trait DeviceExt: MTLDeviceExt {}
++
 +#[cfg(not(target_os = "macos"))]
- impl DeviceExt for ProtocolObject<dyn MTLDevice> {}
++impl<T: MTLDeviceExt + ?Sized> DeviceExt for T {}
+diff --git a/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs b/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
+index 919245b5..462e821a 100644
+--- a/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
++++ b/crates/uzu-engine/src/backends/metal/timestamp_recorder.rs
+@@ -1,8 +1,8 @@
+ use std::time::{Duration, Instant};
+ 
+ use metal::{
+-    MTL4ComputeCommandEncoder, MTL4CounterHeap, MTL4CounterHeapDescriptor, MTL4CounterHeapExt, MTL4CounterHeapType,
+-    MTL4TimestampGranularity, MTLDevice, MTLDeviceExt,
++    MTL4ComputeCommandEncoder, MTL4ComputeCommandEncoderExt, MTL4CounterHeap, MTL4CounterHeapDescriptor,
++    MTL4CounterHeapExt, MTL4CounterHeapType, MTL4TimestampGranularity, MTLDevice, MTLDeviceExt,
+ };
+ use objc2::{rc::Retained, runtime::ProtocolObject};
+ 
