@@ -102,7 +102,7 @@ for case in cases:
         elif case == "tilematmul_rt":
             # register-tiled variants: one subgroup owns an MR x NR block of 8x8 tiles (cases/tilematmul_rt.cl)
             for name, mr, nr in (("tile_matmul_rt2x2_f32", 2, 2), ("tile_matmul_rt4x2_f32", 4, 2), ("tile_matmul_rt4x4_f32", 4, 4)):
-                for M in (256, 1024):
+                for M in [int(x) for x in os.environ.get("M2V_SIZES", "256,1024").split(",")]:
                     N = K = M
                     A = rng.standard_normal((M, K)).astype(np.float32)
                     B = rng.standard_normal((K, N)).astype(np.float32)
