@@ -12,13 +12,13 @@ attention_attention_gemm_metal__AttentionGemm_v0_fd07b578.cl:697:22: error: use 
 
 Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGroupedCombine_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGroupedCombine_v1`, `gdn/chunked/gram.metal:DeltaNetChunkedGram_v0`, `gdn/chunked/gram.metal:DeltaNetChunkedGram_v1` and 55 more
 
-## clspv: clspv:timeout after N s (clspv does not finish) (37)
+## clspv: clspv:timeout after N s (clspv does not finish) (39)
 
 ```
 timeout
 ```
 
-Entries: `radix_top_k_small.metal:RadixTopKSmallPass`, `radix_top_k_small.metal:RadixTopKSmallCollect`, `glm/gemv_scores.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_scores_le32.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_scores_lt4.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_t_igate.metal:custom_kernel_tf_glm5_gemv_t_r`, `glm/gemv_t_values.metal:custom_kernel_tf_glm5_gemv_t_r`, `kimi/dense.metal:k3_rows_bf16_r1` and 29 more
+Entries: `attention/ancestor_attention.metal:AncestorAttention_v0`, `gdn/tree_verify/state_advance.metal:StateAdvance_v1`, `radix_top_k_small.metal:RadixTopKSmallPass`, `radix_top_k_small.metal:RadixTopKSmallCollect`, `glm/gemv_scores.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_scores_le32.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_scores_lt4.metal:custom_kernel_tf_glm5_gemv_row`, `glm/gemv_t_igate.metal:custom_kernel_tf_glm5_gemv_t_r` and 31 more
 
 ## front end: ident:execution_simdgroups (36)
 
@@ -43,8 +43,8 @@ Entries: `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_k
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'. (32)
 
 ```
-error: line 1054: OpPhi's result type <id> '313[%_ptr_StorageBuffer_uchar]' does not match incoming value <id> '1298[%1298]' type <id> '317[%_ptr_StorageBuffer__struct_15]'.
-  %720 = OpPhi %_ptr_StorageBuffer_uchar %709 %707 %1298 %367
+error: line 911: OpPhi's result type <id> '215[%_ptr_StorageBuffer_uchar]' does not match incoming value <id> '1206[%1206]' type <id> '219[%_ptr_StorageBuffer__struct_15]'.
+  %628 = OpPhi %_ptr_StorageBuffer_uchar %618 %616 %1206 %269
 ```
 
 Entries: `core/row_projection.metal:tf_row_projection_q2_f32`, `core/row_projection.metal:tf_row_projection_relu2_q2_f32`, `core/row_projection.metal:tf_row_projection_q2_bf16`, `core/row_projection.metal:tf_row_projection_relu2_q2_bf1`, `core/row_projection.metal:tf_row_projection_q4_f32`, `core/row_projection.metal:tf_row_projection_relu2_q4_f32`, `core/row_projection.metal:tf_row_projection_q4_bf16`, `core/row_projection.metal:tf_row_projection_relu2_q4_bf1` and 24 more
@@ -66,14 +66,6 @@ ptr addrspace(1)
 ```
 
 Entries: `kimi/mla.metal:k3_mla_cache`, `kimi/mla.metal:k3_mla_qlat`, `kimi/mla.metal:k3_mla_merge`, `ops/qmv.metal:tf_qmv_wide_b4_g64_v2`, `ops/qmv.metal:tf_qmv_wide_b4_g64_v3`, `ops/qmv.metal:tf_qmv_wide_b4_g64_v4`, `ops/qmv.metal:tf_qmv_wide_b4_g64_v5`, `ops/qmv.metal:tf_qmv_wide_b6_g64_v2` and 7 more
-
-## clspv: clspv:clspv exit -N without a diagnostic (crash) (9)
-
-```
-clspv exit -11 without a diagnostic (crash)
-```
-
-Entries: `attention/ancestor_attention.metal:AncestorAttention_v0`, `attention/attention_single_pass.metal:AttentionSinglePass_v0`, `attention/attention_single_pass.metal:AttentionSinglePass_v1`, `attention/attention_two_pass.metal:AttentionTwoPass1_v0`, `attention/attention_two_pass.metal:AttentionTwoPass1_v1`, `gdn/tree_verify/state_advance.metal:StateAdvance_v0`, `gdn/tree_verify/state_advance.metal:StateAdvance_v1`, `normalization/normalization.metal:Normalization_v0` and 1 more
 
 ## front end: other:clang frontend command failed with exit code N (use -v to see invocation) (4)
 
@@ -108,8 +100,8 @@ Entries: `prefill/qmm6_nax_b.metal:tf_mm_bf16_f32_t_nax`, `prefill/qmm6_nax_b.me
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'. (4)
 
 ```
-error: line 1099: OpPhi's result type <id> '326[%_ptr_StorageBuffer_ushort]' does not match incoming value <id> '1399[%1399]' type <id> '330[%_ptr_StorageBuffer__struct_15]'.
-  %722 = OpPhi %_ptr_StorageBuffer_ushort %710 %708 %1399 %385
+error: line 957: OpPhi's result type <id> '235[%_ptr_StorageBuffer_ushort]' does not match incoming value <id> '1308[%1308]' type <id> '239[%_ptr_StorageBuffer__struct_15]'.
+  %631 = OpPhi %_ptr_StorageBuffer_ushort %619 %617 %1308 %294
 ```
 
 Entries: `nemotron_experts.metal:tf_xup_rows2`, `nemotron_experts.metal:tf_xdown_rows2`, `nemotron_experts.metal:tf_xup_rows4`, `nemotron_experts.metal:tf_xdown_rows4`
@@ -126,11 +118,11 @@ Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g
 
 ```
 Invalid bitcast
-  %256 = bitcast float %255 to ptr addrspace(1)
+  %220 = bitcast float %219 to ptr addrspace(1)
 Invalid bitcast
-  %299 = bitcast float %260 to ptr addrspace(1)
+  %263 = bitcast float %224 to ptr addrspace(1)
 Invalid bitcast
-  %331 = bitcast float %.in.peel to ptr addrspace(1)
+  %295 = bitcast float %.in.peel to ptr addrspace(1)
 ```
 
 Entries: `kimi/kda.metal:k3_kda`, `kimi/mla.metal:k3_mla_attend`
@@ -168,8 +160,8 @@ Entries: `sampling/unified_sampling.metal:UnifiedSampling_v0`, `sampling/unified
 ## spirv-val: spirv-val:error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast (2)
 
 ```
-error: line 517: Expected input to be a pointer or int or float vector or scalar: Bitcast
-  %315 = OpBitcast %uchar %313
+error: line 259: Expected input to be a pointer or int or float vector or scalar: Bitcast
+  %153 = OpBitcast %uchar %151
 ```
 
 Entries: `glm/router.metal:custom_kernel_tf_glm5_fused_ro`, `glm/router.metal:custom_kernel_tf_glm5_fused_ro`
@@ -177,10 +169,10 @@ Entries: `glm/router.metal:custom_kernel_tf_glm5_fused_ro`, `glm/router.metal:cu
 ## clspv: clspv:Instruction:   call void @llvm.memcpy.pN.pN.iN(ptr align N %.sroa.N, ptr addrspace(N) align N %N, iN (1)
 
 ```
-Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.0109, ptr addrspace(1) align 2 %127, i32 8, i1 false)
-Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.0108, ptr addrspace(1) align 2 %156, i32 8, i1 false)
-Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %120, ptr addrspace(1) align 2 %119, i32 8, i1 false)
-Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %148
+Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.045, ptr addrspace(1) align 2 %78, i32 8, i1 false)
+Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.044, ptr addrspace(1) align 2 %107, i32 8, i1 false)
+Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %79, ptr addrspace(1) align 2 %78, i32 8, i1 false)
+Instruction:   call void @llvm.memcpy.p0.p1.i32(ptr align 8 %107, ptr
 ```
 
 Entries: `matmul/gemm/gemm_split_k_reduce.metal:GemmSplitKReduce_v1`
@@ -288,8 +280,8 @@ Entries: `nemotron_sample.metal:tf_sample_full`
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uint]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'. (1)
 
 ```
-error: line 447: OpPhi's result type <id> '57[%_ptr_StorageBuffer_uint]' does not match incoming value <id> '418[%418]' type <id> '60[%_ptr_StorageBuffer__struct_21]'.
-  %277 = OpPhi %_ptr_StorageBuffer_uint %272 %269 %418 %253
+error: line 320: OpPhi's result type <id> '53[%_ptr_StorageBuffer_uint]' does not match incoming value <id> '324[%324]' type <id> '56[%_ptr_StorageBuffer__struct_21]'.
+  %179 = OpPhi %_ptr_StorageBuffer_uint %174 %171 %324 %155
 ```
 
 Entries: `flashnext/qa_ple_lookup_c9861329fad34fa4.metal:custom_kernel_qa_ple_lookup_c9`

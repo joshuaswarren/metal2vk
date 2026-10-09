@@ -493,7 +493,7 @@ uzu	activation_transform/activation_transform.metal	ActivationTransform_v0	float
 uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	FAIL								no matching function for call to 'X'
 uzu	activation_transform/trellis.metal	TrellisTransform_v0	4096	ok	ok	ok	ok					
 uzu	activation_transform/trellis.metal	TrellisTransform_v1	19968	ok	ok	ok	ok					
-uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
+uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v0	float	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v1	bfloat	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v0	float	ok	ok	ok	ok			ok	ok	
@@ -501,10 +501,10 @@ uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v1	bfloat	
 uzu	attention/attention_gemm.metal	AttentionGemm_v0	float, 16, 64, false	FAIL								use of undeclared identifier 'X'
 uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 256, true	FAIL								use of undeclared identifier 'X'
 uzu	attention/attention_prepare.metal	AttentionPrepare_v0	bfloat, float	ok	ok	ok	ok			ok	ok	
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v0	float, 64	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
 uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v0	bfloat, 128	FAIL								use of undeclared identifier 'X'
@@ -547,8 +547,8 @@ uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v1	bfloat	ok	ok	ok	ok			ok	ok
 uzu	gdn/tree_verify/out.metal	BuildTreeOut_v0	float, float, false, false	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/prefix.metal	BuildTreePrefix	-	ok	ok	ok	ok			ok	ok	
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	ok	ok					
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v0	float, false	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v0	float, 16	FAIL								clang frontend command failed with exit code N (use -v to see invocation)
@@ -560,13 +560,13 @@ uzu	logit_transform/logit_transform.metal	LogitTransform_v1	bfloat	ok	ok	ok	ok		
 uzu	matmul/gemm/gemm.metal	Gemm_v0	bfloat, bfloat, bfloat, GemmTiling::Tile8x32x32_Simdgroups1x	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm.metal	Gemm_v1	float, float, float, GemmTiling::Tile128x128x256_Simdgroups4	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			ok	ok	
-uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	FAIL						Instruction: call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.0109, ptr addrspace(1) align 2 %127, i32 8, i1 false)
+uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	FAIL						Instruction: call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.045, ptr addrspace(1) align 2 %78, i32 8, i1 false)
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	FAIL								static assertion failed due to requirement 'X': output rows must divide row groups
 uzu	matmul/gemv/gemv.metal	Gemv_v1	float, float, float, GemmBPrologueKind::ScaleSymmetricDequan	FAIL								static assertion failed due to requirement 'X': group lane slices must contain complete chunks
-uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
+uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok					
 uzu	normalization/normalization.metal	Normalization_v1	bfloat, bfloat, bfloat, float	FAIL								no viable overloaded 'X'
 uzu	pooling/pooling.metal	PoolingMean_v0	float	ok	ok	ok	ok			ok	ok	
 uzu	pooling/pooling.metal	PoolingMean_v1	bfloat	ok	ok	ok	ok			ok	ok	
@@ -607,4 +607,4 @@ uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v0	float	ok	ok	ok	ok	
 uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v1	bfloat	ok	ok	ok	ok			ok	ok	
 uzu	weaver/weaver_frontier_insert_children.metal	WeaverFrontierInsertChildren	-	ok	ok	ok	ok			ok	ok	
 uzu	weaver/weaver_frontier_select.metal	WeaverFrontierSelect	-	ok	ok	ok	ok					
-uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
+uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	ok	ok					
