@@ -1,5 +1,5 @@
 diff --git a/Cargo.toml b/Cargo.toml
-index 420503b9..bc8f6003 100644
+index 420503b9..560eb39a 100644
 --- a/Cargo.toml
 +++ b/Cargo.toml
 @@ -243,3 +243,9 @@ lto = "thin"
@@ -10,13 +10,13 @@ index 420503b9..bc8f6003 100644
 +# Linux host layer (slice/host): route metal (mtl-rs) and objc2 through the
 +# metal2vk compat crates. Paths are relative to this file.
 +[patch.crates-io]
-+mtl-rs = { path = "../../metal2vk/host/compat/mtl-rs" }
-+objc2 = { path = "../../metal2vk/host/compat/objc2" }
++mtl-rs = { path = "__M2V_COMPAT__/mtl-rs" }
++objc2 = { path = "__M2V_COMPAT__/objc2" }
 diff --git a/crates/uzu-engine/Cargo.toml b/crates/uzu-engine/Cargo.toml
-index 56ec4b73..5680ab92 100644
+index 56ec4b73..d6ff25d9 100644
 --- a/crates/uzu-engine/Cargo.toml
 +++ b/crates/uzu-engine/Cargo.toml
-@@ -30,6 +30,11 @@ metal = [
+@@ -30,21 +30,14 @@ metal = [
      "dep:metal",
  ]
  
@@ -28,25 +28,54 @@ index 56ec4b73..5680ab92 100644
  grammar = ["dep:xgrammar", "dep:schemars"]
  
  [build-dependencies]
-@@ -44,7 +49,7 @@ prettyplease.workspace = true
- itertools.workspace = true
- rhai.workspace = true
- 
+-anyhow.workspace = true
+-walkdir.workspace = true
+-derive_more.workspace = true
+-serde.workspace = true
+-quote.workspace = true
+-proc-macro2.workspace = true
+-syn.workspace = true
+-prettyplease.workspace = true
+-itertools.workspace = true
+-rhai.workspace = true
+-
 -[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos", target_os = "visionos"))'.build-dependencies]
-+[build-dependencies]
  rayon = { workspace = true, optional = true }
  clang-ast = { workspace = true, optional = true }
  depfile = { workspace = true, optional = true }
-@@ -71,7 +76,8 @@ libm.workspace = true
- itertools.workspace = true
- parking_lot.workspace = true
- 
+@@ -52,31 +45,12 @@ tempfile = { workspace = true, optional = true }
+ serde_json = { workspace = true, features = ["unbounded_depth"], optional = true }
+ blake3 = { workspace = true, optional = true }
+ xxhash-rust = { workspace = true, features = ["xxh3"], optional = true }
+-
+ [dependencies]
+-uzu-engine-macros.workspace = true
+-bitflags.workspace = true
+-derive_more = { workspace = true, features = ["debug"] }
+-shoji.workspace = true
+-half.workspace = true
+-serde.workspace = true
+-serde_json.workspace = true
+-monostate.workspace = true
+-thiserror.workspace = true
+-tokenizers.workspace = true
+-rangemap.workspace = true
+-bytemuck = { workspace = true, features = ["derive"] }
+-num-traits.workspace = true
+-libm.workspace = true
+-itertools.workspace = true
+-parking_lot.workspace = true
+-
 -[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos", target_os = "visionos"))'.dependencies]
-+[dependencies]
 +lzfse = { version = "0.6", optional = true }
  objc2 = { workspace = true, optional = true }
  obfstr = { workspace = true, optional = true }
  xxhash-rust = { workspace = true, features = ["xxh3"], optional = true }
+ metal = { workspace = true, optional = true }
+-
+ [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ xgrammar = { workspace = true, optional = true }
+ schemars = { workspace = true, optional = true }
 diff --git a/crates/uzu-engine/build/main.rs b/crates/uzu-engine/build/main.rs
 index 85c1b93a..99e6cd24 100644
 --- a/crates/uzu-engine/build/main.rs
