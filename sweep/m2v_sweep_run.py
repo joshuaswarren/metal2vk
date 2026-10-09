@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run stage of the metal2vk sweep (GPU host; run it inside a gpu-turn ticket, see sweep/README).
+"""Run stage of the metal2vk sweep (GPU host; run it through the GPU queue wrapper, see sweep/README).
 For every entry the compile stages passed (spirv-val ok) this dispatches the kernel once with synthetic data and reports
   run   the dispatch completed (m2v-run exit 0; a device error, a hang past the timeout or a crash is a FAIL with the message;
         a kernel with atomics or an unbounded loop is "skipped" by a source screen: it could spin on synthetic data and hang the GPU)

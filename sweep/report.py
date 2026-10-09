@@ -11,6 +11,14 @@ import collections
 import json
 import re
 
+PATH = re.compile(r"(?:/[\w.+@-]+)+/([\w.+-]+(?::\d+(?::\d+)?)?)")
+
+
+def scrub(text):
+    """Absolute paths in compiler diagnostics (a build host's home or scratch directories) reduced to the file name and line."""
+    return PATH.sub(r"\1", text)
+
+
 FAMILIES = [
     ("Apple MetalPerformancePrimitives / NAX (mpp::tensor_ops, tensor, dextents, cooperative tensors, matmul2d)",
      r"mpp|dextents|tensor|execution_simd|remove_addrspace|matmul2d|cooperative|MatmulMode|matmul_op|frag|mma_16x32|type-id cannot|"
@@ -70,7 +78,7 @@ def first_message(r):
     """The first diagnostic as the tool printed it, without the file path."""
     line = ((r.get("detail") or r["error"]).splitlines() or [""])[0]
     line = re.sub(r"^\S*?:\d+:\d+: ", "", line)
-    return line.replace("|", "/")[:90]
+    return scrub(line).replace("|", "/")[:90]
 
 
 def write_features(rows, path, before, top):
@@ -115,7 +123,7 @@ def write_failures(rows, path):
         f.write("# Per-entry failure classes\n\nThe first message of every failing entry, grouped by stage and normalized message, largest first.\n")
         for (stage, key), rs in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0])):
             f.write(f"\n## {stage}: {key[:110]} ({len(rs)})\n\n")
-            f.write("```\n" + (rs[0].get("detail") or rs[0]["error"])[:420] + "\n```\n\n")
+            f.write("```\n" + scrub(rs[0].get("detail") or rs[0]["error"])[:420] + "\n```\n\n")
             f.write("Entries: " + ", ".join(f"`{r['file']}:{r['entry'][:30]}`" for r in rs[:8]) + (f" and {len(rs) - 8} more" if len(rs) > 8 else "") + "\n")
 
 
@@ -141,7 +149,7 @@ def main():
                 b = base.get((r["set"], r["file"], r["entry"], r["variant"]))
                 f.write("\t".join([r["set"], r["file"], r["entry"], r["variant"], r["parse"], r["ir"], r["spv"], r["val"], r.get("run", ""),
                                    r.get("ref", ""), (b["ir"] if b else "?"), (b["val"] if b else "?"),
-                                   re.sub(r"\s+", " ", r["error"])[:140]]) + "\n")
+                                   scrub(re.sub(r"\s+", " ", r["error"]))[:140]]) + "\n")
     if a.features:
         write_features(rows, a.features, load(a.compare) if a.compare else None, a.top)
     if a.failures:

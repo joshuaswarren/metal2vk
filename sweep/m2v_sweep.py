@@ -25,7 +25,8 @@ All the other entry points of a file are dropped from the translation unit of on
 
 Usage: m2v_sweep.py OUTDIR [--set uzu|tf|all] [--jobs N] [--limit N] [--only SUBSTR] [--no-spv] [--tag NAME]
 env:   UZU_ROOT (uzu checkout), TF_ROOT (TensorFold checkout), CLANG (default clang-19), CLSPV (patched clspv; spv/val skipped if absent),
-       M2V_INCLUDE=DIR uses another shim include directory (a baseline run); M2V_VEC=1 keeps clang's loop and SLP vectorizers on (default off: Vulkan has no 8 or 16 wide vectors)
+       OPT (the LLVM opt of CLANG's version), M2V_OPT (clang optimisation flags; default is the typed-GEP route of compile.sh),
+       M2V_INCLUDE=DIR uses another shim include directory (a baseline run)
 """
 import argparse
 import concurrent.futures as cf
@@ -34,7 +35,9 @@ import json
 import os
 import pathlib
 import re
+import shlex
 import subprocess
+import tempfile
 import sys
 import time
 
@@ -43,8 +46,13 @@ INC = pathlib.Path(os.environ.get("M2V_INCLUDE", HERE.parent / "include"))  # an
 CLANG = os.environ.get("CLANG", "clang-19")
 CLSPV = os.environ.get("CLSPV", str(pathlib.Path.home() / "scratch/metal2vk/clspv/build/bin/clspv"))
 SPIRV_VAL = os.environ.get("SPIRV_VAL", "spirv-val")
+CLSPV_TIMEOUT = int(os.environ.get("M2V_CLSPV_TIMEOUT", "90"))  # seconds per module; a loaded build host needs more
 M2V_DEFS = os.environ.get("M2V_DEFS", "").split()
-NOVEC = [] if os.environ.get("M2V_VEC") else ["-fno-vectorize", "-fno-slp-vectorize"]  # SLP makes 8/16-wide vectors Vulkan cannot hold
+OPT = os.environ.get("OPT", "opt")  # the LLVM opt of the same version as CLANG
+# Front-end optimisation flags. The default is compile.sh's typed-GEP route: clang -O0 without optnone, then LLVM's inliner and SROA (no
+# InstCombine, which rewrites typed GEPs into byte offsets that clspv's pointer passes cannot follow). M2V_OPT overrides it, e.g. the old
+# route: M2V_OPT="-O2 -fno-slp-vectorize -fno-vectorize -mllvm -inline-threshold=100000".
+FE_OPT = shlex.split(os.environ.get("M2V_OPT", "-O0 -Xclang -disable-O0-optnone"))
 
 THREAD_ATTRS = {
     "thread_position_in_grid": "get_global_id",
@@ -578,7 +586,12 @@ def build_inplace(text0, blanked, entry, kname, targs, others):
     return "".join(out), "", params
 
 
-STUB = HERE / "stubs"
+_STUB_DIR = tempfile.TemporaryDirectory(prefix="m2v-stubs-")  # empty stand-ins for the Metal system headers, removed at exit
+STUB = pathlib.Path(_STUB_DIR.name)
+for _n in [f.name for f in INC.iterdir() if f.name.startswith(("metal_", "simd"))] + ["metal_stdlib"]:
+    (STUB / _n).write_text("")
+(STUB / "MetalPerformancePrimitives").mkdir()
+(STUB / "MetalPerformancePrimitives" / "MetalPerformancePrimitives.h").write_text("")
 _PRE_CACHE = {}
 
 
@@ -732,8 +745,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     ll = d / "ll" / (tag + ".ll")
     ll.parent.mkdir(parents=True, exist_ok=True)
     cmd = [CLANG, "--target=spir", "-x", "cl", "-cl-std=clc++2021", "-Xclang", "-finclude-default-header",
-           "-cl-ext=-__opencl_c_generic_address_space", "-O2", "-fno-strict-return", "-cl-kernel-arg-info", "-w", "-ferror-limit=100",
-           *NOVEC,
+           "-cl-ext=-__opencl_c_generic_address_space", *FE_OPT, "-fno-strict-return", "-cl-kernel-arg-info", "-w", "-ferror-limit=100",
            *M2V_DEFS, *defs, f"-I{INC}", *[f"-I{x}" for x in include_dirs], "-S", "-emit-llvm", str(cl), "-o", str(ll)]
     rc, out, _ = sh(cmd)
     errs = [ln for ln in out.splitlines() if " error: " in ln or "fatal error" in ln]
@@ -749,16 +761,28 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
                 break
         return row, undeclared_macros(errs)
     row["parse"] = "ok"
+    txt = ll.read_text()
+    if "-O0" in FE_OPT:
+        # clang marks every -O0 function noinline; drop that, then inline and SROA with LLVM's own passes
+        ll.write_text(re.sub(r"\bnoinline\b", "", txt))
+        rc, out, _ = sh([OPT, "-passes=cgscc(inline),function(sroa,early-cse,simplifycfg)", "-inline-threshold=100000", "-S", str(ll), "-o", str(ll) + ".opt"])
+        if rc != 0 or not pathlib.Path(str(ll) + ".opt").exists():
+            row["ir"] = "FAIL"
+            row["error"] = ([x for x in out.splitlines() if x.strip() and "failed to create target machine" not in x] or [f"opt exit {rc}"])[0][:140]
+            row["features"] = ["opt:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}
+        pathlib.Path(str(ll) + ".opt").replace(ll)
+        txt = ll.read_text()
     row["ir"] = "ok"
     if not use_spv:
         return row, {}
-    txt = ll.read_text()
     txt = re.sub(r", !(alias\.scope|noalias) ![0-9]+", "", txt)
     txt = re.sub(r"^\s*(?:tail |musttail |notail )?call void @llvm\.experimental\.noalias\.scope\.decl\(.*\)\s*$", "", txt, flags=re.M)
     ll.write_text(txt)
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
-    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], 90)
+    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:
         row["spv"] = "FAIL"
@@ -825,9 +849,17 @@ def main():
     ap.add_argument("--only", default="")
     ap.add_argument("--no-spv", action="store_true")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--retry-timeouts", metavar="RESULT.json", help="rerun only the entries whose clspv run timed out in RESULT.json and merge")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     jobs, rows = inventory(args)
+    kept = []
+    if args.retry_timeouts:
+        old_rows = json.load(open(args.retry_timeouts))
+        redo = {(r["file"], r["entry"]) for r in old_rows if r.get("spv") == "FAIL" and r["error"].startswith("timeout")}
+        jobs = [j for j in jobs if (j[2], j[4]) in redo]
+        kept = [r for r in old_rows if (r["file"], r["entry"]) not in redo]
+        rows = []
     if args.limit:
         jobs = jobs[:args.limit]
     t0 = time.time()
@@ -836,6 +868,7 @@ def main():
             rows.append(r)
             if (i + 1) % 50 == 0:
                 print(f"  {i + 1}/{len(jobs)} entries, {time.time() - t0:.0f} s", file=sys.stderr, flush=True)
+    rows = kept + rows
     name = args.tag or "sweep"
     json.dump(rows, open(os.path.join(args.out, name + ".json"), "w"), indent=1)
     for s in ("uzu", "tf"):

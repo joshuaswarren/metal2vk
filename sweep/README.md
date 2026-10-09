@@ -10,7 +10,7 @@ python3 sweep/report.py OUT/run1.json --table sweep/results/table.tsv --features
 python3 sweep/report.py OUT/run1.json --primary                      # rank by the first error of each entry (what blocks it first)
 ```
 
-The run stage needs a GPU host and goes through the GPU queue (`gpu-job.sh` logs estimated and actual seconds):
+The run stage needs a GPU host and goes through the GPU queue wrapper (`gpu-job.sh` logs estimated and actual seconds):
 
 ```
 cc -O2 m2v-run.c -lvulkan -o m2v-run
