@@ -6,9 +6,15 @@ writes a per-kernel table and a ranked list of the Metal features that still blo
 ```
 export UZU_ROOT=<uzu checkout> TF_ROOT=<TensorFold checkout> CLANG=clang CLSPV=<patched clspv>
 python3 sweep/m2v_sweep.py OUT --set all --jobs 4 --tag run1        # compile stages; OUT/run1.json, OUT/{src,ll,spv}
+python3 sweep/m2v_sweep.py OUT --dir DIR1 --dir DIR2 --tag run2     # extra flat sets: every *.metal directly in each DIR,
+                                                                    # set named after the directory, includes = DIR and its parent
 python3 sweep/report.py OUT/run1.json --table sweep/results/table.tsv --features sweep/results/FEATURES.md --compare BASELINE.json
 python3 sweep/report.py OUT/run1.json --primary                      # rank by the first error of each entry (what blocks it first)
 ```
+
+`--dir` needs no uzu or TensorFold checkout (`--set` defaults to none when `--dir` is given). An entry whose own text uses Metal 4
+tensor ops (`dextents`, `tensor<`, `mpp::`) gets a `refused` row naming the construct instead of a compile attempt: they have no
+Vulkan 1.3 lowering here, so report.py counts them separately from failures.
 
 The run stage needs a GPU host and goes through the GPU queue wrapper (`gpu-job.sh` logs estimated and actual seconds):
 

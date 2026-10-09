@@ -15,7 +15,8 @@ GROUPS, THREADS, AXIS, OPTIONAL) into clang::annotate attributes that the entry 
 Entry points come in two spellings:
   - attribute style (TensorFold): a [[kernel]] function whose parameters carry [[buffer(n)]] and thread-position attributes; plain, or a
     template with `template [[host_name("n")]] [[kernel]] decltype(f<A, B>) f<A, B>;` instantiations (one row each). The entry becomes a real
-    __kernel function (template arguments substituted, so threadgroup arrays stay in kernel scope, which OpenCL requires).
+    __kernel function (template arguments substituted; threadgroup declarations in nested scopes move to kernel scope, which OpenCL requires;
+    in Metal one declaration is one array shared by every iteration of an enclosing loop, and hoisting keeps exactly that array).
   - uzu DSL: `template <typename T> VARIANTS(T, float, half) PUBLIC KERNEL(Name)(...)`. A __kernel wrapper calls the template for the first
     and the last variant of every VARIANTS list; threadgroup declarations in the body move into a struct that lives in the wrapper.
 Argument rules: pointers into device/constant memory are buffers; `constant T& x` and by-value structs become __constant T* arguments;
@@ -23,10 +24,13 @@ SPECIALIZE (function-constant) bools become uint arguments; threadgroup arrays, 
 thread attributes and GROUPS/THREADS/AXIS/ThreadContext become OpenCL work-item queries.
 All the other entry points of a file are dropped from the translation unit of one row, so one row is one kernel.
 
-Usage: m2v_sweep.py OUTDIR [--set uzu|tf|all] [--jobs N] [--limit N] [--only SUBSTR] [--no-spv] [--tag NAME]
+Usage: m2v_sweep.py OUTDIR [--set uzu|tf|all] [--dir PATH]... [--jobs N] [--limit N] [--only SUBSTR] [--no-spv] [--tag NAME]
 env:   UZU_ROOT (uzu checkout), TF_ROOT (TensorFold checkout), CLANG (default clang-19), CLSPV (patched clspv; spv/val skipped if absent),
        OPT (the LLVM opt of CLANG's version), M2V_OPT (clang optimisation flags; default is the typed-GEP route of compile.sh),
        M2V_INCLUDE=DIR uses another shim include directory (a baseline run)
+--dir sweeps every *.metal directly in PATH as an extra set named after the directory (include search: PATH itself and its parent), without
+any TensorFold root layout. An entry whose own text uses Metal 4 tensor ops (dextents, tensor<, mpp::) gets a `refused` row instead of a
+compile: those constructs have no Vulkan 1.3 lowering here, so the row is counted separately, not as a failure.
 """
 import argparse
 import concurrent.futures as cf
@@ -447,6 +451,20 @@ def variant_sets(entry, text):
     return out
 
 
+# Metal 4 tensor ops have no Vulkan 1.3 lowering on this pipeline: they get a refusal, not a failure.
+M4_OPS = (("dextents", r"\bdextents\b"), ("tensor<", r"\btensor\s*<"), ("mpp::", r"\bmpp\s*::"))
+
+
+def m4_construct(blanked, entry):
+    """The first Metal 4 tensor-op construct the entry itself uses (template head, parameters, body, instantiations), or None."""
+    s = entry["tmpl"][0] if entry["tmpl"] else entry["head"][0]
+    e = max([entry["body"][1]] + [i["span"][1] for i in entry["inst"]])
+    for name, rx in M4_OPS:
+        if re.search(rx, blanked[s:e]):
+            return name
+    return None
+
+
 def dsl_constraints(text):
     """uzu CONSTRAINT(...) expressions (comments blanked): [[clang::annotate("", "dsl.constraint", EXPR)]]."""
     return [m2.group(1).replace('\\"', '"') for m2 in
@@ -520,14 +538,11 @@ def subst(s, vals):
 TG_DECL = re.compile(r"\bthreadgroup\b([^;{}()=]*?);")
 
 
-def hoist_threadgroup(text, entry):
-    """Threadgroup declarations in the entry body -> members of a struct living in the wrapper kernel (a non-kernel function cannot
-    declare __local variables). Returns (struct members [(type, name, dims)], edits [(start, end, replacement)])."""
-    b0, b1 = entry["body"]
-    members, edits, seen = [], [], {}
-    for m in TG_DECL.finditer(text, b0, b1):
-        decl = " ".join(m.group(1).split())
-        parts = split_top(decl)
+def tg_decls(text):
+    """Threadgroup declarations in comment-blanked text -> [(start, end, [(type, name, dims)])]."""
+    out = []
+    for m in TG_DECL.finditer(text):
+        parts = split_top(" ".join(m.group(1).split()))
         t, name, dims = split_decl(parts[0])
         if not name:
             continue
@@ -537,6 +552,39 @@ def hoist_threadgroup(text, entry):
             mm = re.match(r"^(\w+)\s*((?:\[[^\]]*\]\s*)*)$", extra.strip())
             if mm:
                 decls.append((base, mm.group(1), mm.group(2)))
+        out.append((m.start(), m.end(), decls))
+    return out
+
+
+def brace_depths(text):
+    """Brace nesting depth at every offset of comment-blanked text (string and char literals skipped)."""
+    dep = [0] * (len(text) + 1)
+    d = i = 0
+    while i < len(text):
+        dep[i] = d
+        c = text[i]
+        if c in "\"'":
+            q = c
+            i += 1
+            while i < len(text) and text[i] != q:
+                i += 2 if text[i] == "\\" else 1
+        elif c == "{":
+            d += 1
+        elif c == "}":
+            d = max(0, d - 1)
+        i += 1
+    dep[len(text)] = d
+    return dep
+
+
+def hoist_threadgroup(text, entry):
+    """Threadgroup declarations in the entry body -> members of a struct living in the wrapper kernel (a non-kernel function cannot
+    declare __local variables). Returns (struct members [(type, name, dims)], edits [(start, end, replacement)])."""
+    b0, b1 = entry["body"]
+    members, edits, seen = [], [], {}
+    for s, e, decls in tg_decls(text):
+        if not b0 <= s < b1:
+            continue
         repl = []
         for (ty, nm, dm) in decls:
             k = seen.get(nm, 0)
@@ -544,8 +592,42 @@ def hoist_threadgroup(text, entry):
             mem = nm if k == 0 else f"{nm}__{k}"
             members.append((ty, mem, dm))
             repl.append(f"auto& {nm} = m2v_tg.{mem};")
-        edits.append((m.start(), m.end(), " ".join(repl)))
+        edits.append((s, e, " ".join(repl)))
     return members, edits
+
+
+def hoist_threadgroups_inplace(body, taken):
+    """Nested-scope threadgroup declarations in a generated kernel body -> declarations at the top of the kernel scope (OpenCL
+    allows __local variables only in the outermost scope of a kernel; Metal allows them in any scope, one declaration being one
+    array shared by every iteration of an enclosing loop, and hoisting keeps exactly that array). A name already used at kernel
+    scope gets a __N suffix, and the original site keeps the old name through a reference."""
+    blanked = blank_comments(body)
+    dep = brace_depths(blanked)
+    used = set(taken) | {nm for s, _e, ds in tg_decls(blanked) if dep[s] == 0 for _t, nm, _d in ds}
+    edits, hoisted = [], []
+    for s, e, decls in tg_decls(blanked):
+        if dep[s] == 0:
+            continue
+        repl = []
+        for (ty, nm, dm) in decls:
+            k, unm = 0, nm
+            while unm in used:
+                k += 1
+                unm = f"{nm}__{k}"
+            used.add(unm)
+            hoisted.append(f"threadgroup {ty} {unm}{dm};")
+            if unm != nm:
+                repl.append(f"auto& {nm} = {unm};")
+        edits.append((s, e, " ".join(repl)))
+    if not hoisted:
+        return body
+    out, pos = [], 0
+    for s, e, r in edits:
+        out.append(body[pos:s])
+        out.append(r)
+        pos = e
+    out.append(body[pos:])
+    return "\n".join(hoisted) + "\n" + "".join(out)
 
 
 def build_source(text0, blanked, entry, kname, targs, others=()):
@@ -619,8 +701,8 @@ def build_source(text0, blanked, entry, kname, targs, others=()):
 
 
 def build_inplace(text0, blanked, entry, kname, targs, others):
-    """Attribute-style entry -> a real __kernel function (template arguments substituted textually, so threadgroup declarations
-    stay in kernel scope). Returns (source, "", params) or (None, None, params)."""
+    """Attribute-style entry -> a real __kernel function (template arguments substituted textually; nested-scope threadgroup
+    declarations move to kernel scope, which OpenCL requires). Returns (source, "", params) or (None, None, params)."""
     th = entry["tmpl"]
     names = tparam_names(th[1]) if th else []
     vals = dict(zip(names, split_top(targs))) if targs else {}
@@ -634,7 +716,7 @@ def build_inplace(text0, blanked, entry, kname, targs, others):
     pre += [p.init for p in params if p.init and p.kind == "builtin"]
     kargs = [p.kernel_decl for p in params if p.kernel_decl]
     b0, b1 = entry["body"]
-    body = subst(text0[b0 + 1:b1], vals)
+    body = hoist_threadgroups_inplace(subst(text0[b0 + 1:b1], vals), [p.name for p in params])
     kern = f"__kernel void {kname}({', '.join(kargs)}) {{\n  " + "\n  ".join(pre) + "\n" + body + "}\n"
     own = th[0] if th else attr_run_start(text0, entry["head"][0])
     edits = [(own, b1 + 1, kern)]
@@ -1373,14 +1455,20 @@ def inventory(args):
     if args.set in ("uzu", "all"):
         root = pathlib.Path(os.environ["UZU_ROOT"])
         k = root / "crates/uzu-engine/src/backends/metal/kernel"
-        sets.append(("uzu", k, [k, k / "generated", k / "common"]))
+        sets.append(("uzu", k, [k, k / "generated", k / "common"], False))
     if args.set in ("tf", "all"):
         root = pathlib.Path(os.environ["TF_ROOT"])
         k = root / "zig/kernels/metal"
-        sets.append(("tf", k, [k, k.parent, k / "core"]))
+        sets.append(("tf", k, [k, k.parent, k / "core"], False))
+    for d in args.dir:
+        p = pathlib.Path(d)
+        sets.append((p.name, p, [p, p.parent], True))
     use_spv = not args.no_spv and pathlib.Path(CLSPV).exists()
-    for name, base, incs in sets:
-        for f in sorted(base.rglob("*.metal")):
+    for name, base, incs, flat in sets:
+        files = sorted((base.glob if flat else base.rglob)("*.metal"))
+        if not files:
+            print(f"warning: {base} has no .metal files", file=sys.stderr)
+        for f in files:
             rel = str(f.relative_to(base))
             if args.only and args.only not in rel:
                 continue
@@ -1394,19 +1482,27 @@ def inventory(args):
                              "error": "no entry point (header/library file)", "features": [], "kernel": "", "args": []})
                 continue
             for ei, e in enumerate(ents):
+                m4 = m4_construct(blanked, e)
                 for kname, targs, err in variant_sets(e, blanked):
                     if err:
                         rows.append({"set": name, "file": rel, "entry": kname, "variant": "-", "parse": "FAIL", "ir": "", "spv": "", "val": "",
                                      "error": "wrapper: " + err, "features": ["wrapper:" + err], "kernel": "", "args": []})
+                    elif m4:
+                        rows.append({"set": name, "file": rel, "entry": kname, "variant": targs[:60] if targs else "-", "parse": "refused",
+                                     "ir": "", "spv": "", "val": "",
+                                     "error": f"refused: Metal 4 tensor ops ({m4}) are not translatable to G13",
+                                     "features": ["refused:" + m4], "kernel": "", "args": []})
                     else:
                         jobs.append((name, f, rel, ei, kname, targs, args.out, fincs, use_spv, defs, []))
-    return jobs, rows
+    return jobs, rows, [nm for nm, _b, _i, _f in sets]
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
-    ap.add_argument("--set", default="all")
+    ap.add_argument("--set", default=None, help="uzu, tf or all (default: all, or none when --dir is given)")
+    ap.add_argument("--dir", action="append", default=[], metavar="PATH",
+                    help="sweep every *.metal directly in PATH as an extra set named after the directory (repeatable; includes are PATH itself and its parent)")
     ap.add_argument("--jobs", type=int, default=6)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--only", default="")
@@ -1414,8 +1510,10 @@ def main():
     ap.add_argument("--tag", default="")
     ap.add_argument("--retry-timeouts", metavar="RESULT.json", help="rerun only the entries whose clspv run timed out in RESULT.json and merge")
     args = ap.parse_args()
+    if args.set is None:
+        args.set = "" if args.dir else "all"
     os.makedirs(args.out, exist_ok=True)
-    jobs, rows = inventory(args)
+    jobs, rows, setnames = inventory(args)
     kept = []
     if args.retry_timeouts:
         old_rows = json.load(open(args.retry_timeouts))
@@ -1434,12 +1532,19 @@ def main():
     rows = kept + rows
     name = args.tag or "sweep"
     json.dump(rows, open(os.path.join(args.out, name + ".json"), "w"), indent=1)
-    for s in ("uzu", "tf"):
+    for s in setnames:
         rs = [r for r in rows if r["set"] == s and r["parse"] != "n/a"]
-        if rs:
-            n = len(rs)
-            ir, sp, va = (sum(r[k] == "ok" for r in rs) for k in ("ir", "spv", "val"))
-            print(f"{s}: entries {n} ir_ok {ir} ({100 * ir / n:.1f}%) spv_ok {sp} val_ok {va} ({100 * va / n:.1f}%)")
+        if not rs:
+            continue
+        ref = sum(r["parse"] == "refused" for r in rs)
+        rs = [r for r in rs if r["parse"] != "refused"]
+        n = len(rs)
+        if not n:
+            print(f"{s}: entries 0 refused {ref}")
+            continue
+        ir, sp, va = (sum(r[k] == "ok" for r in rs) for k in ("ir", "spv", "val"))
+        print(f"{s}: entries {n} ir_ok {ir} ({100 * ir / n:.1f}%) spv_ok {sp} val_ok {va} ({100 * va / n:.1f}%)"
+              + (f" refused {ref}" if ref else ""))
     print(f"{len(rows)} rows, {time.time() - t0:.0f} s wall")
 
 
