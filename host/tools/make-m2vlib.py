@@ -24,7 +24,7 @@ MAGIC = b"M2VL"
 VERSION = 1
 
 
-def function_desc(kernel, spv_off, spv_len, constants_by_name):
+def function_desc(kernel, spv_off, spv_len, constants_by_name, regions):
     buffers, push_words, threadgroup = [], [], []
     pod_end = 0
     for a in kernel["args"]:
@@ -35,6 +35,10 @@ def function_desc(kernel, spv_off, spv_len, constants_by_name):
             pod_end = max(pod_end, a["offset"] + a["size"])
         elif a["kind"] == "workgroup_memory":
             threadgroup.append({"arg": a["ordinal"], "spec_id": a["spec_id"]})
+    # clspv kernels always declare the group/region offsets push block
+    # (PushConstantRegion*), even with no POD arguments: the layout must cover
+    # it or the driver sees a shader push block the layout does not describe.
+    region_end = max((r["offset"] + r["size"] for r in regions.values()), default=0)
     wg = kernel.get("workgroup_size") or [1, 1, 1]
     wg_spec = None if kernel.get("workgroup_size") else None
     return {
@@ -44,7 +48,7 @@ def function_desc(kernel, spv_off, spv_len, constants_by_name):
         "workgroup_size": wg,
         "workgroup_size_spec_ids": wg_spec,
         "buffers": sorted(buffers, key=lambda b: b["arg"]),
-        "push": {"size": pod_end, "words": push_words},
+        "push": {"size": max(pod_end, region_end), "words": push_words},
         "constants": constants_by_name.get(kernel["name"], []),
         "threadgroup": threadgroup,
         "uses_coopmat": False,
@@ -85,7 +89,7 @@ def main():
         spv_off = (header_len + json_len + 3) & ~3
         descs = []
         for k in refl["kernels"]:
-            d = function_desc(k, spv_off, len(spv), constants)
+            d = function_desc(k, spv_off, len(spv), constants, refl.get("push_constant_regions", {}))
             d["uses_coopmat"] = uses_coopmat
             if wg_spec_ids and not k.get("workgroup_size"):
                 d["workgroup_size_spec_ids"] = wg_spec_ids
