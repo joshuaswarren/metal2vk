@@ -1341,7 +1341,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["error"] = (out.strip().splitlines() or ["bfloat_to_i16 failed"])[-1][:140]
             row["features"] = ["bfp:" + norm_msg(row["error"])]
             row["primary"] = row["features"][0]
-            return row, {}
+            return row, {}, []
         txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
