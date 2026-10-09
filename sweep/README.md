@@ -22,3 +22,6 @@ python3 sweep/m2v_sweep_run.py OUT/run1.json OUT m2v-run OUT/run   # one dispatc
 
 The driver's docstring describes how entry points are found (TensorFold's attribute style with `host_name` template instantiations,
 uzu's DSL) and how a Metal entry becomes an OpenCL kernel.
+
+CI (`.github/workflows/sweep.yml`) runs the compile stages on every PR and fails when an entry listed in `coverage-floor.txt` no longer has valid
+SPIR-V (`check_coverage.py`). `docs/coverage.md` is the burn-down by failure class.
