@@ -21,6 +21,7 @@ use crate::protocols::{
     MTLComputePipelineState, MTLDevice, MTLEvent, MTLLibrary, MTLResidencySet, MTLSharedEvent,
 };
 use crate::types::*;
+use metal2vk::{Fallback, Route};
 use objc2::{NSObjectProtocol, ProtocolObject, Retained};
 
 // ---------------------------------------------------------------------------
@@ -763,6 +764,11 @@ unsafe impl MTL4Compiler for CompilerShim {
             Some(values) => values.host_constants(),
             None => Vec::new(),
         };
+        // The gate: ask the policy how this kernel is routed before creating a
+        // pipeline. See host/DESIGN.md "Untranslated and unverified kernels".
+        if let Some(error) = pipeline_gate_error(self.dev.route_kernel(library.host_library(), name), name) {
+            return Err(error);
+        }
         let pipeline = self.dev.create_pipeline(library.host_library(), name, &constants)?;
         Ok({
                                         let arc: Arc<ProtocolObject<dyn MTLComputePipelineState>> =
@@ -850,4 +856,84 @@ impl MTLFunctionConstantValues {
 
 pub(crate) fn size3(size: MTLSize) -> [u32; 3] {
     [size.width as u32, size.height as u32, size.depth as u32]
+}
+
+/// Map a [`Route`] (or a routing error) to the `MetalError` the compat layer
+/// reports for a compute pipeline, or `None` when the translated kernel may be
+/// created. Pure: no device, no GPU.
+pub fn pipeline_gate_error(route: Result<Route, metal2vk::Error>, name: &str) -> Option<MetalError> {
+    match route {
+        // Trusted: create the translated pipeline.
+        Ok(Route::Translated) => None,
+        // The compat layer has no reference runner; an unchecked kernel is never
+        // silently run. The host side (or the C ABI caller) runs the check.
+        Ok(Route::TranslatedChecked { reference }) => Some(MetalError::new(format!(
+            "kernel '{name}' needs a first-use check against reference {reference:?}; \
+             the compat layer cannot run reference kernels, run the check host-side"
+        ))),
+        // uzu sees MetalError::CannotCreatePipelineState { function_name, error } via
+        // CompilerPipelineExtensions, then the kernel `new` and `MetalKernels::new`
+        // fail, so `select_backend` reports metal-backend startup failure; uzu's own
+        // kernel-selection/CPU path is `UZU_BACKEND=cpu` (or a build without metal).
+        Ok(Route::Fallback(fb)) => Some(MetalError::new(format!(
+            "kernel '{name}' is routed to fallback {fb:?}; no translated pipeline is \
+             created so the kernel-selection/CPU-backend path can take over"
+        ))),
+        // The policy refused: surface its Display text verbatim ("refused: ...").
+        Err(error) => Some(MetalError::new(error.to_string())),
+    }
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::pipeline_gate_error;
+    use metal2vk::{Error, Fallback, Route};
+
+    #[test]
+    fn translated_route_creates_the_pipeline() {
+        assert!(pipeline_gate_error(Ok(Route::Translated), "add").is_none());
+    }
+
+    #[test]
+    fn checked_route_names_kernel_and_reference() {
+        let error = pipeline_gate_error(
+            Ok(Route::TranslatedChecked { reference: Fallback::Cpu("add_cpu".into()) }),
+            "add",
+        )
+        .expect("checked route must fail in the compat layer");
+        let text = error.to_string();
+        assert!(text.contains("'add'"), "names the kernel: {text}");
+        assert!(text.contains("add_cpu"), "names the reference: {text}");
+        assert!(text.contains("first-use check"), "says why: {text}");
+    }
+
+    #[test]
+    fn hand_fallback_names_kernel_and_route() {
+        let error =
+            pipeline_gate_error(Ok(Route::Fallback(Fallback::Hand("add_hand".into()))), "add")
+                .expect("hand fallback must fail in the compat layer");
+        let text = error.to_string();
+        assert!(text.contains("'add'"), "names the kernel: {text}");
+        assert!(text.contains("add_hand"), "names the hand kernel: {text}");
+        assert!(text.contains("fallback"), "says fallback: {text}");
+    }
+
+    #[test]
+    fn cpu_fallback_names_kernel_and_route() {
+        let error = pipeline_gate_error(
+            Ok(Route::Fallback(Fallback::Cpu("add_cpu".into()))),
+            "add_offset",
+        )
+        .expect("cpu fallback must fail in the compat layer");
+        let text = error.to_string();
+        assert!(text.contains("'add_offset'"), "names the kernel: {text}");
+        assert!(text.contains("add_cpu"), "names the cpu reference: {text}");
+    }
+
+    #[test]
+    fn refused_error_text_is_verbatim() {
+        let refused = Err(Error::Refused("kernel 'add' has no fallback".into()));
+        let error = pipeline_gate_error(refused, "add").expect("refused must fail");
+        assert_eq!(error.to_string(), "refused: kernel 'add' has no fallback");
+    }
 }

@@ -17,4 +17,8 @@ sed -i -E 's/, !(alias\.scope|noalias) ![0-9]+//g' "$OUT/add.ll"
 spirv-val --target-env vulkan1.3 "$OUT/add.spv"
 echo "spirv-val ok: $(stat -c %s "$OUT/add.spv") bytes"
 python3 "$REPO/m2v-reflect.py" "$OUT/add.spv" > "$OUT/add.json"
-python3 "$H/tools/make-m2vlib.py" "$OUT/add.spv" "$OUT/add.json" "$OUT/add.m2vlib"
+# Gate: verified only when the G13C receipt proves add_kernel_end_to_end
+# (see add-gate-args.sh); otherwise the kernel stays unverified.
+GATE_ARGS=$("$H/tools/add-gate-args.sh" "$OUT")
+# shellcheck disable=SC2086
+python3 "$H/tools/make-m2vlib.py" "$OUT/add.spv" "$OUT/add.json" "$OUT/add.m2vlib" $GATE_ARGS
