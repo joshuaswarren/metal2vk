@@ -80,7 +80,17 @@ template <typename T> struct numeric_limits;
     static constexpr T min() { return MINV; }                                                                          \
     static constexpr T lowest() { return LOWV; }                                                                       \
   };
-M2V_LIMITS(half, (half)65504.0f, (half)6.103515625e-05f, (half)-65504.0f)
+template <> struct numeric_limits<half> {
+  static constexpr half max() { return (half)65504.0f; }
+  static constexpr half min() { return (half)6.103515625e-05f; }
+  static constexpr half lowest() { return (half)-65504.0f; }
+  static constexpr half epsilon() { return (half)0.0009765625f; }
+  static constexpr half denorm_min() { return (half)5.9604644775390625e-08f; }
+  static constexpr half infinity() { return (half)__builtin_inff(); }
+  static constexpr half quiet_NaN() { return (half)__builtin_nanf(""); }
+  static constexpr bool has_infinity = true;
+  static constexpr bool has_quiet_NaN = true;
+};
 M2V_LIMITS(int, 2147483647, -2147483647 - 1, -2147483647 - 1)
 M2V_LIMITS(unsigned int, 4294967295u, 0u, 0u)
 M2V_LIMITS(short, 32767, -32768, -32768)
@@ -141,6 +151,21 @@ struct bfloat {
   METAL_FUNC operator float() const __constant { return as_float((uint)bits << 16); }
 };
 
+// Same finite set as float (8-bit exponent, 7-bit mantissa), built from raw bit patterns: max 0x7F7F, smallest
+// normal 0x0080, epsilon 0x3C00 (2^-7), denorm_min 0x0001, infinity 0x7F80, quiet NaN 0x7FC0.
+template <> struct numeric_limits<bfloat> {
+  static bfloat from_bits(ushort b) { bfloat r; r.bits = b; return r; }
+  static bfloat max() { return from_bits(0x7F7F); }
+  static bfloat min() { return from_bits(0x0080); }
+  static bfloat lowest() { return from_bits(0xFF7F); }
+  static bfloat epsilon() { return from_bits(0x3C00); }
+  static bfloat denorm_min() { return from_bits(0x0001); }
+  static bfloat infinity() { return from_bits(0x7F80); }
+  static bfloat quiet_NaN() { return from_bits(0x7FC0); }
+  static constexpr bool has_infinity = true;
+  static constexpr bool has_quiet_NaN = true;
+};
+
 // vec<bfloat, N> stores raw i16 at the IR level: aggregate copies of bfloat-struct elements hit pointer-shape passes
 // in clspv that cannot walk a struct element, while plain i16 copies compile everywhere. The copy constructor and
 // assignment are user provided so every copy from a device pointer becomes typed member loads instead of a memcpy
@@ -181,7 +206,7 @@ METAL_FUNC void threadgroup_barrier(mem_flags f) { barrier((f & mem_device) ? CL
 METAL_FUNC void simdgroup_barrier(mem_flags) { sub_group_barrier(CLK_LOCAL_MEM_FENCE); }
 
 // ---- scalar math ----
-template <typename T> METAL_FUNC T abs(T x) { return x < T(0) ? -x : x; }
+template <typename T> METAL_FUNC T abs(T x) { return x < T(0) ? T(-x) : x; }
 template <> METAL_FUNC float abs<float>(float x) { return fabs(x); }
 template <typename T> METAL_FUNC T fma(T a, T b, T c) { return ::fma(a, b, c); }
 template <typename T> METAL_FUNC T copysign(T a, T b) { return ::copysign(a, b); }
@@ -252,6 +277,19 @@ METAL_FUNC uint m2v_lane_of(int r, int c0) {
 template <typename T, int R, int C> struct simdgroup_matrix {
   vec<T, 2> el;
   METAL_FUNC simdgroup_matrix() = default;
+  // Copy operations are __private-qualified: these matrices are thread-private, and the implicit operations would
+  // take their argument through the generic address space, which clspv cannot rebuild for whole-matrix accesses.
+  METAL_FUNC simdgroup_matrix(const __private simdgroup_matrix& o) : el(o.el) {}
+  METAL_FUNC simdgroup_matrix(const simdgroup_matrix& o) : el(o.el) {}
+  // Materialized temporaries carry no address space, so the copy operations need both spellings.
+  METAL_FUNC __private simdgroup_matrix& operator=(const simdgroup_matrix& o) __private {
+    el = o.el;
+    return *this;
+  }
+  METAL_FUNC __private simdgroup_matrix& operator=(const __private simdgroup_matrix& o) __private {
+    el = o.el;
+    return *this;
+  }
   // Metal: simdgroup_matrix(value) is the diagonal matrix value * I.
   METAL_FUNC simdgroup_matrix(T v) {
     const uint lane = get_sub_group_local_id();
