@@ -2,12 +2,25 @@
 #pragma once
 namespace m2v {
 template <typename V> using elem_t = decltype(V{}.x);
-template <typename V, typename E, int N> METAL_FUNC V mk1(E __attribute__((ext_vector_type(N))) s) { return __builtin_convertvector(s, V); }
+template <typename V, typename W, typename = decltype(__builtin_convertvector(W{}, V))> METAL_FUNC V mk1(W s) { return __builtin_convertvector(s, V); }
 template <typename V, typename S> METAL_FUNC metal::enable_if_t<__is_arithmetic(S), V> mk1(S s) { return V{} + (elem_t<V>)s; }
 template <typename V, typename B> METAL_FUNC metal::enable_if_t<(B::m2v_n > 0), V> mk1(B b);
+template <typename W, typename = void> struct is_ext : metal::false_type {};
+template <typename W> struct is_ext<W, metal::enable_if_t<__is_arithmetic(elem_t<W>)>> : metal::true_type {};
+template <typename E, typename S> METAL_FUNC metal::enable_if_t<!is_ext<S>::value> put(E* t, int& n, S v) { t[n++] = (E)v; }
+template <typename E, typename W> METAL_FUNC metal::enable_if_t<is_ext<W>::value> put(E* t, int& n, W v) {
+  for (int i = 0; i < (int)__builtin_vectorelements(W); i++) t[n++] = (E)v[i];
+}
 template <typename V, typename... S> METAL_FUNC V mk(S... s) {
   if constexpr (sizeof...(S) == 1) return mk1<V>(s...);
-  else return V{(elem_t<V>)s...};
+  else {
+    elem_t<V> t[sizeof...(S) * 16];
+    int n = 0;
+    (put<elem_t<V>>(t, n, s), ...);
+    V r{};
+    for (int i = 0; i < (int)__builtin_vectorelements(V); i++) r[i] = t[i];
+    return r;
+  }
 }
 } // namespace m2v
 #define char2(...) m2v::mk<char2>(__VA_ARGS__)

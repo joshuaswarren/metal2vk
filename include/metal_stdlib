@@ -194,9 +194,9 @@ METAL_FUNC uint simd_prefix_exclusive_sum(uint x) { return sub_group_scan_exclus
 // shuffles on scalars use the subgroup builtins; vector types go element by element
 #define M2V_SHUF(NAME, BUILTIN, ARG)                                                                                   \
   template <typename T> METAL_FUNC enable_if_t<__is_arithmetic(T), T> NAME(T x, ushort a) { return BUILTIN(x, (uint)a); } \
-  template <typename E, int N> METAL_FUNC E __attribute__((ext_vector_type(N))) NAME(E __attribute__((ext_vector_type(N))) x, ushort a) { \
-    E __attribute__((ext_vector_type(N))) r;                                                                           \
-    for (int i = 0; i < N; i++) r[i] = BUILTIN(x[i], (uint)a);                                                         \
+  template <typename V> METAL_FUNC enable_if_t<!__is_arithmetic(V), V> NAME(V x, ushort a) {                                \
+    V r;                                                                                                               \
+    for (int i = 0; i < (int)__builtin_vectorelements(V); i++) r[i] = BUILTIN(x[i], (uint)a);                          \
     return r;                                                                                                          \
   }
 M2V_SHUF(simd_shuffle, sub_group_shuffle, lane)

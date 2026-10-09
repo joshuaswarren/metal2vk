@@ -176,3 +176,12 @@ template <typename V, typename B> METAL_FUNC metal::enable_if_t<(B::m2v_n > 0), 
   return r;
 }
 } // namespace m2v
+
+typedef metal::bfloat bfloat16_t;  // the MLX / Zig-host spelling
+typedef half float16_t;
+
+namespace metal {
+typedef simdgroup_matrix<half, 8, 8> simdgroup_half8x8;
+typedef simdgroup_matrix<float, 8, 8> simdgroup_float8x8;
+typedef simdgroup_matrix<bfloat, 8, 8> simdgroup_bfloat8x8;
+} // namespace metal
