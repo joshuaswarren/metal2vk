@@ -1,3 +1,10 @@
 __pycache__/
 *.pyc
 bench/env-local.sh
+out_full/
+sweep/out5/
+sweep/out6/
+out7/
+sweep/out8/
+sweep/out9/
+sweep/out10/
