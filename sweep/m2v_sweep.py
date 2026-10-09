@@ -192,13 +192,15 @@ def strip_annotate(text):
         i = attr_end(text, j) + 2
 
 
-VEC_ALIASES = "".join(f"typedef {t}{n} m2v_V_{t}{n};\n" for t in ("char", "uchar", "short", "ushort", "int", "uint", "long", "ulong", "float", "half")
+VEC_ALIASES = "".join(f"typedef __generic {t}{n} m2v_V_{t}{n};\n" for t in ("char", "uchar", "short", "ushort", "int", "uint", "long", "ulong", "float", "half")
                       for n in (2, 3, 4, 8, 16))
 VEC_DECL = re.compile(r"\b(u?char|u?short|u?int|u?long|float|half|bool)([234]|8|16)(\s+)\((\s*[&*])")
 
 
 def norm_decls(text):
-    """`uint4 (&x)[N]` / `uint4 (*p)` declarators collide with the vector constructor macros (uint4(...)): use a typedef alias."""
+    """`uint4 (&x)[N]` / `uint4 (*p)` declarators collide with the vector constructor macros (uint4(...)): use a typedef alias.
+    The alias is __generic-qualified: member arrays of vectors are __generic, and an unqualified or __private alias can
+    neither bind a non-const reference to them nor convert const bindings from them."""
     return VEC_DECL.sub(lambda m: f"m2v_V_{m.group(1)}{m.group(2)}{m.group(3)}({m.group(4)}", text)
 
 
@@ -428,6 +430,7 @@ def variant_sets(entry, text):
     if not names:
         return [(entry["name"], "", None)]
     var = entry["variants"]
+    cons = dsl_constraints(text)
     out = []
     for tag, pick in (("v0", 0), ("v1", -1)):
         vals = []
@@ -436,10 +439,76 @@ def variant_sets(entry, text):
             if not vs:
                 return [(entry["name"], "", f"template parameter {n} has no VARIANTS")]
             vals.append(vs[pick])
+        if cons:
+            vals = repair_vals(names, var, cons, vals, pick)
         out.append((entry["name"] + "_" + tag, ", ".join(vals), None))
     if out[0][1] == out[1][1]:
         out = out[:1]
     return out
+
+
+def dsl_constraints(text):
+    """uzu CONSTRAINT(...) expressions (comments blanked): [[clang::annotate("", "dsl.constraint", EXPR)]]."""
+    return [m2.group(1).replace('\\"', '"') for m2 in
+            re.finditer(r'\[\[\s*clang::annotate\(\s*""\s*,\s*"dsl\.constraint"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\)\s*\]\]', text)]
+
+
+def constraint_ok(expr, vals):
+    """Evaluate one CONSTRAINT expression against {param: token}; anything unevaluable counts as satisfied."""
+    s = " " + expr + " "
+    s = re.sub(r"!(?!=)", " not ", s)
+    s = re.sub(r"\b(\w+)::(\w+)", r"'\1::\2'", s)
+    s = re.sub(r"\btrue\b", "True", s)
+    s = re.sub(r"\bfalse\b", "False", s)
+    s = s.replace("&&", " and ").replace("||", " or ")
+    for k, v in vals.items():
+        s = re.sub(r"\b" + re.escape(k) + r"\b", repr(v), s)
+
+    def unquote(m):
+        g = m.group(1)
+        return g if g.isdigit() or g in ("True", "False") else "'" + g + "'"
+
+    s = re.sub(r"'(\w+)'", unquote, s)
+    try:
+        env = {}
+        exec("result = " + s, {"__builtins__": {}}, env)
+    except Exception:
+        return True  # a name outside the VARIANTS lists (a DSL constant): treat the constraint as satisfied
+    return bool(env["result"])
+
+
+def repair_vals(names, var, cons, vals, pick):
+    """The first/last VARIANTS picks can violate the file's CONSTRAINT prunings (the real host never instantiates those
+    tiles, the wrapper hits the static_asserts). Greedy repair: walk the violated constraints' parameters through their
+    candidate values (the pick first, then the list order) until all constraints hold; give up unchanged if none helps."""
+    pos = {n: i for i, n in enumerate(names)}
+    vals = list(vals)
+    pref = {n: [var[n][pick]] + [v for v in var[n] if v != var[n][pick]] for n in names}
+
+    def bad(vs):
+        return sum(0 if constraint_ok(c, dict(zip(names, vs))) else 1 for c in cons)
+
+    best = bad(vals)
+    for _ in range(4):
+        if best == 0:
+            break
+        improved = False
+        for c in cons:
+            for n in names:
+                if best == 0 or not re.search(r"\b" + re.escape(n) + r"\b", c):
+                    continue
+                for cand in pref[n]:
+                    if cand == vals[pos[n]]:
+                        continue
+                    trial = list(vals)
+                    trial[pos[n]] = cand
+                    b = bad(trial)
+                    if b < best:
+                        vals, best, improved = trial, b, True
+                        break
+        if not improved:
+            break
+    return vals
 
 
 def subst(s, vals):
@@ -647,6 +716,7 @@ TF_DEFAULTS = {"TF_UNROLL": "4", "TF_COL": "4", "TF_GROUP": "64", "TF_OUT_T": "b
 # verbatim host code (mma_16x32 stays out behind M2V_NAX_MPP: it needs the mpp tensor-op emulation).
 HOST_SYMBOL_TRIGGERS = {
     "tf_frag": ("frag", "frag_home"),
+    "tfq6_store": ("tfq6::store", "tfq6::k_loop6"),
     "tf_math": ("bsig", "bsilu", "fsig", "fsoftplus", "log1p_", "simd_topk", "simd_topk_all"),
     "kda_quad_dot": ("quad_dot",),
     "kda_sigmoid": ("mlx_sigmoid_precise",),
@@ -809,21 +879,39 @@ inline short2 frag_home(ushort l) {
   return short2(short((l & 8) + ((l & 1) << 2)), short(((l & 16) >> 2) | ((l >> 1) & 3)));
 }
 // The 16x16 block at (r, c) of a row-major matrix with leading dimension ld, in device or threadgroup memory.
-template <typename T, typename P>
-inline void frag_get(thread frag<T>& f, P p, int ld, int r, int c, short2 home) {
+// The element type is fixed per overload: metal::vec<T, 8> cannot carry a deducible T (the alias hides it), and the
+// ext_vector spelling cannot be formed for bfloat; the bodies are the host's.
+template <typename P>
+inline void frag_get(thread frag<float>& f, P p, int ld, int r, int c, short2 home) {
   const P q = p + (r + home.y) * ld + (c + home.x);
   TF_UNROLL
   for (short e = 0; e < 8; e++) {
-    f[e] = T(q[(e >> 2) * 8 * ld + (e & 3)]);
+    f[e] = float(q[(e >> 2) * 8 * ld + (e & 3)]);
+  }
+}
+template <typename P>
+inline void frag_get(thread frag<bfloat16_t>& f, P p, int ld, int r, int c, short2 home) {
+  const P q = p + (r + home.y) * ld + (c + home.x);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    f[e] = bfloat16_t(q[(e >> 2) * 8 * ld + (e & 3)]);
   }
 }
 // frag_get with zeros outside rows < nr and columns < nc (both relative to p); nothing outside is read.
-template <typename T, typename S>
-inline void frag_get_in(thread frag<T>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
+template <typename S>
+inline void frag_get_in(thread frag<float>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
   TF_UNROLL
   for (short e = 0; e < 8; e++) {
     const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + (e & 3);
-    f[e] = (rr < nr && cc < nc) ? T(p[rr * ld + cc]) : T(0);
+    f[e] = (rr < nr && cc < nc) ? float(p[rr * ld + cc]) : float(0);
+  }
+}
+template <typename S>
+inline void frag_get_in(thread frag<bfloat16_t>& f, const device S* p, int ld, int r, int c, short2 home, int nr, int nc) {
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    const int rr = r + home.y + (e >> 2) * 8, cc = c + home.x + (e & 3);
+    f[e] = (rr < nr && cc < nc) ? bfloat16_t(p[rr * ld + cc]) : bfloat16_t(0);
   }
 }
 template <typename O>
@@ -906,8 +994,112 @@ inline void frag_put_in(thread const frag<float>& f, device O* p, int ld, int r,
   }
 }
 #endif
+// Declared so the calls parse; the definition needs the mpp tensor-op emulation (define M2V_NAX_MPP and add it). The
+// element types are fixed: the shim's vec alias cannot deduce them (16x32x16, C accumulates in float, A/B bf16).
+template <bool TA, bool TB>
+inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread const frag<bfloat16_t>& a,
+                      thread const frag<bfloat16_t>& b0, thread const frag<bfloat16_t>& b1);
 }  // namespace tfp
 using namespace tfp;
+""",
+    "tfq6_store": """
+// The tfq6 helpers of the qmm6 family (prefill/qmm6_nax.metal; the b-file kernels share the namespace's helpers).
+template <typename T, typename O>
+inline void dequant6r(uint2 a, uint2 c, uint2 d, T scale, T bias, threadgroup O* out) {
+  const float s = float(scale), b = float(bias);
+  const ulong lo = ulong(a.x) | (ulong(a.y) << 32), mid = ulong(c.x) | (ulong(c.y) << 32), hi = ulong(d.x) | (ulong(d.y) << 32);
+  TF_UNROLL
+  for (int i = 0; i < 32; i++) {
+    const int bit = 6 * i;
+    uint v;
+    if (bit + 6 <= 64) v = uint(lo >> bit) & 63u;
+    else if (bit < 64) v = (uint(lo >> bit) | uint(mid << (64 - bit))) & 63u;
+    else if (bit + 6 <= 128) v = uint(mid >> (bit - 64)) & 63u;
+    else if (bit < 128) v = (uint(mid >> (bit - 64)) | uint(hi << (128 - bit))) & 63u;
+    else v = uint(hi >> (bit - 128)) & 63u;
+    out[i] = O(static_cast<T>(s * float(v) + b));
+  }
+}
+namespace tfq6 {
+// A simdgroup's TM x 2 fragments to y (row stride ld): rows below live, columns below nc.
+template <typename T, int TM>
+inline void store(thread const frag<float> (&acc)[TM][2], device T* y, int ld, int live, int nc, short2 home) {
+  TF_UNROLL
+  for (short i = 0; i < TM; i++) {
+    TF_UNROLL
+    for (short j = 0; j < 2; j++) {
+      if (live == 16 * TM && nc >= 32) {
+        frag_put(acc[i][j], y, ld, 16 * i, 16 * j, home);
+      } else {
+        frag_put_in(acc[i][j], y, ld, 16 * i, 16 * j, home, live, nc);
+      }
+    }
+  }
+}
+// x (TM 16-row fragments, ld K) times a 6-bit [64 rows, K] block, 64 deep a step; thread t dequantizes row t / 2's group t % 2.
+template <typename T, int TM>
+inline void k_loop6(thread frag<float> (&acc)[TM][2], const device T* x, int K, int ldx, int live, bool inside,
+                    const device uint* wq, const device T* scales, const device T* biases, threadgroup T* tile,
+                    int tn, uint t, short2 home) {
+  constexpr int PAD = 64 + 16 / sizeof(T);
+  threadgroup T* mine = tile + (t / 2) * PAD + 32 * (t % 2);
+  TF_UNROLL
+  for (short i = 0; i < TM; i++) {
+    acc[i][0] = frag<float>(0);
+    acc[i][1] = frag<float>(0);
+  }
+  uint2 wa = *(const device uint2*)(wq), wb = *(const device uint2*)(wq + 2), wc = *(const device uint2*)(wq + 4);
+  T sc = *scales, bi = *biases;
+  for (int k = 0; k < K; k += 64) {
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    dequant6r<T>(wa, wb, wc, sc, bi, mine);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (k + 64 < K) {
+      wq += 12;
+      scales += 2;
+      biases += 2;
+      wa = *(const device uint2*)(wq);
+      wb = *(const device uint2*)(wq + 2);
+      wc = *(const device uint2*)(wq + 4);
+      sc = *scales;
+      bi = *biases;
+    }
+#pragma clang loop unroll(disable)
+    for (int kk = 0; kk < 64; kk += 32) {
+      if (live > 0) {
+        frag<T> a[TM][2], b[2][2];
+        TF_UNROLL
+        for (short i = 0; i < 2; i++) {
+          TF_UNROLL
+          for (short j = 0; j < 2; j++) {
+            frag_get_t(b[j][i], (const threadgroup T*)tile, PAD, tn + 16 * i, kk + 16 * j, home);
+          }
+        }
+        TF_UNROLL
+        for (short i = 0; i < TM; i++) {
+          TF_UNROLL
+          for (short j = 0; j < 2; j++) {
+            if (inside) {
+              frag_get(a[i][j], x, ldx, 16 * i, kk + 16 * j, home);
+            } else {
+              frag_get_in(a[i][j], x, ldx, 16 * i, kk + 16 * j, home, live, kk + 32);
+            }
+          }
+        }
+        TF_UNROLL
+        for (short m = 0; m < TM; m++) {
+          TF_UNROLL
+          for (short j = 0; j < 2; j++) {
+            mma_16x32<false, true>(acc[m][0], acc[m][1], a[m][j], b[j][0], b[j][1]);
+          }
+        }
+      }
+    }
+    x += 64;
+  }
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+}
+}  // namespace tfq6
 """,
     "fz_tile": """
 // The includer defines fz_tile (a threadgroup's output tile); identity is the host default mapping.
@@ -922,7 +1114,15 @@ def missing_host_symbols(errs):
     for ln in errs:
         for m in re.finditer(r"(?:use of undeclared identifier|no template named|unknown type name) '([^']+)'", ln):
             seen.add(m.group(1))
-    return sorted(g for g, ids in HOST_SYMBOL_TRIGGERS.items() if seen.intersection(ids))
+        m = re.search(r"no member named '([^']+)' in namespace '([^']+)'", ln)
+        if m:
+            seen.add(m.group(2) + "::" + m.group(1))
+    # HOST_SYMBOL_TRIGGERS order is the dependency order (tf_frag defines the macros tfq6_store uses).
+    return [g for g, ids in HOST_SYMBOL_TRIGGERS.items() if seen.intersection(ids)]
+
+
+# Macros an injected group defines (TF_UNROLL, TF_COL, frag_get_t, ...): the retry must not also -D them to a dummy value.
+HOST_GROUP_MACROS = {g: set(re.findall(r"^\s*#\s*define\s+(\w+)", t, re.M)) for g, t in HOST_SYMBOL_TEXT.items()}
 
 
 def sh(cmd, timeout=300):
@@ -988,6 +1188,9 @@ def process(job):
         row, undecl, missing = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms)
         new = sorted(n for n in undecl if not any(d.startswith("-D" + n + "=") for d in defs))
         add_syms = [g for g in missing if g not in syms] if setname == "tf" and row["parse"] == "FAIL" else []
+        if add_syms:
+            skip = set().union(*(HOST_GROUP_MACROS[g] for g in add_syms + syms))
+            new = [n for n in new if n not in skip]
         if setname != "tf" or row["parse"] != "FAIL" or (not new and not add_syms):
             break
         defs += [f"-D{n}={TF_DEFAULTS.get(n, 'bfloat' if undecl[n] == 'type' else MACRO_DEFAULT)}" for n in new]
@@ -997,6 +1200,23 @@ def process(job):
     if syms:
         row["host_syms"] = syms
     return row
+
+
+def mentions_mpp(path, include_dirs, seen=None):
+    """The wrapper must prepend the real MetalPerformancePrimitives header when the source pulls it in, directly or through
+    project includes (nax.h, uzu's ops headers) that preprocessing resolves against empty stubs."""
+    text = path.read_text(errors="replace")
+    if "MetalPerformancePrimitives" in text:
+        return True
+    seen = seen if seen is not None else {str(path)}
+    for m in re.finditer(r'#\s*include\s*"([^"]+)"', text):
+        for base in [path.parent, *[pathlib.Path(x) for x in include_dirs]]:
+            p = base / m.group(1)
+            if p.exists() and str(p) not in seen:
+                seen.add(str(p))
+                if mentions_mpp(p, include_dirs, seen):
+                    return True
+    return False
 
 
 def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms=()):
@@ -1028,7 +1248,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     cl.parent.mkdir(parents=True, exist_ok=True)
     pre = '#include "metal_stdlib"\n'
     pre += "".join(HOST_SYMBOL_TEXT[g] for g in syms)
-    if "MetalPerformancePrimitives" in src_path.read_text(errors="replace"):
+    if mentions_mpp(src_path, include_dirs):
         pre += '#include "MetalPerformancePrimitives/MetalPerformancePrimitives.h"\n'
     cl.write_text(pre + VEC_ALIASES + norm_decls(strip_annotate(src)) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
     ll = d / "ll" / (tag + ".ll")
