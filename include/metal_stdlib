@@ -171,6 +171,9 @@ M2V_MATH1(sin) M2V_MATH1(cos) M2V_MATH1(floor) M2V_MATH1(ceil) M2V_MATH1(round) 
 template <typename T> METAL_FUNC T pow(T x, T y) { return ::pow(x, y); }
 template <typename T> METAL_FUNC bool isnan(T x) { return ::isnan(x); }
 template <typename T> METAL_FUNC bool isinf(T x) { return ::isinf(x); }
+// The OpenCL builtins are overloaded per float type; a real bfloat argument matches several of them.
+METAL_FUNC bool isnan(bfloat x) { return ::isnan((float)x); }
+METAL_FUNC bool isinf(bfloat x) { return ::isinf((float)x); }
 
 namespace fast {
 METAL_FUNC float exp(float x) { return native_exp(x); }

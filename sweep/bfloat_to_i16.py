@@ -175,6 +175,22 @@ def main():
         if m:
             narrow_value(m.group(1), m.group(2), int(m.group(3) or 0), out)
             continue
+        m = re.match(rf"^\s*%([\w.$.-]+)\s*=\s*([su])itofp\s+((?:<\d+ x )?i\d+>?)\s+(\S+)\s+to\s+{VT}\s*$", code)
+        if m:
+            serial += 1
+            dst, sx, ity, tok, lanes = m.group(1), m.group(2), m.group(3), m.group(4), int(m.group(5) or 0)
+            vf = f"<{lanes} x float>" if lanes else "float"
+            out.append(f"  %if{serial} = {sx}itofp {ity} {tok} to {vf}\n")
+            narrow_value(dst, f"%if{serial}", lanes, out)
+            continue
+        m = re.match(rf"^\s*%([\w.$.-]+)\s*=\s*(fptosi|fptoui)\s+{VT}\s+(\S+)\s+to\s+((?:<\d+ x )?i\d+>?)\s*$", code)
+        if m:
+            serial += 1
+            dst, op, lanes, tok, ity = m.group(1), m.group(2), int(m.group(3) or 0), m.group(5), m.group(6)
+            widen_value(f"fp{serial}", tok, lanes, out)
+            sf = f"<{lanes} x float>" if lanes else "float"
+            out.append(f"  %{dst} = {op} {sf} %fp{serial} to {ity}\n")
+            continue
         m = rx_call.match(code)
         if m and ".bf16" in m.group(4):
             serial += 1
@@ -213,7 +229,7 @@ def main():
         # spelled as decimal floats or bare 0xHhhhh. Skip literals carrying an explicit float type keyword.
         ln = re.sub(r"(?<![\w.])(?<!float )(?<!double )(?<!half )0xH([0-9A-Fa-f]{4})\b",
                     lambda mm: str(int(mm.group(1), 16)), ln)
-        ln = re.sub(r"(?<![\w.])(?<!float )(?<!double )(?<!half )(-?\d+\.\d+e[+-]\d+|-?\d+\.\d+)(?![\w.])",
+        ln = re.sub(r"(?<![\w.])(?<!float )(?<!double )(?<!half )(-?\d+\.\d+e[+-]\d+|-?\d+\.\d+|-?inf|nan)(?![\w.])",
                     lambda mm: str(bf16_bits(mm.group(1))), ln)
         if bare.search(ln.split(";")[0]):
             die(f"unhandled bfloat reference after the rewrite: {ln.strip()}")
