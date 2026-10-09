@@ -7,7 +7,7 @@ use metal2vk::{Device, Library};
 fn setup() -> Option<(
     std::sync::Arc<Device>,
     std::sync::Arc<Library>,
-    std::sync::Arc<m2v_host::Queue>,
+    std::sync::Arc<metal2vk::Queue>,
 )> {
     if std::env::var("M2V_GPU").as_deref() != Ok("1") {
         eprintln!("SKIP gpu tests (set M2V_GPU=1 on a GPU host)");
@@ -33,7 +33,7 @@ fn setup() -> Option<(
     Some((device, library, queue))
 }
 
-fn run(queue: &std::sync::Arc<m2v_host::Queue>, cb: &m2v_host::CommandBuffer) -> (u64, u64) {
+fn run(queue: &std::sync::Arc<metal2vk::Queue>, cb: &metal2vk::CommandBuffer) -> (u64, u64) {
     let (tx, rx) = std::sync::mpsc::channel();
     queue
         .submit(
