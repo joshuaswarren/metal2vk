@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Reports for m2v_sweep.py results.
 Usage: report.py RESULT.json [--table OUT.tsv] [--features OUT.md] [--failures OUT.md] [--compare BEFORE.json] [--primary] [--top N]
-  --table     one row per (file, entry, variant): parse, ir, spv, val, run, ref, first error
+  --table     one row per (file, entry, variant): parse, ir, spv, val, run, ref, the IR and valid columns of the --compare run, first error
   --features  compile rates (before and after), missing features grouped into families and ranked by the entries they block first
               (an entry's first error) and by the entries they touch anywhere, then the top raw diagnostics
   --failures  per-entry failure classes: the first clang, clspv or spirv-val message of every failing entry, grouped
@@ -124,11 +124,17 @@ def main():
     a = ap.parse_args()
     rows = load(a.result)
     if a.table:
+        base = {}
+        if a.compare:
+            for r in load(a.compare):
+                base[(r["set"], r["file"], r["entry"], r["variant"])] = r
         with open(a.table, "w") as f:
-            f.write("set\tfile\tentry\tvariant\tparse\tir\tspv\tval\trun\tref\tfirst_error\n")
+            f.write("set\tfile\tentry\tvariant\tparse\tir\tspv\tval\trun\tref\tbefore_ir\tbefore_val\tfirst_error\n")
             for r in sorted(rows, key=lambda r: (r["set"], r["file"], r["entry"], r["variant"])):
+                b = base.get((r["set"], r["file"], r["entry"], r["variant"]))
                 f.write("\t".join([r["set"], r["file"], r["entry"], r["variant"], r["parse"], r["ir"], r["spv"], r["val"], r.get("run", ""),
-                                   r.get("ref", ""), re.sub(r"\s+", " ", r["error"])[:140]]) + "\n")
+                                   r.get("ref", ""), (b["ir"] if b else "?"), (b["val"] if b else "?"),
+                                   re.sub(r"\s+", " ", r["error"])[:140]]) + "\n")
     if a.features:
         write_features(rows, a.features, load(a.compare) if a.compare else None, a.top)
     if a.failures:
