@@ -65,7 +65,7 @@ tf	flashnext/lane_qmm_xsum_ae73f2ece35700de.metal	custom_kernel_lane_qmm_xsum_ae
 tf	flashnext/q4_attn_merge_gate_7070840cd3c22e98.metal	custom_kernel_q4_attn_merge_gate_7070840cd3c22e98_float_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
 tf	flashnext/q4_attn_parts_f6b4ffe8e2609998.metal	custom_kernel_q4_attn_parts_f6b4ffe8e2609998_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_float_float	-	ok	ok	ok	ok			ok	ok	
 tf	flashnext/q4_attn_prep_63a42a6cd8e0434a.metal	custom_kernel_q4_attn_prep_63a42a6cd8e0434a_bfloat16_t_int32_t_float_float_float_floatc_floatc_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
-tf	flashnext/q4_gdn_pipe_bf57ffcc8e75e07f.metal	custom_kernel_q4_gdn_pipe_bf57ffcc8e75e07f_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_Workgroup_uint]'X'N[%N]'X'N[%_ptr_Workgroup_float]'.
+tf	flashnext/q4_gdn_pipe_bf57ffcc8e75e07f.metal	custom_kernel_q4_gdn_pipe_bf57ffcc8e75e07f_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
 tf	flashnext/q4_gdn_step_af87f500308a9afb.metal	custom_kernel_q4_gdn_step_af87f500308a9afb_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
 tf	flashnext/q4_hc_norm_grouped_07247b697e2950aa.metal	custom_kernel_q4_hc_norm_grouped_07247b697e2950aa_bfloat16_t_bfloat16_t_bfloat16_t_float_float_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
 tf	flashnext/q4_hc_norm_none_4e0640a899baccfe.metal	custom_kernel_q4_hc_norm_none_4e0640a899baccfe_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
@@ -93,11 +93,11 @@ tf	flashnext/qa_hc_up_mma_baf373fed50f01d7.metal	custom_kernel_qa_hc_up_mma_baf3
 tf	flashnext/qa_hc_up_row_1e87f3c82e93adaa.metal	custom_kernel_qa_hc_up_row_1e87f3c82e93adaa_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok					
 tf	flashnext/qa_hc_up_row_bc634afbd2016a85.metal	custom_kernel_qa_hc_up_row_bc634afbd2016a85_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok					
 tf	flashnext/qa_ple_lookup_c9861329fad34fa4.metal	custom_kernel_qa_ple_lookup_c9861329fad34fa4_uint32_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uint]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'.
-tf	glm/gemv_scores.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_4_1_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 4, 1, 1, 32, 4, 4	ok	ok	ok	ok			ok		
-tf	glm/gemv_scores_le32.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 4, 4	ok	ok	ok	ok			ok		
-tf	glm/gemv_scores_lt4.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_1_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 1, 4	ok	ok	ok	ok			ok		
-tf	glm/gemv_t_igate.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_2_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 2, 8, 4, 4, 4	ok	ok	ok	ok			ok		
-tf	glm/gemv_t_values.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_4_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 4, 8, 4, 4, 4	ok	ok	ok	ok			ok		
+tf	glm/gemv_scores.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_4_1_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 4, 1, 1, 32, 4, 4	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
+tf	glm/gemv_scores_le32.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 4, 4	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
+tf	glm/gemv_scores_lt4.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_1_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 1, 4	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
+tf	glm/gemv_t_igate.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_2_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 2, 8, 4, 4, 4	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
+tf	glm/gemv_t_values.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_4_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 4, 8, 4, 4, 4	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
 tf	glm/hc_expand_10.metal	custom_kernel_tf_glm5_fused_hc_expand_cc77af98f2__4096_1_0_0_0_bfloat16_t_bfloat16_t_float_float_floatc_bfloat16_t_float_float	4096, 1, 0, 0, 0	ok	ok	ok	ok			ok	ok	
 tf	glm/kda_rows.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__64_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	64, 128, 4, 32, 4, 4	FAIL								conditional expression is ambiguous; 'X' can be converted to 'X' and vice versa
 tf	glm/kda_rows_tp.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__32_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	32, 128, 4, 32, 4, 4	FAIL								conditional expression is ambiguous; 'X' can be converted to 'X' and vice versa
@@ -181,36 +181,36 @@ tf	glm_kda_prompt.metal	glm_kda_pre_tp	32, 128, 4, 32, 4, 4	FAIL								use of u
 tf	glm_kda_prompt.metal	glm_kda_scan	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
 tf	glm_kda_prompt.metal	glm_kda_scan_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
 tf	glm_sparse_nax.metal	glm_sparse_nax	-	FAIL								use of undeclared identifier 'X'
-tf	kimi/dense.metal	k3_glu_r1	1	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_glu_r2	2	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_glu_r4	4	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_glu_r8	8	ok	ok	FAIL						Invalid bitcast
+tf	kimi/dense.metal	k3_glu_r1	1	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_glu_r2	2	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_glu_r4	4	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_glu_r8	8	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	kimi/dense.metal	k3_interleave	-	ok	ok	ok	ok					
-tf	kimi/dense.metal	k3_rows_bf16_r1	bfloat, 1	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_bf16_r2	bfloat, 2	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_bf16_r4	bfloat, 4	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_bf16_r8	bfloat, 8	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_f32_r1	float, 1	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_f32_r2	float, 2	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_f32_r4	float, 4	ok	ok	FAIL						Invalid bitcast
-tf	kimi/dense.metal	k3_rows_f32_r8	float, 8	ok	ok	FAIL						Invalid bitcast
+tf	kimi/dense.metal	k3_rows_bf16_r1	bfloat, 1	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_bf16_r2	bfloat, 2	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_bf16_r4	bfloat, 4	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_bf16_r8	bfloat, 8	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_f32_r1	float, 1	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_f32_r2	float, 2	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_f32_r4	float, 4	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/dense.metal	k3_rows_f32_r8	float, 8	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	kimi/dense_mma.metal	k3_slice_mma	-	FAIL								use of undeclared identifier 'X'
 tf	kimi/dense_mma.metal	k3_slice_out_bf16	bfloat	ok	ok	ok	ok					
 tf	kimi/dense_mma.metal	k3_slice_out_f32	float	ok	ok	ok	ok					
 tf	kimi/experts.metal	k3_route_plan	-	ok	ok	ok	ok					
 tf	kimi/experts.metal	k3_xp_combine	bfloat	ok	ok	ok	ok					
 tf	kimi/experts.metal	k3_xp_combine_f32	float	ok	ok	ok	ok					
-tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL						Invalid bitcast
-tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL						Invalid bitcast
-tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL						Invalid bitcast
-tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL						Invalid bitcast
+tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	kimi/kda.metal	k3_kda	-	ok	ok	FAIL						Invalid bitcast
-tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL						timeout
-tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL						Invalid bitcast
-tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	ok	ok					
-tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	ok	ok					
-tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	FAIL						Invalid bitcast
-tf	kimi/norms.metal	k3_add2	-	ok	ok	ok	ok					
+tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL						Invalid bitcast
+tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL						ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	FAIL						ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	FAIL						ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	kimi/norms.metal	k3_add2	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	kimi/norms.metal	k3_argmax	-	ok	ok	ok	ok					
 tf	kimi/norms.metal	k3_embed	-	ok	ok	ok	ok					
 tf	kimi/norms.metal	k3_res_norm	-	ok	ok	ok	ok					
@@ -299,9 +299,9 @@ tf	nemotron/xsum_4096.metal	custom_kernel_lane_qmm_xsum_6902641c761b7636_bfloat1
 tf	nemotron/xsum_5376.metal	custom_kernel_lane_qmm_xsum_28dbe6341ee44cdb_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_expert_down.metal	custom_kernel_nemotron_rows_expert_down_7cd919f2cf068abd__1856_2688_64_4_2_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1856, 2688, 64, 4, 2	ok	ok	ok	ok			ok	ok	
 tf	nemotron_expert_up.metal	custom_kernel_nemotron_rows_expert_up_3c904b6b27dccc2b__2688_1856_64_4_2_6_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	2688, 1856, 64, 4, 2, 6	ok	ok	ok	ok			ok	ok	
-tf	nemotron_experts.metal	tf_xdown_rows2	1856, 2688, 64, 4, 2, 6, 2, false	ok	ok	ok	ok			ok	ok	
+tf	nemotron_experts.metal	tf_xdown_rows2	1856, 2688, 64, 4, 2, 6, 2, false	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'.
 tf	nemotron_experts.metal	tf_xdown_rows4	1856, 2688, 64, 4, 2, 6, 4, false	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'.
-tf	nemotron_experts.metal	tf_xup_rows2	2688, 1856, 64, 4, 2, 6, 2, true	ok	ok	ok	ok			ok	ok	
+tf	nemotron_experts.metal	tf_xup_rows2	2688, 1856, 64, 4, 2, 6, 2, true	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'.
 tf	nemotron_experts.metal	tf_xup_rows4	2688, 1856, 64, 4, 2, 6, 4, true	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer_ushort]'X'N[%N]'X'N[%_ptr_StorageBuffer__struct_N]'.
 tf	nemotron_glue.metal	tf_argmax_bf16	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_glue.metal	tf_attn_out	-	ok	ok	ok	ok			ok	ok	
@@ -316,7 +316,7 @@ tf	nemotron_head.metal	tf_head_norm	-	ok	ok	ok	ok			ok	ok
 tf	nemotron_head.metal	tf_head_prep	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_round.metal	tf_round_accept	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_round.metal	tf_round_args	-	ok	ok	ok	ok			ok	ok	
-tf	nemotron_round.metal	tf_round_attsel	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 3 7
+tf	nemotron_round.metal	tf_round_attsel	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_round.metal	tf_round_copy	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_round.metal	tf_round_gather	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_round.metal	tf_round_root	-	ok	ok	ok	ok			ok	ok	
@@ -327,13 +327,13 @@ tf	nemotron_sample.metal	tf_sample_full	-	FAIL								no matching constructor fo
 tf	nemotron_tree.metal	tf_gather_rows	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_tree.metal	tf_kv_compact	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_tree.metal	tf_lane_tokens	-	ok	ok	ok	ok			ok	ok	
-tf	nemotron_tree.metal	tf_topk_probs	-	ok	ok	FAIL				ok		clspv exit -11 without a diagnostic (crash)
+tf	nemotron_tree.metal	tf_topk_probs	-	ok	ok	ok	ok			ok	ok	
 tf	nemotron_tree.metal	tf_tree_conv	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			ok	ok	
 tf	nemotron_tree.metal	tf_tree_merge	16, 128, 512	ok	ok	ok	ok			ok	ok	
-tf	nemotron_tree.metal	tf_tree_scan	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	FAIL			ok	FAIL	error: line N: OpPhi'X'N[%_ptr_StorageBuffer__struct_N]'X'N[%N]'X'N[%_ptr_StorageBuffer_uint]'.
+tf	nemotron_tree.metal	tf_tree_scan	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			ok	ok	
 tf	nemotron_tree.metal	tf_tree_tail	16, 128, 512, 64, 64	FAIL								no matching constructor for initialization of 'X' (aka 'X')
 tf	ops/argmax.metal	tf_argmax_merge	-	ok	ok	ok	ok			ok		
-tf	ops/argmax.metal	tf_argmax_part_bf16	-	ok	ok	ok	ok			ok		
+tf	ops/argmax.metal	tf_argmax_part_bf16	-	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
 tf	ops/elementwise.metal	tf_add_bf16	-	ok	ok	ok	ok			ok	ok	
 tf	ops/elementwise.metal	tf_causal_mask_bf16	-	ok	ok	ok	ok			ok	ok	
 tf	ops/elementwise.metal	tf_gather_u32	-	ok	ok	ok	ok			ok	ok	
@@ -346,32 +346,32 @@ tf	ops/embed_norm.metal	tf_embed_b6_g64	-	ok	ok	ok	ok			ok	ok
 tf	ops/embed_norm.metal	tf_embed_b8_g64	-	ok	ok	ok	ok			ok	ok	
 tf	ops/embed_norm.metal	tf_embed_rms_b4_g64	-	ok	ok	ok	ok			ok	ok	
 tf	ops/embed_norm.metal	tf_rms_norm_bf16	-	ok	ok	ok	ok			ok	ok	
-tf	ops/gemv.metal	tf_gemv_bf16_tm4	-	ok	ok	ok	ok			ok		
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	FAIL						Invalid bitcast
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	FAIL						Invalid bitcast
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	FAIL						Invalid bitcast
+tf	ops/gemv.metal	tf_gemv_bf16_tm4	-	ok	ok	FAIL				ok		timeout after 90 s (clspv does not finish)
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	FAIL								use of undeclared identifier 'X'
 tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
 tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
 tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	ok	ok			ok	ok	
 tf	ops/qmv.metal	tf_qmv_b6_g64	-	ok	ok	ok	ok			ok	ok	
 tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			ok	ok	
-tf	ops/qmv.metal	tf_qmv_fast_b4_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_qmv_fast_b6_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_qmv_fast_b8_g64	-	ok	ok	FAIL				ok		M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	ok	ok			ok		
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	ok	ok			ok		
+tf	ops/qmv.metal	tf_qmv_fast_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_fast_b6_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_fast_b8_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	FAIL				ok		ptr addrspace(1)
 tf	ops/route.metal	tf_route_topk	-	ok	ok	ok	ok			ok	ok	
 tf	ops/sdpa.metal	tf_sdpa_2p1_d128	-	ok	ok	ok	ok			ok	ok	
 tf	ops/sdpa.metal	tf_sdpa_2p1_d128_cqt	-	ok	ok	ok	ok			ok	ok	
@@ -466,7 +466,7 @@ tf	qwen3_5/attn_merge.metal	custom_kernel_qwen35_attn_merge_float_float_float_in
 tf	qwen3_5/attn_partial.metal	custom_kernel_qwen35_attn_partial_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_float_float_float	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/gdn_chain.metal	custom_kernel_qwen35_gdn_chain__bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_float_int32_tc_bfloat16_t_float	bfloat16_t	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/gdn_post.metal	custom_kernel_qwen35_gdn_post_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
-tf	qwen3_5/gdn_pre.metal	custom_kernel_qwen35_gdn_pre_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	FAIL			ok	FAIL	error: line N: Expected both objects to be of Result Type: Select
+tf	qwen3_5/gdn_pre.metal	custom_kernel_qwen35_gdn_pre_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/layout.metal	qwen35_attention_gate	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/layout.metal	qwen35_embed	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/layout.metal	qwen35_head_norm	-	ok	ok	ok	ok			ok	ok	
@@ -475,13 +475,13 @@ tf	qwen3_5/layout.metal	qwen35_queries	-	ok	ok	ok	ok			ok	ok
 tf	qwen3_5/mlp_act.metal	custom_kernel_qwen35_mlp_act_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/norm.metal	custom_kernel_qwen35_norm_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
 tf	qwen3_5/norm_nores.metal	custom_kernel_qwen35_norm_nores_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
-tf	qwen3_5/qmm_16_2048.metal	custom_kernel_qwen35_qmm_16_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_2048_2048.metal	custom_kernel_qwen35_qmm_2048_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_2048_6144.metal	custom_kernel_qwen35_qmm_2048_6144_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_248320_2048.metal	custom_kernel_qwen35_qmm_248320_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_4096_2048.metal	custom_kernel_qwen35_qmm_4096_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_512_2048.metal	custom_kernel_qwen35_qmm_512_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
-tf	qwen3_5/qmm_6144_2048.metal	custom_kernel_qwen35_qmm_6144_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok					
+tf	qwen3_5/qmm_16_2048.metal	custom_kernel_qwen35_qmm_16_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_2048_2048.metal	custom_kernel_qwen35_qmm_2048_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_2048_6144.metal	custom_kernel_qwen35_qmm_2048_6144_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_248320_2048.metal	custom_kernel_qwen35_qmm_248320_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_4096_2048.metal	custom_kernel_qwen35_qmm_4096_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_512_2048.metal	custom_kernel_qwen35_qmm_512_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+tf	qwen3_5/qmm_6144_2048.metal	custom_kernel_qwen35_qmm_6144_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 tf	runtime_tests.metal	tf_affine	-	ok	ok	ok	ok			ok	ok	
 tf	runtime_tests.metal	tf_mix	-	ok	ok	ok	ok			ok	ok	
 tf	runtime_tests.metal	tf_round	-	ok	ok	ok	ok			ok	ok	
@@ -493,7 +493,7 @@ uzu	activation_transform/activation_transform.metal	ActivationTransform_v0	float
 uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	FAIL								no matching function for call to 'X'
 uzu	activation_transform/trellis.metal	TrellisTransform_v0	4096	ok	ok	ok	ok					
 uzu	activation_transform/trellis.metal	TrellisTransform_v1	19968	ok	ok	ok	ok					
-uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	ok	ok					
+uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v0	float	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v1	bfloat	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v0	float	ok	ok	ok	ok			ok	ok	
@@ -501,10 +501,10 @@ uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v1	bfloat	
 uzu	attention/attention_gemm.metal	AttentionGemm_v0	float, 16, 64, false	FAIL								use of undeclared identifier 'X'
 uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 256, true	FAIL								use of undeclared identifier 'X'
 uzu	attention/attention_prepare.metal	AttentionPrepare_v0	bfloat, float	ok	ok	ok	ok			ok	ok	
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	ok	ok			ok	ok	
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	ok	ok			ok	ok	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	FAIL				ok	ok	clspv exit -11 without a diagnostic (crash)
 uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v0	float, 64	ok	ok	ok	ok			ok	ok	
 uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
 uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v0	bfloat, 128	FAIL								use of undeclared identifier 'X'
@@ -547,8 +547,8 @@ uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v1	bfloat	ok	ok	ok	ok			ok	ok
 uzu	gdn/tree_verify/out.metal	BuildTreeOut_v0	float, float, false, false	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/prefix.metal	BuildTreePrefix	-	ok	ok	ok	ok			ok	ok	
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	ok	ok					
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	FAIL						Invalid bitcast
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
 uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v0	float, false	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	FAIL								use of undeclared identifier 'X'
 uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v0	float, 16	FAIL								clang frontend command failed with exit code N (use -v to see invocation)
@@ -560,18 +560,18 @@ uzu	logit_transform/logit_transform.metal	LogitTransform_v1	bfloat	ok	ok	ok	ok		
 uzu	matmul/gemm/gemm.metal	Gemm_v0	bfloat, bfloat, bfloat, GemmTiling::Tile8x32x32_Simdgroups1x	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm.metal	Gemm_v1	float, float, float, GemmTiling::Tile128x128x256_Simdgroups4	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			ok	ok	
-uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	FAIL						Invalid bitcast
+uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	FAIL						Instruction: call void @llvm.memcpy.p0.p1.i32(ptr align 8 %.sroa.0109, ptr addrspace(1) align 2 %127, i32 8, i1 false)
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	FAIL								use of undeclared identifier 'X'
 uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	FAIL								static assertion failed due to requirement 'X': output rows must divide row groups
 uzu	matmul/gemv/gemv.metal	Gemv_v1	float, float, float, GemmBPrologueKind::ScaleSymmetricDequan	FAIL								static assertion failed due to requirement 'X': group lane slices must contain complete chunks
-uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok					
+uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)
 uzu	normalization/normalization.metal	Normalization_v1	bfloat, bfloat, bfloat, float	FAIL								no viable overloaded 'X'
 uzu	pooling/pooling.metal	PoolingMean_v0	float	ok	ok	ok	ok			ok	ok	
 uzu	pooling/pooling.metal	PoolingMean_v1	bfloat	ok	ok	ok	ok			ok	ok	
-uzu	radix_top_k_small.metal	RadixTopKSmallCollect	-	ok	ok	FAIL						Invalid bitcast
-uzu	radix_top_k_small.metal	RadixTopKSmallPass	-	ok	ok	FAIL						Invalid bitcast
+uzu	radix_top_k_small.metal	RadixTopKSmallCollect	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
+uzu	radix_top_k_small.metal	RadixTopKSmallPass	-	ok	ok	FAIL						timeout after 90 s (clspv does not finish)
 uzu	sampling/context_ring_update.metal	ContextRingUpdate	-	ok	ok	ok	ok			ok	ok	
 uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v0	float	ok	ok	ok	ok			ok	ok	
 uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v1	bfloat	ok	ok	ok	ok			ok	ok	
@@ -607,4 +607,4 @@ uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v0	float	ok	ok	ok	ok	
 uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v1	bfloat	ok	ok	ok	ok			ok	ok	
 uzu	weaver/weaver_frontier_insert_children.metal	WeaverFrontierInsertChildren	-	ok	ok	ok	ok			ok	ok	
 uzu	weaver/weaver_frontier_select.metal	WeaverFrontierSelect	-	ok	ok	ok	ok					
-uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	ok	ok					
+uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	FAIL						clspv exit -11 without a diagnostic (crash)

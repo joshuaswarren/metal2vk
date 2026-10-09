@@ -27,6 +27,7 @@ FAMILIES = [
     ("bfloat vs float in one expression (`c ? bfloat : float` is ambiguous: bfloat converts both ways)", r"conditional expression is ambiguous"),
     ("clspv pointer passes (Invalid bitcast, undefined reference, OpPhi/OpSelect/AccessChain pointer types)",
      r"^clspv:(?:Invalid bitcast|error: undefined reference|\s*%)|OpPhi|OpPtrAccessChain|Select|AtomicLoad|AtomicIAdd|Expected input to be a pointer"),
+    ("clspv does not finish (timeout, crash without a message, SimplifyPointerBitcast loop)", r"^clspv:(?:timeout|clspv exit|MNV)"),
     ("clspv: other", r"^clspv:"),
     ("spirv-val: other", r"^spirv-val:"),
     ("vector construction and conversion (mk1, C-style vector casts, scalar initializers)",
