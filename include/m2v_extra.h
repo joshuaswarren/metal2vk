@@ -1,7 +1,9 @@
-// m2v_extra.h: Metal features the bulk sweep (sweep/SWEEP.md) found missing. Included at the end of metal_stdlib.
+// m2v_extra.h: Metal features the bulk sweep (sweep/results/FEATURES.md) found missing. Included at the end of metal_stdlib.
 #pragma once
 
-// OpenCL C++ reserves `local` and `global` as address-space keywords; Metal code uses them as variable names.
+// OpenCL C++ reserves `local` and `global` as address-space keywords, while Metal code uses them as variable names (uzu's
+// threadgroup_reduce.h does). The macros apply to every file included after the shim, so C++ for OpenCL code that spells the address
+// spaces without the leading underscores does not compile through this shim; Metal never spells them that way.
 #define local m2v_local
 #define global m2v_global
 
@@ -75,6 +77,7 @@ template <typename V> METAL_FUNC enable_if_t<!__is_arithmetic(V), V> simd_shuffl
 // ---- simd reductions and scans for every arithmetic type, bfloat, and vectors ----
 #define M2V_SIMD_RED(NAME, BUILTIN)                                                                                    \
   template <typename T> METAL_FUNC enable_if_t<__is_arithmetic(T), T> NAME(T x) {                                      \
+    static_assert(sizeof(T) <= 4, "simd reductions and scans on 64-bit types are not supported: the value would be truncated to 32 bits"); \
     using W = conditional_t<__is_integral(T), conditional_t<__is_signed(T), int, uint>, float>;                        \
     return (T)BUILTIN((W)x);                                                                                            \
   }                                                                                                                    \
