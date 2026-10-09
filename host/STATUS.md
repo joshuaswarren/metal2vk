@@ -111,3 +111,38 @@ clspv offsets push block → `82a6e15` pipeline bound at every dispatch →
   `selection.select::<metal::Metal>()`) reports metal-backend startup failure.
   uzu has no per-kernel automatic CPU fallback inside the metal backend; its own
   CPU path is `UZU_BACKEND=cpu` or a build without the metal feature.
+
+
+## Per-kernel lazy mode (slice/compat-lazy)
+
+- uzu starts on Linux: a non-Translated gate route no longer fails pipeline
+  creation. `host_compute_pipeline_state` returns a `RefusedPipeline` (implements
+  `MTLComputePipelineState`); its launch-maths accessors answer with device
+  values - threadExecutionWidth = device subgroup size,
+  maxTotalThreadsPerThreadgroup = device maximum, static threadgroup memory 0 -
+  so uzu's size computations stay valid. Encoding a refused pipeline dispatches
+  nothing: the encoder collects the refusal, the flush skips GPU recording
+  entirely (the command buffer stays fresh in its slot: released, reusable, no
+  hang, no leak), and the commit fires the completion with
+  `Error::Refused` naming every refused kernel in that command buffer. uzu's
+  feedback handler turns that into `MetalError::CommandBufferExecution`.
+  Refusals are logged once per kernel per process on stderr with the `m2v:`
+  prefix (policy.rs conventions). TranslatedChecked is refused at use too: no
+  reference runner exists in uzu. Verified kernels run normally. There is no
+  bypass flag.
+- Opt-in kernel trace: `M2V_KERNEL_TRACE=<file>` appends one `<kernel>` line per
+  first dispatch in the process. `host/tools/run-uzu-tests-traced.sh` runs ONE
+  uzu metal test per process with the trace and writes one JSON line
+  (`{"test", "status", "kernels", "receipt"}`); GPU host only, wire it into the
+  GPU guard queue. `host/tools/gate-from-tests.py` turns those lines into the
+  `M2V_POLICY_FILE` `kernels` section (same format as tools/make-gate.py):
+  verified only when every test that dispatched the kernel passed and each
+  receipt exists without a FAIL line; failed when any test that dispatched it
+  failed (policy.rs Failed semantics: never translated again); unverified when
+  receipts are missing or carry a FAIL line. Unit tests for the script:
+  `host/tools/test-gate-from-tests.py` (6 cases: pass, fail, missing receipt,
+  FAIL line, shared kernel, clean receipt).
+- Kernel-trace/gate tests and the refusal-ledger tests run GPU-free on the CT.
+  The end-to-end refused-command-buffer path (Device + built .m2vlib) is
+  exercised only on a GPU host through the guard; on the CT the refusal flush
+  and commit-report branches are covered by the pure ledger/message tests.

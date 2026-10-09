@@ -21,7 +21,6 @@ use crate::protocols::{
     MTLComputePipelineState, MTLDevice, MTLEvent, MTLLibrary, MTLResidencySet, MTLSharedEvent,
 };
 use crate::types::*;
-use metal2vk::{Fallback, Route};
 use objc2::{NSObjectProtocol, ProtocolObject, Retained};
 
 // ---------------------------------------------------------------------------
@@ -32,6 +31,8 @@ pub struct DeviceShim {
     pub(crate) dev: Arc<metal2vk::Device>,
     pub(crate) name: String,
     pub(crate) gpu_core_count: u32,
+    pub(crate) subgroup_size: u32,
+    pub(crate) max_threads_per_threadgroup: u32,
     pub(crate) allocated: Arc<AtomicUsize>,
     main_queue: Mutex<Option<Arc<metal2vk::Queue>>>,
 }
@@ -133,6 +134,7 @@ unsafe impl MTLDevice for DeviceShim {
                     Arc::new(ProtocolObject::from_inner(CommandBufferShim {
                 slot: Arc::new(Mutex::new(Some(cmd))),
                 label: Mutex::new(None),
+                refused: Arc::new(Mutex::new(Refusals::default())),
             }));
                 let obj: Retained<ProtocolObject<dyn MTL4CommandBuffer>> = Retained::from_arc(arc);
             obj
@@ -144,6 +146,8 @@ unsafe impl MTLDevice for DeviceShim {
                                         let arc: Arc<ProtocolObject<dyn MTL4Compiler>> =
                     Arc::new(ProtocolObject::from_inner(CompilerShim {
                 dev: Arc::clone(&self.dev),
+                subgroup_size: self.subgroup_size,
+                max_threads_per_threadgroup: self.max_threads_per_threadgroup,
             }));
                 let obj: Retained<ProtocolObject<dyn MTL4Compiler>> = Retained::from_arc(arc);
             obj
@@ -190,6 +194,8 @@ static DEFAULT_DEVICE: LazyLock<Option<Retained<ProtocolObject<dyn MTLDevice>>>>
         dev,
         name,
         gpu_core_count: info.gpu_core_count,
+        subgroup_size: info.subgroup_size,
+        max_threads_per_threadgroup: info.max_threads_per_threadgroup,
         allocated: Arc::new(AtomicUsize::new(0)),
             main_queue: Mutex::new(None),
         }));
@@ -270,6 +276,9 @@ unsafe impl MTLLibrary for LibraryShim {
 
 pub struct PipelineShim {
     pub(crate) pipeline: Arc<metal2vk::Pipeline>,
+    pub(crate) kernel: String,
+    pub(crate) subgroup_size: u32,
+    pub(crate) max_threads_per_threadgroup: u32,
 }
 
 unsafe impl NSObjectProtocol for PipelineShim {}
@@ -279,8 +288,23 @@ unsafe impl MTLComputePipelineState for PipelineShim {
     fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
         default_device_handle()
     }
-    fn host_pipeline(&self) -> &Arc<metal2vk::Pipeline> {
-        &self.pipeline
+    fn kernel_name(&self) -> &str {
+        &self.kernel
+    }
+    fn pipeline_reason(&self) -> &str {
+        ""
+    }
+    fn host_pipeline(&self) -> Option<&Arc<metal2vk::Pipeline>> {
+        Some(&self.pipeline)
+    }
+    fn thread_execution_width(&self) -> usize {
+        self.subgroup_size as usize
+    }
+    fn max_total_threads_per_threadgroup(&self) -> usize {
+        self.max_threads_per_threadgroup as usize
+    }
+    fn static_threadgroup_memory_length(&self) -> usize {
+        0
     }
 }
 
@@ -373,6 +397,68 @@ unsafe impl MTL4CommandQueue for QueueShim {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Refusal ledger, refusal log, kernel trace
+// ---------------------------------------------------------------------------
+
+/// Kernels refused in one command buffer, in first-refusal order, deduplicated
+/// by name. Pure: unit-testable without a device.
+#[derive(Debug, Default)]
+pub struct Refusals {
+    pub(crate) entries: Vec<(String, String)>,
+}
+
+impl Refusals {
+    pub(crate) fn push(&mut self, kernel: &str, reason: &str) {
+        if !self.entries.iter().any(|(k, _)| k == kernel) {
+            self.entries.push((kernel.to_owned(), reason.to_owned()));
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
+    /// The commit error text naming every refused kernel in the buffer.
+    pub(crate) fn message(&self) -> String {
+        pipeline_refusal_message_from(&self.entries)
+    }
+}
+
+/// Policy-style refusal log: once per kernel per process, `m2v:` prefix
+/// (host/m2v-host/src/policy.rs conventions).
+pub(crate) fn log_refusal(kernel: &str, reason: &str) {
+    let mut seen = REFUSED_LOGGED.lock();
+    if seen.insert(kernel.to_owned()) {
+        eprintln!("m2v: kernel '{kernel}' refused at use: {reason}");
+    }
+}
+
+static REFUSED_LOGGED: LazyLock<Mutex<std::collections::HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+
+/// Opt-in kernel trace (`M2V_KERNEL_TRACE=<file>`): one `<kernel>` line per
+/// first dispatch in the process, plain text, appended. Read by
+/// `host/tools/gate-from-tests.py` via `host/tools/run-uzu-tests-traced.sh`.
+pub(crate) fn trace_kernel(kernel: &str) {
+    let path = match std::env::var("M2V_KERNEL_TRACE") {
+        Ok(p) if !p.is_empty() => p,
+        _ => return,
+    };
+    let mut seen = TRACED.lock();
+    if !seen.insert(kernel.to_owned()) {
+        return;
+    }
+    use std::io::Write;
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{kernel}");
+    }
+}
+
+static TRACED: LazyLock<Mutex<std::collections::HashSet<String>>> =
+    LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+
 // ---------------------------------------------------------------------------
 // Argument table
 // ---------------------------------------------------------------------------
@@ -425,6 +511,7 @@ pub(crate) fn argument_table_state(
 pub struct CommandBufferShim {
     pub(crate) slot: Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
     pub(crate) label: Mutex<Option<String>>,
+    pub(crate) refused: Arc<Mutex<Refusals>>,
 }
 
 unsafe impl NSObjectProtocol for CommandBufferShim {}
@@ -436,10 +523,13 @@ unsafe impl MTL4CommandBuffer for CommandBufferShim {
     fn begin_command_buffer_with_allocator(&self, _allocator: &ProtocolObject<dyn MTL4CommandAllocator>) {}
     fn end_command_buffer(&self) {}
     fn compute_command_encoder(&self) -> Option<Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>>> {
-        Some(encoder_for_slot(&self.slot))
+        Some(encoder_for_slot(&self.slot, Arc::clone(&self.refused)))
     }
     fn host_slot(&self) -> &Arc<Mutex<Option<metal2vk::CommandBuffer>>> {
         &self.slot
+    }
+    fn host_refused(&self) -> &Arc<Mutex<Refusals>> {
+        &self.refused
     }
     fn shim_label(&self) -> Option<String> {
         self.label.lock().clone()
@@ -452,6 +542,7 @@ unsafe impl MTL4CommandBuffer for CommandBufferShim {
 pub(crate) enum RecordedOp {
     Barrier,
     SetPipeline(Arc<metal2vk::Pipeline>),
+    SetRefusedPipeline { kernel: String, reason: String },
     SetThreadgroupLength { index: u32, bytes: u32 },
     Copy { src: Arc<metal2vk::Buffer>, src_offset: u64, dst: Arc<metal2vk::Buffer>, dst_offset: u64, size: u64 },
     Fill { dst: Arc<metal2vk::Buffer>, range: Range<u64>, value: u8 },
@@ -470,6 +561,8 @@ pub(crate) enum RecordedOp {
 pub struct ComputeEncoderShim {
     slot: Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
     ops: Mutex<Vec<RecordedOp>>,
+    refused: Arc<Mutex<Refusals>>,
+    current_kernel: Mutex<Option<String>>,
     flushed: AtomicBool,
 }
 
@@ -513,20 +606,33 @@ unsafe impl MTL4CommandEncoder for ComputeEncoderShim {
 
 unsafe impl MTL4ComputeCommandEncoder for ComputeEncoderShim {
     fn set_compute_pipeline_state(&self, state: &ProtocolObject<dyn MTLComputePipelineState>) {
-        self.record(RecordedOp::SetPipeline(Arc::clone(state.as_inner().host_pipeline())));
+        match state.as_inner().host_pipeline() {
+            Some(pipeline) => {
+                *self.current_kernel.lock() = Some(state.as_inner().kernel_name().to_owned());
+                self.record(RecordedOp::SetPipeline(Arc::clone(pipeline)));
+            },
+            None => {
+                // RefusedPipeline: keep uzu running, refuse at use.
+                let kernel = state.as_inner().kernel_name().to_owned();
+                let reason = state.as_inner().pipeline_reason().to_owned();
+                *self.current_kernel.lock() = Some(kernel.clone());
+                self.refused.lock().push(&kernel, &reason);
+                self.record(RecordedOp::SetRefusedPipeline { kernel, reason });
+            },
+        }
     }
     fn set_threadgroup_memory_length_at_index(&self, length: usize, index: usize) {
         self.record(RecordedOp::SetThreadgroupLength { index: index as u32, bytes: length as u32 });
     }
     fn dispatch_threads_threads_per_threadgroup(&self, threads_per_grid: MTLSize, threads_per_threadgroup: MTLSize) {
-        self.record(RecordedOp::DispatchThreads(size3(threads_per_grid), size3(threads_per_threadgroup)));
+        self.trace_and_record(RecordedOp::DispatchThreads(size3(threads_per_grid), size3(threads_per_threadgroup)));
     }
     fn dispatch_threadgroups_threads_per_threadgroup(
         &self,
         threadgroups_per_grid: MTLSize,
         threads_per_threadgroup: MTLSize,
     ) {
-        self.record(RecordedOp::DispatchThreadgroups(
+        self.trace_and_record(RecordedOp::DispatchThreadgroups(
             size3(threadgroups_per_grid),
             size3(threads_per_threadgroup),
         ));
@@ -536,7 +642,7 @@ unsafe impl MTL4ComputeCommandEncoder for ComputeEncoderShim {
         indirect_buffer: MTLGPUAddress,
         threads_per_threadgroup: MTLSize,
     ) {
-        self.record(RecordedOp::DispatchIndirect(indirect_buffer, size3(threads_per_threadgroup)));
+        self.trace_and_record(RecordedOp::DispatchIndirect(indirect_buffer, size3(threads_per_threadgroup)));
     }
     fn copy_from_buffer_source_offset_to_buffer_destination_offset_size(
         &self,
@@ -583,6 +689,16 @@ impl ComputeEncoderShim {
         self.ops.lock().push(op);
     }
 
+    /// Dispatches into a command buffer with a refused kernel never reach the
+    /// GPU (the flush skips recording); the kernel still counts as dispatched
+    /// for the opt-in kernel trace.
+    fn trace_and_record(&self, op: RecordedOp) {
+        if let Some(kernel) = self.current_kernel.lock().clone() {
+            trace_kernel(&kernel);
+        }
+        self.record(op);
+    }
+
     fn end_encoding_impl(&self) {
         if !self.flushed.swap(true, Ordering::AcqRel) {
             self.flush();
@@ -590,12 +706,19 @@ impl ComputeEncoderShim {
     }
 
     fn flush(&self) {
+        if !self.refused.lock().is_empty() {
+            // Nothing was recorded: leave the command buffer fresh in its slot
+            // (released, reusable, no GPU work) and let the commit report the
+            // refusals through the completion callback.
+            return;
+        }
         let cmd = self.slot.lock().take().expect("m2v-host: command buffer already consumed");
         let mut encoder = cmd.begin().unwrap_or_else(|e| encode_failed("begin", e));
         let mut table: Option<Arc<Mutex<TableState>>> = None;
         for op in self.ops.lock().drain(..) {
             match op {
                 RecordedOp::Barrier => encoder.barrier().unwrap_or_else(|e| encode_failed("barrier", e)),
+                RecordedOp::SetRefusedPipeline { .. } => {}
                 RecordedOp::SetPipeline(pipeline) => {
                     encoder.set_pipeline(&pipeline).unwrap_or_else(|e| encode_failed("set_pipeline", e))
                 },
@@ -664,12 +787,15 @@ fn encode_failed(what: &str, error: metal2vk::Error) -> ! {
 
 pub(crate) fn encoder_for_slot(
     slot: &Arc<Mutex<Option<metal2vk::CommandBuffer>>>,
+    refused: Arc<Mutex<Refusals>>,
 ) -> Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>> {
     {
                                     let arc: Arc<ProtocolObject<dyn MTL4ComputeCommandEncoder>> =
                     Arc::new(ProtocolObject::from_inner(ComputeEncoderShim {
             slot: Arc::clone(slot),
             ops: Mutex::new(Vec::new()),
+            refused,
+            current_kernel: Mutex::new(None),
             flushed: AtomicBool::new(false),
         }));
                 let obj: Retained<ProtocolObject<dyn MTL4ComputeCommandEncoder>> = Retained::from_arc(arc);
@@ -681,6 +807,18 @@ pub(crate) fn encoder_for_slot(
 // Queue commit / feedback
 // ---------------------------------------------------------------------------
 
+
+/// The commit error text for a set of refused (kernel, reason) entries.
+pub(crate) fn pipeline_refusal_message_from(entries: &[(String, String)]) -> String {
+    let names: Vec<&str> = entries.iter().map(|(k, _)| k.as_str()).collect();
+    let details: Vec<String> = entries.iter().map(|(k, r)| format!("  {k}: {r}")).collect();
+    format!(
+        "refused kernel(s) in this command buffer: {}; refusing at use:\n{}",
+        names.join(", "),
+        details.join("\n")
+    )
+}
+
 pub(crate) fn queue_commit(
     queue: &Arc<metal2vk::Queue>,
     command_buffers: &[&ProtocolObject<dyn MTL4CommandBuffer>],
@@ -691,6 +829,17 @@ pub(crate) fn queue_commit(
         .iter()
         .map(|guard| guard.as_ref().expect("m2v-host: committing a command buffer that is still encoding"))
         .collect();
+    // The gate at commit time: a command buffer that encoded a refused kernel
+    // is not submitted; the completion reports Error::Refused naming every
+    // refused kernel. The buffers stay released and reusable (no hang, no leak).
+    let refusals: Vec<(String, String)> = command_buffers
+        .iter()
+        .map(|c| {
+            let ledger = c.as_inner().host_refused().lock();
+            ledger.entries.clone()
+        })
+        .collect::<Vec<_>>()
+        .concat();
     let handlers = options.handlers.lock().clone();
     let on_complete: Option<Box<dyn FnOnce(metal2vk::Completion) + Send>> = if handlers.is_empty() {
         None
@@ -703,6 +852,19 @@ pub(crate) fn queue_commit(
             }
         }))
     };
+    if !refusals.is_empty() {
+        let names: Vec<&str> = refusals.iter().map(|(k, _)| k.as_str()).collect();
+        let details: Vec<String> = refusals.iter().map(|(k, r)| format!("  {k}: {r}")).collect();
+        let message = pipeline_refusal_message_from(&refusals);
+        if let Some(on_complete) = on_complete {
+            on_complete(metal2vk::Completion {
+                error: Some(metal2vk::Error::Refused(message)),
+                gpu_start_ns: 0,
+                gpu_end_ns: 0,
+            });
+        }
+        return;
+    }
     queue.submit(&refs, on_complete).expect("m2v-host: submit failed");
 }
 
@@ -724,12 +886,82 @@ unsafe impl MTL4CommitFeedback for FeedbackShim {
     }
 }
 
+
+/// Stand-in pipeline for a kernel the gate refuses. Carries the kernel name and
+/// the refusal reason; the launch-maths accessors answer with device values
+/// (subgroup size, max threadgroup threads; no static threadgroup memory) so
+/// uzu's size computations stay valid. Encoding it dispatches nothing: the
+/// encoder collects the refusal and the commit reports it.
+pub struct RefusedPipeline {
+    pub(crate) kernel: String,
+    pub(crate) reason: String,
+    pub(crate) thread_execution_width: usize,
+    pub(crate) max_total_threads_per_threadgroup: usize,
+    pub(crate) static_threadgroup_memory_length: usize,
+}
+
+unsafe impl NSObjectProtocol for RefusedPipeline {}
+unsafe impl MTLAllocation for RefusedPipeline {}
+
+
+impl RefusedPipeline {
+    /// Pure constructor for tests and callers without a device.
+    pub fn new(
+        kernel: &str,
+        reason: &str,
+        thread_execution_width: usize,
+        max_total_threads_per_threadgroup: usize,
+    ) -> Self {
+        Self {
+            kernel: kernel.to_owned(),
+            reason: reason.to_owned(),
+            thread_execution_width,
+            max_total_threads_per_threadgroup,
+            static_threadgroup_memory_length: 0,
+        }
+    }
+
+    pub fn kernel(&self) -> &str {
+        &self.kernel
+    }
+
+    pub fn reason(&self) -> &str {
+        &self.reason
+    }
+}
+
+unsafe impl MTLComputePipelineState for RefusedPipeline {
+    fn device(&self) -> Retained<ProtocolObject<dyn MTLDevice>> {
+        default_device_handle()
+    }
+    fn kernel_name(&self) -> &str {
+        &self.kernel
+    }
+    fn pipeline_reason(&self) -> &str {
+        &self.reason
+    }
+    fn host_pipeline(&self) -> Option<&Arc<metal2vk::Pipeline>> {
+        None
+    }
+    fn thread_execution_width(&self) -> usize {
+        self.thread_execution_width
+    }
+    fn max_total_threads_per_threadgroup(&self) -> usize {
+        self.max_total_threads_per_threadgroup
+    }
+    fn static_threadgroup_memory_length(&self) -> usize {
+        self.static_threadgroup_memory_length
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Compiler
 // ---------------------------------------------------------------------------
 
 pub struct CompilerShim {
     pub(crate) dev: Arc<metal2vk::Device>,
+    pub(crate) subgroup_size: u32,
+    pub(crate) max_threads_per_threadgroup: u32,
 }
 
 unsafe impl NSObjectProtocol for CompilerShim {}
@@ -766,14 +998,52 @@ unsafe impl MTL4Compiler for CompilerShim {
         };
         // The gate: ask the policy how this kernel is routed before creating a
         // pipeline. See host/DESIGN.md "Untranslated and unverified kernels".
-        if let Some(error) = pipeline_gate_error(self.dev.route_kernel(library.host_library(), name), name) {
-            return Err(error);
+        // Lazy mode: uzu must START, so any non-Translated route hands back a
+        // RefusedPipeline. It satisfies uzu's launch maths with device values and
+        // refuses at use: encoding it dispatches nothing, and the commit reports
+        // Error::Refused naming every refused kernel in that command buffer.
+        // TranslatedChecked is refused at use too: no reference runner exists in
+        // uzu, so the kernel is never run unchecked. There is no bypass flag.
+        // See host/DESIGN.md "Untranslated and unverified kernels".
+        let route = self.dev.route_kernel(library.host_library(), name);
+        if !matches!(&route, Ok(crate::Route::Translated)) {
+            let (kernel, reason) = match route {
+                Ok(crate::Route::TranslatedChecked { reference }) => (
+                    name,
+                    format!(
+                        "kernel '{name}' needs a first-use check against reference {reference:?}; \
+                         no reference runner exists in uzu, so it is refused at use"
+                    ),
+                ),
+                Ok(crate::Route::Fallback(fb)) => (
+                    name,
+                    format!("kernel '{name}' is routed to fallback {fb:?}; refusing at use"),
+                ),
+                Err(error) => (name, error.to_string()),
+                Ok(crate::Route::Translated) => unreachable!("excluded by the match above"),
+            };
+            crate::shim::log_refusal(&kernel, &reason);
+            return Ok({
+                let arc: Arc<ProtocolObject<dyn MTLComputePipelineState>> = Arc::new(ProtocolObject::from_inner(
+                    RefusedPipeline {
+                        kernel: kernel.to_owned(),
+                        reason,
+                        thread_execution_width: self.subgroup_size as usize,
+                        max_total_threads_per_threadgroup: self.max_threads_per_threadgroup as usize,
+                        static_threadgroup_memory_length: 0,
+                    },
+                ));
+                Retained::from_arc(arc)
+            });
         }
         let pipeline = self.dev.create_pipeline(library.host_library(), name, &constants)?;
         Ok({
                                         let arc: Arc<ProtocolObject<dyn MTLComputePipelineState>> =
                     Arc::new(ProtocolObject::from_inner(PipelineShim {
                 pipeline,
+                kernel: name.to_owned(),
+                subgroup_size: self.subgroup_size,
+                max_threads_per_threadgroup: self.max_threads_per_threadgroup,
             }));
                 let obj: Retained<ProtocolObject<dyn MTLComputePipelineState>> = Retained::from_arc(arc);
             obj
@@ -858,82 +1128,63 @@ pub(crate) fn size3(size: MTLSize) -> [u32; 3] {
     [size.width as u32, size.height as u32, size.depth as u32]
 }
 
-/// Map a [`Route`] (or a routing error) to the `MetalError` the compat layer
-/// reports for a compute pipeline, or `None` when the translated kernel may be
-/// created. Pure: no device, no GPU.
-pub fn pipeline_gate_error(route: Result<Route, metal2vk::Error>, name: &str) -> Option<MetalError> {
-    match route {
-        // Trusted: create the translated pipeline.
-        Ok(Route::Translated) => None,
-        // The compat layer has no reference runner; an unchecked kernel is never
-        // silently run. The host side (or the C ABI caller) runs the check.
-        Ok(Route::TranslatedChecked { reference }) => Some(MetalError::new(format!(
-            "kernel '{name}' needs a first-use check against reference {reference:?}; \
-             the compat layer cannot run reference kernels, run the check host-side"
-        ))),
-        // uzu sees MetalError::CannotCreatePipelineState { function_name, error } via
-        // CompilerPipelineExtensions, then the kernel `new` and `MetalKernels::new`
-        // fail, so `select_backend` reports metal-backend startup failure; uzu's own
-        // kernel-selection/CPU path is `UZU_BACKEND=cpu` (or a build without metal).
-        Ok(Route::Fallback(fb)) => Some(MetalError::new(format!(
-            "kernel '{name}' is routed to fallback {fb:?}; no translated pipeline is \
-             created so the kernel-selection/CPU-backend path can take over"
-        ))),
-        // The policy refused: surface its Display text verbatim ("refused: ...").
-        Err(error) => Some(MetalError::new(error.to_string())),
-    }
-}
+
 
 #[cfg(test)]
-mod gate_tests {
-    use super::pipeline_gate_error;
-    use metal2vk::{Error, Fallback, Route};
+mod lazy_tests {
+    use super::{log_refusal, pipeline_refusal_message_from, trace_kernel, RefusedPipeline, Refusals};
+    use crate::protocols::MTLComputePipelineState;
+    use objc2::ProtocolObject;
 
     #[test]
-    fn translated_route_creates_the_pipeline() {
-        assert!(pipeline_gate_error(Ok(Route::Translated), "add").is_none());
+    fn refused_pipeline_keeps_launch_maths_valid() {
+        let p = RefusedPipeline::new("add", "kernel 'add' is routed to fallback", 32, 1024);
+        assert_eq!(MTLComputePipelineState::kernel_name(&p), "add");
+        assert_eq!(p.thread_execution_width(), 32);
+        assert_eq!(p.max_total_threads_per_threadgroup(), 1024);
+        assert_eq!(p.static_threadgroup_memory_length(), 0);
+        assert!(MTLComputePipelineState::pipeline_reason(&p).contains("routed to fallback"));
     }
 
     #[test]
-    fn checked_route_names_kernel_and_reference() {
-        let error = pipeline_gate_error(
-            Ok(Route::TranslatedChecked { reference: Fallback::Cpu("add_cpu".into()) }),
-            "add",
-        )
-        .expect("checked route must fail in the compat layer");
-        let text = error.to_string();
-        assert!(text.contains("'add'"), "names the kernel: {text}");
-        assert!(text.contains("add_cpu"), "names the reference: {text}");
-        assert!(text.contains("first-use check"), "says why: {text}");
+    fn refusal_ledger_dedupes_by_kernel_and_names_all() {
+        let mut r = Refusals::default();
+        r.push("add", "fallback Hand(\"add_hand\")");
+        r.push("softmax", "translated but not verified");
+        r.push("add", "fallback Hand(\"add_hand\")");
+        assert_eq!(r.entries.len(), 2);
+        let message = pipeline_refusal_message_from(&r.entries);
+        assert!(message.contains("add, softmax"), "names all refused kernels: {message}");
+        assert!(message.contains("refused kernel(s) in this command buffer"));
     }
 
     #[test]
-    fn hand_fallback_names_kernel_and_route() {
-        let error =
-            pipeline_gate_error(Ok(Route::Fallback(Fallback::Hand("add_hand".into()))), "add")
-                .expect("hand fallback must fail in the compat layer");
-        let text = error.to_string();
-        assert!(text.contains("'add'"), "names the kernel: {text}");
-        assert!(text.contains("add_hand"), "names the hand kernel: {text}");
-        assert!(text.contains("fallback"), "says fallback: {text}");
+    fn empty_ledger_reports_nothing() {
+        let r = Refusals::default();
+        assert!(r.is_empty());
+        assert_eq!(r.entries.len(), 0);
     }
 
     #[test]
-    fn cpu_fallback_names_kernel_and_route() {
-        let error = pipeline_gate_error(
-            Ok(Route::Fallback(Fallback::Cpu("add_cpu".into()))),
-            "add_offset",
-        )
-        .expect("cpu fallback must fail in the compat layer");
-        let text = error.to_string();
-        assert!(text.contains("'add_offset'"), "names the kernel: {text}");
-        assert!(text.contains("add_cpu"), "names the cpu reference: {text}");
+    fn refusal_log_is_once_per_kernel() {
+        // no panic; the once-per-process set just grows
+        log_refusal("log_test_kernel", "reason");
+        log_refusal("log_test_kernel", "reason");
     }
 
     #[test]
-    fn refused_error_text_is_verbatim() {
-        let refused = Err(Error::Refused("kernel 'add' has no fallback".into()));
-        let error = pipeline_gate_error(refused, "add").expect("refused must fail");
-        assert_eq!(error.to_string(), "refused: kernel 'add' has no fallback");
+    fn kernel_trace_appends_one_line_per_kernel() {
+        let dir = std::env::temp_dir().join(format!("m2v-trace-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("trace.txt");
+        std::env::set_var("M2V_KERNEL_TRACE", &path);
+        trace_kernel("add");
+        trace_kernel("add");
+        trace_kernel("softmax");
+        let content = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = content.lines().collect();
+        assert_eq!(lines, vec!["add", "softmax"]);
+        std::env::remove_var("M2V_KERNEL_TRACE");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }
