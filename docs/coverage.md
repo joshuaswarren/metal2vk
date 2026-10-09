@@ -2,7 +2,7 @@
 
 Goal: every uzu and TensorFold Zig kernel produces valid Vulkan SPIR-V, then runs and matches a reference.
 
-Measured with `sweep/m2v_sweep.py` on the typed-GEP route (clang 19, opt 19, clspv f2b01dd6 plus the cooperative matrix patch), 609 entry
+Measured with `sweep/m2v_sweep.py` on the typed-GEP route (clang 23, opt 23, clspv f2b01dd6 plus the cooperative matrix patch), 609 entry
 points (uzu 121, TensorFold Zig 488). CI runs the same sweep on every PR and fails when an entry in `sweep/coverage-floor.txt` loses its valid
 module; raise the floor with `sweep/check_coverage.py RESULT.json --update` in the PR that gains entries.
 
