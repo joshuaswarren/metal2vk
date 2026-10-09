@@ -351,9 +351,9 @@ tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	ok	ok			?	?
 tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
 tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
 tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	FAIL						?	?	redefinition of 'X'
-tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
+tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
+tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
 tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_b6_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			?	?	
