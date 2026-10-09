@@ -30,5 +30,12 @@ python3 sweep/m2v_sweep_run.py OUT/run1.json OUT m2v-run OUT/run   # one dispatc
 The driver's docstring describes how entry points are found (TensorFold's attribute style with `host_name` template instantiations,
 uzu's DSL) and how a Metal entry becomes an OpenCL kernel.
 
+Between the front end and clspv the driver runs two IR text passes, each a no-op on modules they do not apply to:
+`sweep/bfloat_to_i16.py` retypes the shim's bfloat to i16 and widens the arithmetic, including the `-inf` / `nan` /
+bare-integer-constant spellings clang 23 emits; `sweep/flatten_single_member_structs.py` rewrites single-member
+vector-wrapper structs (the simdgroup_matrix shape) into the member type, which clspv needs for dynamic-index arrays
+of matrices. `sweep/tests/run.py` is the self-check for both (CI runs it with clspv, so a regression in a pass fails
+the build).
+
 CI (`.github/workflows/sweep.yml`) runs the compile stages on every PR and fails when an entry listed in `coverage-floor.txt` no longer has valid
 SPIR-V (`check_coverage.py`). `docs/coverage.md` is the burn-down by failure class.
