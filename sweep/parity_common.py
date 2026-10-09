@@ -37,6 +37,10 @@ TOL = {"bf16": 1e-2, "f32": 1e-5, "f16": 1e-3}
 
 def bf16_round(x):
     """float32 array -> bfloat16 bit patterns (uint16), round-to-nearest-even."""
+    if not isinstance(x, np.ndarray):
+        raise TypeError(
+            f"bf16_round needs a plain np.ndarray of float32, got {type(x)!r}; "
+            "input generation must stay numpy-side")
     u = np.ascontiguousarray(x, dtype=np.float32).view(np.uint32)
     return ((u + 0x7FFF + ((u >> 16) & 1)) >> 16).astype(np.uint16)
 
@@ -377,6 +381,14 @@ BY_NAME = {k["name"]: k for k in KERNELS}
 # ---------------------------------------------------------------------------
 def gen_input(kname, idx, spec, seed):
     """-> uint8 buffer bytes for one input per its table spec."""
+    try:
+        return _gen_input(kname, idx, spec, seed)
+    except Exception as e:
+        raise RuntimeError(f"{kname} input {idx} ({spec[0]}): generation "
+                           f"failed for {spec[3]!r}") from e
+
+
+def _gen_input(kname, idx, spec, seed):
     name, code, shape, gen = spec
     n = int(np.prod(shape))
     dt, npdt = DTYPES[code]
@@ -391,21 +403,22 @@ def gen_input(kname, idx, spec, seed):
         return rng.integers(0, int(gen[4:]), n, dtype=np.uint32).tobytes()
     if gen.startswith("c:["):
         vals = [v.strip() for v in gen[3:-1].split(",")]
-        arr = np.array([float(v) for v in vals])
+        arr = np.asarray([float(v) for v in vals], dtype=np.float64)
         if npdt is None:
             return bf16_round(arr).tobytes()
         return arr.astype(npdt).tobytes()
     # "rand": uniform [-1, 1)
     if npdt is None:
         return bf16_uniform(rng, n, gen).tobytes()
-    return rng.uniform(-1.0, 1.0, n).astype(npdt).tobytes()
+    return np.asarray(rng.uniform(-1.0, 1.0, n), dtype=npdt).tobytes()
 
 
 def bf16_uniform(rng, n, gen):
-    x = rng.uniform(-1.0, 1.0, n)
+    x = np.asarray(rng.uniform(-1.0, 1.0, n), dtype=np.float32)
     if gen == "logi":
         # keep the folded top-k inside the small expert pool
-        x = np.concatenate([x[:4], np.full(max(0, n - 4), -1000.0)])
+        x = np.asarray(np.concatenate([x[:4], np.full(max(0, n - 4), -1000.0)]),
+                       dtype=np.float32)
     return bf16_round(x)
 
 

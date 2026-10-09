@@ -25,10 +25,13 @@ without any mlx import: the three assemblers re-run into a temp dir (their
 .metal output must be byte-identical to the artifacts) and every table entry
 must match the recorded build() call and the .launch file.
 """
+import argparse
+import hashlib
 import json
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -50,15 +53,37 @@ MAX_SUBMIT_S = 5.0
 # assembler recording (shared by --check-assemblers and the real run)
 # ---------------------------------------------------------------------------
 def record_builds(artifacts):
-    """Re-run the three assemblers in a temp dir with build() recorded.
-    -> ({kernel name: record}, {lane: {msl file name: bytes}})."""
+    """Re-run the three assemblers with build() recorded, in an isolated
+    subprocess. The assemblers install import stubs (mlx, numpy, ...) at
+    module scope and leave them behind: in-process, every later
+    `import mlx.core` in this process returns the stub instead of the wheel.
+    -> ({kernel name: record}, {lane: {msl file name: sha256}})."""
+    out = pathlib.Path(tempfile.mkstemp(prefix="parity-records-", suffix=".json")[1])
+    try:
+        r = subprocess.run(
+            [sys.executable, str(pathlib.Path(__file__).resolve()),
+             "--record-builds", "--artifacts", str(artifacts), "--records", str(out)],
+            capture_output=True, text=True, timeout=600)
+        if r.returncode:
+            raise SystemExit("assembler recording failed:\n" + r.stderr.strip()[-2000:])
+        payload = json.loads(out.read_text())
+    finally:
+        out.unlink(missing_ok=True)
+    return payload["records"], payload["shas"]
+
+
+def record_builds_inprocess(artifacts, records_out):
+    """Child of record_builds: runs in this file's interpreter with the
+    assembler import stubs confined here; writes records and rebuilt-file
+    sha256s as JSON."""
+    import hashlib
     import importlib.util
 
-    records, rebuilt = {}, {}
+    records, shas = {}, {}
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="parity-assemblers-"))
     try:
         for lane, modname in LANES:
-            src = artifacts / lane
+            src = pathlib.Path(artifacts) / lane
             dst = tmp / lane
             dst.mkdir(parents=True)
             for py in src.glob("*.py"):
@@ -87,10 +112,11 @@ def record_builds(artifacts):
             mod.build = recorded
             mod.main()
             mod.build = real_build
-            rebuilt[lane] = {p.name: p.read_bytes() for p in (dst / "msl").glob("*")}
+            shas[lane] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                          for p in (dst / "msl").glob("*")}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    return records, rebuilt
+    records_out.write_text(json.dumps(dict(records=records, shas=shas)))
 
 
 def rendered(value):
@@ -149,7 +175,8 @@ def check_table(kernels, records, rebuilt, artifacts):
             raise SystemExit(f"{k['name']}: threads {rec['threads']} != table {k['tg']}")
         metal = f"{k['name']}.metal"
         art = pathlib.Path(artifacts) / rec["lane"] / "msl" / metal
-        if rebuilt[rec["lane"]].get(metal) != art.read_bytes():
+        rebuilt_sha = rebuilt[rec["lane"]].get(metal)
+        if rebuilt_sha != hashlib.sha256(art.read_bytes()).hexdigest():
             raise SystemExit(f"{k['name']}: rebuilt {metal} differs from the artifact")
         launch = art.with_suffix(".launch")
         g = launch.read_text().split()
@@ -290,12 +317,37 @@ def run_fake(kernels, outdir, seed):
          for k in kernels], indent=1))
 
 
+def check_generation(kernels, seed):
+    """Generate every input of every kernel: catches non-ndarray leaks and
+    shape errors without any dispatch."""
+    n = 0
+    for kern in kernels:
+        for i, spec in enumerate(kern["inputs"]):
+            data = pc.gen_input(kern["name"], i, spec, seed)
+            want = int(np.prod(spec[2])) * pc.DTYPES[spec[1]][0]
+            if not isinstance(data, bytes) or len(data) != want:
+                raise SystemExit(f"{kern['name']} input {spec[0]}: "
+                                 f"{type(data).__name__} of {len(data)} bytes, "
+                                 f"expected {want}")
+            n += 1
+    print(f"generation check ok: {n} input buffers over {len(kernels)} kernels")
+
+
 def main():
-    ap = __import__("argparse").ArgumentParser()
+    ap = argparse.ArgumentParser()
     ap.add_argument("--check-assemblers", action="store_true",
                     help="validate the table against the artifacts, then exit")
     ap.add_argument("--artifacts", default=os.environ.get("PARITY_ARTIFACTS", ""))
+    ap.add_argument("--record-builds", action="store_true",
+                    help=argparse.SUPPRESS)  # child of record_builds()
+    ap.add_argument("--records", default="")
     a = ap.parse_args()
+
+    if a.record_builds:
+        if not (a.artifacts and a.records):
+            raise SystemExit("--record-builds needs --artifacts and --records")
+        record_builds_inprocess(a.artifacts, pathlib.Path(a.records))
+        return
 
     outdir = pc.env_path("PARITY_OUT", "./parity-mlx-out")
     seed = int(os.environ.get("PARITY_SEED", "1234"))
@@ -307,10 +359,12 @@ def main():
             raise SystemExit("--check-assemblers needs --artifacts / PARITY_ARTIFACTS")
         records, rebuilt = record_builds(pathlib.Path(a.artifacts))
         check_table(pc.KERNELS, records, rebuilt, pathlib.Path(a.artifacts))
+        check_generation(pc.KERNELS, seed)
         return
 
     if os.environ.get("PARITY_FAKE") == "1":
         outdir.mkdir(parents=True, exist_ok=True)
+        check_generation(kernels, seed)
         run_fake(kernels, outdir, seed)
         return
 

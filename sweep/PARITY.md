@@ -49,9 +49,13 @@ pool (the pool is small so parity buffers stay small; the addressing math is
 identical), scalars/strides/params as exact constants matching the geometry.
 
 `parity_mlx.py --check-assemblers --artifacts DIR` validates the table against
-the artifacts with no mlx import: the three assemblers re-run into a temp dir,
-their `.metal` output must be byte-identical to the artifacts, and every
-table entry must match the recorded `build()` call and the `.launch` file.
+the artifacts with no mlx import: the three assemblers re-run into a temp dir
+(in an isolated subprocess, since they install module import stubs that would
+otherwise poison this process's later `import mlx.core`), their `.metal`
+output must be byte-identical to the artifacts, every table entry must match
+the recorded build() call and the `.launch` file, and every input of every
+kernel must generate as plain numpy bytes (generation stays numpy-side; the
+check runs in the fake mode too).
 
 ## Comparison and statuses
 
