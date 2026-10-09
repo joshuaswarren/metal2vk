@@ -50,6 +50,13 @@ jobs:
           git clone -q https://github.com/trymirai/uzu && git -C uzu checkout -q "$UZU_SHA"
           git clone -q --filter=blob:none https://github.com/ashhart/TensorFold && git -C TensorFold checkout -q "$TF_SHA"
 
+      - name: IR pass self-checks
+        env:
+          CLANG: clang-23
+          OPT: opt-23
+          CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
+        run: python3 sweep/tests/run.py
+
       - name: Sweep
         env:
           UZU_ROOT: ${{ github.workspace }}/uzu
