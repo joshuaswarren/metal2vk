@@ -107,6 +107,45 @@ template <typename T> METAL_FUNC T quad_min(T x) {
   return min(y, simd_shuffle_xor(y, (ushort)2));
 }
 
+// ---- simdgroup_load / simdgroup_store (Metal 3): the Apple 8x8 fragment layout over any device or threadgroup pointer ----
+template <typename T, typename P> METAL_FUNC void simdgroup_load(simdgroup_matrix<T, 8, 8>& dst, P src, size_t ld) {
+  const uint lane = get_sub_group_local_id();
+  const int r = m2v_row(lane), c = m2v_col(lane);
+  dst.el[0] = T(src[(size_t)r * ld + c]);
+  dst.el[1] = T(src[(size_t)r * ld + c + 1]);
+}
+// origin is (column, row) offsets in elements; transpose loads the transposed tile (dst(r, c) = src(c, r)).
+template <typename T, typename P>
+METAL_FUNC void simdgroup_load(simdgroup_matrix<T, 8, 8>& dst, P src, size_t ld, ulong2 origin, bool transpose) {
+  const uint lane = get_sub_group_local_id();
+  const int r = m2v_row(lane), c = m2v_col(lane);
+  if (transpose) {
+    dst.el[0] = T(src[(origin.y + c) * ld + origin.x + r]);
+    dst.el[1] = T(src[(origin.y + c + 1) * ld + origin.x + r]);
+  } else {
+    dst.el[0] = T(src[(origin.y + r) * ld + origin.x + c]);
+    dst.el[1] = T(src[(origin.y + r) * ld + origin.x + c + 1]);
+  }
+}
+template <typename T, typename P> METAL_FUNC void simdgroup_store(const simdgroup_matrix<T, 8, 8>& src, P dst, size_t ld) {
+  const uint lane = get_sub_group_local_id();
+  const int r = m2v_row(lane), c = m2v_col(lane);
+  dst[(size_t)r * ld + c] = src.el[0];
+  dst[(size_t)r * ld + c + 1] = src.el[1];
+}
+template <typename T, typename P>
+METAL_FUNC void simdgroup_store(const simdgroup_matrix<T, 8, 8>& src, P dst, size_t ld, ulong2 origin, bool transpose) {
+  const uint lane = get_sub_group_local_id();
+  const int r = m2v_row(lane), c = m2v_col(lane);
+  if (transpose) {
+    dst[(origin.y + c) * ld + origin.x + r] = src.el[0];
+    dst[(origin.y + c + 1) * ld + origin.x + r] = src.el[1];
+  } else {
+    dst[(origin.y + r) * ld + origin.x + c] = src.el[0];
+    dst[(origin.y + r) * ld + origin.x + c + 1] = src.el[1];
+  }
+}
+
 // ---- fast:: and precise:: math on vectors ----
 #define M2V_FAST_VEC(NAME, SCALAR)                                                                                     \
   namespace fast {                                                                                                     \
