@@ -12,7 +12,11 @@ rng = np.random.default_rng(7)
 res = {}
 
 
-LOCAL = {"activation": "256 1 1", "softmax": "256 1 1", "tile_matmul": "32 1 1"}
+LOCAL = {"activation": "256 1 1", "softmax": "256 1 1", "tile_matmul": "32 1 1", "gemm_f32_t8x": "32 1 1", "gemm_f32_t32x": "32 2 2",
+         "gemm_f32_t64x": "32 2 2"}
+
+
+_SEEN = set()
 
 
 def run(spv, entry, grid, bufs, push=None, iters=1, dump=None):
@@ -27,6 +31,10 @@ def run(spv, entry, grid, bufs, push=None, iters=1, dump=None):
     if dump:
         cmd += ["--dump", dump]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    if os.environ.get("M2V_STDERR_FILE") and entry not in _SEEN:
+        _SEEN.add(entry)
+        with open(os.environ["M2V_STDERR_FILE"], "a") as f:
+            f.write(f"=== {entry} grid={grid}\n{r.stderr}\n")
     if r.returncode:
         return None, r.stderr.strip()[-400:]
     line = [l for l in r.stdout.splitlines() if l.startswith("iters=")][0]
@@ -99,6 +107,64 @@ for case in cases:
                 err = float(np.max(np.abs(got - ref)))
                 res[f"softmax_{dt}"] = {"rows": rows, "cols": cols, "max_abs_err": err, "tol": tol, "ok": bool(err < tol), "us": t,
                                        "info": info, "GBps": (None if t is None else 2 * rows * cols * np.dtype(npdt).itemsize / (t * 1e3))}
+        elif case == "gemm":
+            # uzu Gemm (cases/gemm.cl), f32, transposed B (B is [N, K]); entry from M2V_GEMM_ENTRY (default the 64x64x32 tiling), sizes from M2V_SIZES
+            entry = os.environ.get("M2V_GEMM_ENTRY", "gemm_f32_t64x64x32")
+            bm, bn, bk = [int(x) for x in entry.split("_t")[1].split("x")]
+            for M in [int(x) for x in os.environ.get("M2V_SIZES", "256,1024").split(",")]:
+                N = K = M
+                A = rng.standard_normal((M, K)).astype(np.float32)
+                B = rng.standard_normal((N, K)).astype(np.float32)
+                tpc, tpr = (M + bm - 1) // bm, (N + bn - 1) // bn
+                params = struct.pack("<13I?3xf", M, N, K, K, K, 0, 0, 0, 0, N, tpc, tpr, K // bk, False, 1.0)
+                dummy = np.zeros(4, np.uint32)
+                refl = json.load(open(os.path.join(spvdir, "gemm.json")))
+                kern = next(k for k in refl["kernels"] if k["name"] == entry)
+                # argument ordinals of Gemm: 0 a, 1 b, 2 d, 3 scales, 4 biases, 5 zero_points, 6 output_bias, 7 rht_factors, 8 a_int8,
+                # 9 a_scales, 10 a_group_sums, 11 params, 12 counts, 13 transform_bits, 14 alignment_bits
+                files = {0: w("gm_a.bin", A), 1: w("gm_b.bin", B), 2: w("gm_c.bin", np.zeros((M, N), np.float32)),
+                         11: w("gm_params.bin", np.frombuffer(params.ljust(64, b"\0"), np.uint8)),
+                         12: w("gm_counts.bin", np.array([tpr, tpc, 1], np.uint32))}
+                binds = sorted((a for a in kern["args"] if a["kind"] in ("storage_buffer", "uniform_buffer")), key=lambda a: a["binding"])
+                bufs = [files.get(a["ordinal"]) or w(f"gm_dummy{a['ordinal']}.bin", dummy) for a in binds]
+                c_index = next(i for i, a in enumerate(binds) if a["ordinal"] == 2)
+                pods = {13: 0, 14: 0}  # transform_bits, alignment_bits
+                regions = refl.get("push_constant_regions", {})
+                size = max([r["offset"] + r["size"] for r in regions.values()] + [a["offset"] + a["size"] for a in kern["args"] if a["kind"] == "pod_push_constant"])
+                push_buf = bytearray(size)
+                if "PushConstantNumWorkgroups" in regions:
+                    o = regions["PushConstantNumWorkgroups"]["offset"]
+                    push_buf[o:o + 12] = struct.pack("<3I", tpr, tpc, 1)
+                for a in kern["args"]:
+                    if a["kind"] == "pod_push_constant":
+                        push_buf[a["offset"]:a["offset"] + 4] = struct.pack("<I", pods[a["ordinal"]])
+                push = bytes(push_buf)
+                grid = (tpr, tpc, 1)
+                t, info = timed(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push)
+                run(os.path.join(spvdir, "gemm.spv"), entry, grid, bufs, push, 1, dump=f"{c_index}:{os.path.join(out, 'gm_res.bin')}")
+                got = np.fromfile(os.path.join(out, "gm_res.bin"), np.float32).reshape(M, N).astype(np.float64)
+                ref = A.astype(np.float64) @ B.astype(np.float64).T
+                err = float(np.max(np.abs(got - ref)) / (np.max(np.abs(ref)) + 1e-9))
+                res[f"{entry}_{M}"] = {"M": M, "max_rel_err": err, "tol": 1e-5, "ok": bool(err < 1e-5), "us": t, "info": info,
+                                       "GFLOPs": (None if t is None else 2.0 * M * N * K / (t * 1e3))}
+        elif case == "tilematmul_rt":
+            # register-tiled variants: one subgroup owns an MR x NR block of 8x8 tiles (cases/tilematmul_rt.cl)
+            for name, mr, nr in (("tile_matmul_rt2x2_f32", 2, 2), ("tile_matmul_rt4x2_f32", 4, 2), ("tile_matmul_rt4x4_f32", 4, 4)):
+                for M in [int(x) for x in os.environ.get("M2V_SIZES", "256,1024").split(",")]:
+                    N = K = M
+                    A = rng.standard_normal((M, K)).astype(np.float32)
+                    B = rng.standard_normal((K, N)).astype(np.float32)
+                    bufs = [w("mm_a.bin", A), w("mm_b.bin", B), w("mm_c.bin", np.zeros((M, N), np.float32)),
+                            w("mm_dims.bin", np.array([M, N, K], np.uint32))]
+                    grid = (N // (8 * nr), M // (8 * mr), 1)
+                    push0 = struct.pack("<4I", 0, 0, 0, 0)
+                    t, info = timed(os.path.join(spvdir, "tilematmul_rt.spv"), name, grid, bufs, push0)
+                    run(os.path.join(spvdir, "tilematmul_rt.spv"), name, grid, bufs, push0, 1, dump=f"2:{os.path.join(out, 'mm_res.bin')}")
+                    got = np.fromfile(os.path.join(out, "mm_res.bin"), np.float32).reshape(M, N).astype(np.float64)
+                    ref = A.astype(np.float64) @ B.astype(np.float64)
+                    err = float(np.max(np.abs(got - ref)) / (np.max(np.abs(ref)) + 1e-9))
+                    res[f"{name}_{M}"] = {"M": M, "max_rel_err": err, "tol": 1e-5, "ok": bool(err < 1e-5), "us": t, "info": info,
+                                          "GFLOPs": (None if t is None else 2.0 * M * N * K / (t * 1e3))}
         elif case == "tilematmul":
             for M in (256, 1024):
                 N = K = M

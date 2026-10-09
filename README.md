@@ -18,9 +18,9 @@ correct on Honeykrisp. uzu's tiled GEMM parses through the shim; the clspv stage
 kernel.metal  +  cases/<name>.cl (entry wrapper)
         |
         |  clang --target=spir -x cl -cl-std=clc++2021
-        |        -cl-ext=-__opencl_c_generic_address_space -O2 -I include/
+        |        -cl-ext=-__opencl_c_generic_address_space -O0 -Xclang -disable-O0-optnone -I include/
         v
-   LLVM IR   (sed strips !alias.scope / !noalias, which clspv's LLVM rejects)
+   LLVM IR   (typed: noinline dropped, `opt` inliner + SROA, no InstCombine; sed strips !alias.scope / !noalias, which clspv's LLVM rejects)
         |
         |  clspv -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5   (patched, see below)
         v
@@ -31,6 +31,13 @@ kernel.metal  +  cases/<name>.cl (entry wrapper)
 when extending the shim.
 
 Why these choices:
+
+- The IR is kept typed on purpose (`M2V_PIPELINE=typed`, the default; `o2` is the old clang -O2 route). clang 23's InstCombine rewrites
+  `getelementptr float` into byte-offset `getelementptr i8` forms, and clspv's pointer passes then lose the element type: a `float2`
+  fragment load becomes eight byte loads per lane (the 8x8 tile matmul ran 4x slower), and uzu's Gemm ended in an `OpPhi` of a float
+  pointer and a `[4 x i8]` pointer that fails validation. At -O0 clang marks every function `noinline` and leaves closure allocas with a
+  generic address space `this`; dropping `noinline` and running LLVM's inliner plus SROA (without InstCombine) removes both, and clspv
+  optimises the result itself. The route needs `opt` from the same LLVM as clang (`OPT=` selects it).
 
 - clang is the front end, not clspv's own, because C++ for OpenCL with the generic address space disabled makes the implicit
   `this`, unqualified pointers and references private. That is exactly what Metal's `thread` means, and it is the only way
@@ -88,7 +95,9 @@ subgroup shuffles (about 30x slower).
    function-scope matrix variables, plus the capability, extension, types and the Vulkan memory model that requires;
 2. the SPIR-V binary writer learns `OpTypeCooperativeMatrixKHR` and `OpCooperativeMatrixMulAddKHR`;
 3. `llvm.trap` is removed (fall-off-the-end paths in Metal kernels);
-4. C++ for OpenCL is compiled with the generic address space, pipes and device enqueue features disabled.
+4. C++ for OpenCL is compiled with the generic address space, pipes and device enqueue features disabled;
+5. the `Coherent` decoration is not emitted for modules that use `m2v_mma_f32`: the Vulkan memory model that cooperative matrix
+   requires bans it, and clspv adds it to storage buffers reached through atomics or volatile accesses (uzu's Gemm does).
 
 ## Running a kernel
 
@@ -126,25 +135,23 @@ Measured on an Apple M1 Max (G13C) with the fork ICD, Mesa 26.3.0-devel. "Hand k
 
 | kernel (uzu source, unmodified) | result | translated | hand kernel |
 | --- | --- | --- | --- |
-| Softmax f32, 4096 x 4096 (`simd_max`, `simd_sum`, threadgroup memory) | max abs error 2.4e-7 | 750 us | 771 us |
-| Softmax f16, 4096 x 4096 | max abs error 2.4e-4 | 365 us | 408 us |
-| Activation SILU f32 / f16, 8M elements | max rel error 3.5e-7 / 3.8e-4 | 254 us / 251 us | not comparable (mlx composes it from several ops) |
-| 8x8 tile matmul from uzu's `SimdgroupMMA`, 1024^3 f32 | max rel error 1.4e-6 | 0.8 TFLOP/s | 4.1 TFLOP/s (tiled GEMM) |
+| Softmax f32, 4096 x 4096 (`simd_max`, `simd_sum`, threadgroup memory) | max abs error 2.4e-7 | 733 us | 773 us |
+| Softmax f16, 4096 x 4096 | max abs error 2.4e-4 | 358 us | 403 us |
+| Activation SILU f32 / f16, 8M elements | max rel error 3.5e-7 / 3.8e-4 | 340 us / 340 us | not comparable (mlx composes it from several ops) |
+| 8x8 tile matmul from uzu's `SimdgroupMMA`, 1024^3 f32, one tile per subgroup, no reuse | max rel error 1.4e-6 | 0.81 TFLOP/s | 4.1 TFLOP/s (tiled GEMM) |
 | the same tile kernel, shuffle emulation instead of cooperative matrix | max rel error 1.4e-6 | 0.03 TFLOP/s | |
-| uzu `Gemm` (`gemm.metal`, SimdgroupMmaCore, f32) | front end passes for every tiling | blocked in clspv, see below | |
+| 4x4 register-tiled matmul from the same header, 1024^3 f32 | max rel error 1.1e-6 | 4.27 TFLOP/s | 4.07 TFLOP/s (tiled GEMM) |
+| uzu `Gemm` (`gemm.metal`, SimdgroupMmaCore, f32, Tile64x64x32), 1024^3 | max rel error 1.2e-6 | 1.42 TFLOP/s (0.35x of the hand GEMM; at 256^3 0.36 TFLOP/s) | 4.07 TFLOP/s |
 
-uzu `Gemm` and clspv. The front end instantiates the whole SimdgroupMmaCore path, so the shim covers what it needs.
-clspv then fails on the IR in three ways, all in its pointer simplification passes (types and counts below are from the
-8x32x32 tiling, the same happens at 64x64x32):
-(1) `ReplacePointerBitcastPass` tries to rebuild uzu's `ThreadgroupLoader` (two pointers plus three i16 fields) from a
-`<4 x i16>` value left by struct copy lowering and loops forever (patched to stop with the types);
-(2) `SimplifyPointerBitcastPass` does not converge: `runOnUpgradeableConstantCasts` and `runOnPHIFromGEP` undo each other
-on loop-carried pointer PHIs, and the unoptimised IR oscillates in `runOnImplicitGEP` (patched to stop and name the sub-pass);
-(3) if the cycle is cut, the SPIR-V producer emits an `OpPhi` whose result is a float pointer and one incoming value is a
-pointer to `[4 x i8]` (clspv's emulation of 8-bit buffers), which fails validation.
-Physical storage buffer mode hits the same struct-copy failure. Null optional-buffer arguments crash the producer, so the
-wrapper binds real typed buffers for them. The fix belongs in clspv's pointer passes; routing GEMM and quantized matmul to
-omarchy-mlx's tuned kernels (host shim) does not depend on it.
+uzu `Gemm` and clspv. The front end instantiates the whole SimdgroupMmaCore path, and with the typed-GEP front end route
+(the default, see `compile.sh`) clspv accepts it and the SPIR-V validates for the 8x32x32, 32x32x32 and 64x64x32 tilings. The three
+clspv failures seen first (an endless loop rebuilding uzu's `ThreadgroupLoader` from a `<4 x i16>`, `SimplifyPointerBitcastPass`
+not converging, and an `OpPhi` of a float pointer and a `[4 x i8]` pointer) all came from the front end: clang's InstCombine
+rewrites typed float GEPs into byte-offset GEPs, and clang -O0 leaves every function `noinline` with closures whose `this` is in
+the generic address space. The guards in `apply-coopmat-lowering.py` remain, so a future input that breaks those passes stops
+with the offending types instead of hanging. Null optional-buffer arguments crash the producer, so the wrapper binds real typed
+buffers for them; clspv drops the unused ones, and the test driver binds from the reflection JSON that `compile.sh` writes next
+to each module. Routing GEMM and quantized matmul to omarchy-mlx's tuned kernels (host shim) remains the plan for the hot path.
 
 The tile matmul is a deliberately naive kernel built from uzu's header (no operand reuse), so its gap to a tiled GEMM says
 little about the lowering; the tiled `Gemm` is the real comparison and is the open item. A parse level census of all 55 uzu
