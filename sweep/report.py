@@ -51,12 +51,13 @@ def load(path):
 
 def rate(rows):
     out = {}
-    for s in ("uzu", "tf"):
-        rs = [r for r in rows if r["set"] == s and r["parse"] != "n/a"]
+    for s in dict.fromkeys(r["set"] for r in rows):
+        rs = [r for r in rows if r["set"] == s and r["parse"] not in ("n/a", "refused")]
         out[s] = {"entries": len(rs), "ir": sum(r["ir"] == "ok" for r in rs), "spv": sum(r["spv"] == "ok" for r in rs),
                   "val": sum(r["val"] == "ok" for r in rs), "run": sum(r.get("run") == "ok" for r in rs),
-                  "ref": sum(r.get("ref") == "ok" for r in rs), "ran": sum(bool(r.get("run")) for r in rs)}
-    tot = {k: sum(c[k] for c in out.values()) for k in out["uzu"]}
+                  "ref": sum(r.get("ref") == "ok" for r in rs), "ran": sum(bool(r.get("run")) for r in rs),
+                  "refused": sum(r["parse"] == "refused" for r in rows if r["set"] == s)}
+    tot = {k: sum(c[k] for c in out.values()) for k in ("entries", "ir", "spv", "val", "run", "ref", "ran", "refused")}
     out["all"] = tot
     return out
 
@@ -66,12 +67,12 @@ def first_key(r):
 
 
 def rate_table(rates):
-    lines = ["| set | entries | IR | SPIR-V | valid | runs | matches reference |", "|---|---|---|---|---|---|---|"]
+    lines = ["| set | entries | IR | SPIR-V | valid | refused | runs | matches reference |", "|---|---|---|---|---|---|---|---|"]
     for s, c in rates.items():
         n = c["entries"] or 1
         runs = f"{c['run']} of {c['ran']}" if c["ran"] else "not run here"
         lines.append(f"| {s} | {c['entries']} | {c['ir']} ({100 * c['ir'] / n:.1f}%) | {c['spv']} ({100 * c['spv'] / n:.1f}%) | "
-                     f"{c['val']} ({100 * c['val'] / n:.1f}%) | {runs} | {c['ref']} |")
+                     f"{c['val']} ({100 * c['val'] / n:.1f}%) | {c['refused']} | {runs} | {c['ref']} |")
     return "\n".join(lines) + "\n"
 
 
@@ -84,7 +85,7 @@ def first_message(r):
 
 def write_features(rows, path, before, top):
     cur = rate(rows)
-    failing = [r for r in rows if r["parse"] != "n/a" and r["val"] != "ok"]
+    failing = [r for r in rows if r["parse"] not in ("n/a", "refused") and r["val"] != "ok"]
     first = collections.Counter(family(first_key(r)) for r in failing)
     anywhere = collections.Counter()
     for r in failing:
@@ -116,7 +117,7 @@ def write_features(rows, path, before, top):
 def write_failures(rows, path):
     groups = collections.defaultdict(list)
     for r in rows:
-        if r["parse"] == "n/a" or r["val"] == "ok":
+        if r["parse"] in ("n/a", "refused") or r["val"] == "ok":
             continue
         stage = "front end" if r["parse"] == "FAIL" else "clspv" if r["spv"] == "FAIL" else "spirv-val"
         groups[(stage, first_key(r))].append(r)
@@ -158,7 +159,7 @@ def main():
     if a.primary or not (a.table or a.features or a.failures):
         for s, c in rate(rows).items():
             print(s, c)
-        cnt = collections.Counter(first_key(r) for r in rows if r["parse"] != "n/a" and r["val"] != "ok")
+        cnt = collections.Counter(first_key(r) for r in rows if r["parse"] not in ("n/a", "refused") and r["val"] != "ok")
         for k, v in cnt.most_common(a.top):
             print(f"{v:5d}  {k[:100]}")
 
