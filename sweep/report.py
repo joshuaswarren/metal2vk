@@ -66,6 +66,13 @@ def rate_table(rates):
     return "\n".join(lines) + "\n"
 
 
+def first_message(r):
+    """The first diagnostic as the tool printed it, without the file path."""
+    line = ((r.get("detail") or r["error"]).splitlines() or [""])[0]
+    line = re.sub(r"^\S*?:\d+:\d+: ", "", line)
+    return line.replace("|", "/")[:90]
+
+
 def write_features(rows, path, before, top):
     cur = rate(rows)
     failing = [r for r in rows if r["parse"] != "n/a" and r["val"] != "ok"]
@@ -94,7 +101,7 @@ def write_features(rows, path, before, top):
                 "|---|---|---|---|---|\n")
         for i, (k, v) in enumerate(raw.most_common(top), 1):
             r = ex[k]
-            f.write(f"| {i} | `{k[:80]}` | {v} | {r['file']} `{r['entry'][:36]}` | {re.sub(chr(124), '/', r['error'])[:80]} |\n")
+            f.write(f"| {i} | `{k[:80]}` | {v} | {r['file']} `{r['entry'][:36]}` | {first_message(r)} |\n")
 
 
 def write_failures(rows, path):
