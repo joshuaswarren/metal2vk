@@ -426,6 +426,12 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
     }
 
     unsafe fn record_dispatch(&mut self, pipeline: &Arc<Pipeline>, grid: [u32; 3]) -> Result<()> {
+        // Bind at every dispatch so mid-encoder pipeline switches just work.
+        self.cb.device.device.cmd_bind_pipeline(
+            self.cb.raw,
+            vk::PipelineBindPoint::COMPUTE,
+            pipeline.pipeline,
+        );
         self.bind_descriptors(pipeline)?;
         // Kernels without POD arguments have an empty push block; do not call
         // vkCmdPushConstants with a zero-size range (honeykrisp G13C/G14C
