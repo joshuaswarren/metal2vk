@@ -2,7 +2,7 @@
 //! SKIP, exits 0) unless M2V_GPU=1 and M2V_LIB point at a lab host with the
 //! Vulkan driver; `cargo test` on the build CT takes the skip path.
 
-use metal2vk::{Device, Library};
+use metal2vk::{Device, Fallback, Library};
 
 fn setup() -> Option<(
     std::sync::Arc<Device>,
@@ -63,6 +63,8 @@ fn add_kernel_end_to_end() {
         }
     }
 
+    // the CPU result below is the reference for the first-use check (the gate refuses an unverified kernel without one)
+    device.policy().set_fallback("add", Fallback::Cpu("cpu_add".into()));
     let pipeline = device.create_pipeline(&library, "add", &[]).expect("pipeline add");
     let cb = queue.new_command_buffer().expect("command buffer");
     {
@@ -82,6 +84,7 @@ fn add_kernel_end_to_end() {
         let got = unsafe { *pb.add(i) };
         assert!((got - i as f32).abs() < 1e-6, "mismatch at {i}: got {got}");
     }
+    device.policy().report_check("add", true, "b[i] == a[i] for 4096 elements");
     println!("PASS add_kernel_end_to_end ({} elements, {} us GPU span)", N, (end.saturating_sub(start)) / 1000);
 }
 
@@ -98,6 +101,7 @@ fn push_constant_kernel_end_to_end() {
         }
     }
 
+    device.policy().set_fallback("add_offset", Fallback::Cpu("cpu_add_offset".into()));
     let pipeline = device
         .create_pipeline(&library, "add_offset", &[])
         .expect("pipeline add_offset");
@@ -121,6 +125,7 @@ fn push_constant_kernel_end_to_end() {
         let want = i as f32 + 7.0;
         assert!((got - want).abs() < 1e-6 * want.abs().max(1.0), "mismatch at {i}: got {got}, want {want}");
     }
+    device.policy().report_check("add_offset", true, "b[i] == a[i] + 7 for 4096 elements");
     println!(
         "PASS push_constant_kernel_end_to_end ({} elements, {} us GPU span)",
         N,
