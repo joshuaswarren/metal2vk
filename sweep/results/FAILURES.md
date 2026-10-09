@@ -2,36 +2,6 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
-## front end: member:metal::remove_addrspace_t (43)
-
-```
-core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:106:68: error: no member named 'remove_addrspace_t' in namespace 'metal'
-  106 |   auto acc = op.template get_destination_cooperative_tensor<metal::remove_addrspace_t<decltype(left)>,
-      |                                                                    ^~~~~~~~~~~~~~~~~~
-```
-
-Entries: `core/affine_mm.metal:tf_affine_row_sums`, `core/affine_mm.metal:tf_affine_mm`, `core/affine_mm.metal:tf_affine_gather_32`, `core/affine_mm.metal:tf_affine_gather_64`, `core/affine_mm.metal:tf_affine_gather_scatter_32`, `core/affine_mm.metal:tf_affine_gather_scatter_64`, `glm_absorb_nax.metal:glm_absorb_nax`, `glm_attn.metal:glm_latent_scores` and 35 more
-
-## front end: ident:execution_simdgroups (36)
-
-```
-nemotron_coop_down_1_0_metal__custom_kernel_lane_qmm_coop_b8e6f3fa04e5_0403615e.cl:79:18: error: use of undeclared identifier 'execution_simdgroups'; did you mean 'execution_simdgroup'?
-   79 |   matmul2d<desc, execution_simdgroups<2>> op;
-      |                  ^~~~~~~~~~~~~~~~~~~~
-```
-
-Entries: `nemotron/coop_down_1_0.metal:custom_kernel_lane_qmm_coop_b8`, `nemotron/coop_down_2_0.metal:custom_kernel_lane_qmm_coop_04`, `nemotron/coop_down_2_1.metal:custom_kernel_lane_qmm_coop_0c`, `nemotron/coop_draft_1_0.metal:custom_kernel_lane_qmm_coop_4c`, `nemotron/coop_draft_2_0.metal:custom_kernel_lane_qmm_coop_af`, `nemotron/coop_draft_2_1.metal:custom_kernel_lane_qmm_coop_d7`, `nemotron/coop_eh_1_0.metal:custom_kernel_lane_qmm_coop_9e`, `nemotron/coop_eh_1_0_sk.metal:custom_kernel_lane_qmm_coop_sk` and 28 more
-
-## front end: overload:__private dextents<int32_t, 2> (34)
-
-```
-decode_fn_lane_metal__fz_lane_aef0a838.cl:89:84: error: no matching constructor for initialization of '__private dextents<int32_t, 2>' (aka '__private dextents<int, 2>')
-   89 |   tensor<device bfloat, dextents<int32_t, 2>, tensor_inline> tA((device bfloat*)X, dextents<int32_t, 2>(64, M));
-      |                                                                                    ^                    ~~~~~
-```
-
-Entries: `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 26 more
-
 ## spirv-val: spirv-val:error: line N: OpPhi'X'N[%_ptr_StorageBuffer_uchar]'X'N[%N]'X'N[%_ptr_StorageBuffer_ushort]'. (32)
 
 ```
@@ -49,20 +19,70 @@ ptr addrspace(1)
 
 Entries: `kimi/experts.metal:k3_xp_up_r1`, `kimi/experts.metal:k3_xp_up_r4`, `kimi/experts.metal:k3_xp_down_r1`, `kimi/experts.metal:k3_xp_down_r4`, `kimi/mla.metal:k3_mla_cache`, `kimi/mla.metal:k3_mla_qlat`, `kimi/mla.metal:k3_mla_merge`, `kimi/mla.metal:k3_mla_uv` and 12 more
 
-## clspv: clspv:timeout after N s (clspv does not finish) (9)
+## front end: overload:frag_get (19)
+
+```
+core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:192:13: error: no matching function for call to 'frag_get'
+  192 |             frag_get(b[j][i], (const threadgroup bfloat*)tile, PAD, tn + 16 * i, kk + 16 * j, home);
+      |             ^~~~~~~~
+```
+
+Entries: `core/affine_mm.metal:tf_affine_row_sums`, `core/affine_mm.metal:tf_affine_mm`, `core/affine_mm.metal:tf_affine_gather_32`, `core/affine_mm.metal:tf_affine_gather_64`, `core/affine_mm.metal:tf_affine_gather_scatter_32`, `core/affine_mm.metal:tf_affine_gather_scatter_64`, `glm_absorb_nax.metal:glm_absorb_nax`, `glm_sparse_nax.metal:glm_sparse_nax` and 11 more
+
+## front end: overload:frag_get_in (19)
+
+```
+glm_attn_metal__glm_latent_scores_f9e7009f.cl:139:5: error: no matching function for call to 'frag_get_in'
+  139 |     frag_get_in(a, q, 512, row0, k0, home, 64, 512);
+      |     ^~~~~~~~~~~
+```
+
+Entries: `glm_attn.metal:glm_latent_scores`, `glm_attn.metal:glm_latent_values`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/fn_attn.metal:tf_idx_scores_nax`, `prefill/fn_attn.metal:tf_sattn_nax` and 11 more
+
+## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (18)
+
+```
+error: line 1780: Header block '1428[%1428]' is contained in the loop construct headed by '515[%515]', but its merge block '1951[%1951]' is not
+  %1428 = OpLabel
+```
+
+Entries: `nemotron/attn_partial_1.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_10.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_11.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_12.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_13.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_14.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_15.metal:custom_kernel_lane_attention_p`, `nemotron/attn_partial_16.metal:custom_kernel_lane_attention_p` and 10 more
+
+## clspv: clspv:Invalid bitcast (11)
+
+```
+Invalid bitcast
+  %303 = bitcast <4 x i16> %302 to <8 x i16>
+Invalid bitcast
+  %351 = bitcast <4 x i16> %350 to <8 x i16>
+LLVM ERROR: Broken module found, compilation aborted!
+```
+
+Entries: `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_a803238811388b40.metal:custom_kernel_lane_qmm_bytes_g` and 3 more
+
+## spirv-val: spirv-val:error: line N: [VUID-StandaloneSpirv-None-N] Having N components for TypeVector requires the VectorN (11)
+
+```
+error: line 205: [VUID-StandaloneSpirv-None-12295] Having 8 components for TypeVector requires the Vector16 or LongVectorEXT capability
+  %v8ushort = OpTypeVector %ushort 8
+```
+
+Entries: `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_a803238811388b40-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 3 more
+
+## clspv: clspv:timeout (10)
 
 ```
 timeout
 ```
 
-Entries: `kimi/dense_mma.metal:k3_slice_mma`, `kimi/synth.metal:k3_mma_peak`, `qwen3_5/qmm_16_2048.metal:custom_kernel_qwen35_qmm_16_20`, `qwen3_5/qmm_2048_2048.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_2048_6144.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_248320_2048.metal:custom_kernel_qwen35_qmm_24832`, `qwen3_5/qmm_4096_2048.metal:custom_kernel_qwen35_qmm_4096_`, `qwen3_5/qmm_512_2048.metal:custom_kernel_qwen35_qmm_512_2` and 1 more
+Entries: `kimi/dense_mma.metal:k3_slice_mma`, `kimi/synth.metal:k3_mma_peak`, `prefill/qmm_nax.metal:custom_kernel_tf_qmm_splitk_pa`, `qwen3_5/qmm_16_2048.metal:custom_kernel_qwen35_qmm_16_20`, `qwen3_5/qmm_2048_2048.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_2048_6144.metal:custom_kernel_qwen35_qmm_2048_`, `qwen3_5/qmm_248320_2048.metal:custom_kernel_qwen35_qmm_24832`, `qwen3_5/qmm_4096_2048.metal:custom_kernel_qwen35_qmm_4096_` and 2 more
 
-## front end: member:mpp::tensor_ops::matmul2d<0, metal::execution_simdgroup>::get_left_input_cooperative_tensor (6)
+## front end: overload:load_paired_vectors (6)
 
 ```
-gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:806:46: error: no member named 'get_left_input_cooperative_tensor' in 'mpp::tensor_ops::matmul2d<0, metal::execution_simdgroup>'
-  806 |   auto cooperative_left = matmul_op.template get_left_input_cooperative_tensor<LeftType, RightType, OutputType>();
-      |                           ~~~~~~~~~          ^
+gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:889:13: error: no matching function for call to 'load_paired_vectors'
+  889 |             load_paired_vectors(cooperative_right, right_col_0, right_col_1);
+      |             ^~~~~~~~~~~~~~~~~~~
 ```
 
 Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v1`, `gdn/tree_verify/tree_gram.metal:BuildTreeGram_v1`, `matmul/gemm/gemm.metal:Gemm_v1`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v0`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v1`
@@ -95,27 +115,6 @@ ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274
 
 Entries: `activation_transform/activation_transform.metal:ActivationTransform_v1`, `gated_act_mul/gated_act_mul.metal:GatedActMul_v1`, `matmul/gemm/gemm_split_k_reduce.metal:GemmSplitKReduce_v1`
 
-## clspv: clspv:Invalid bitcast (2)
-
-```
-Invalid bitcast
-  %220 = bitcast float %219 to ptr addrspace(1)
-Invalid bitcast
-  %263 = bitcast float %224 to ptr addrspace(1)
-Invalid bitcast
-  %296 = bitcast float %.in.peel to ptr addrspace(1)
-```
-
-Entries: `kimi/kda.metal:k3_kda`, `kimi/mla.metal:k3_mla_attend`
-
-## clspv: clspv:error: undefined reference to 'X' (2)
-
-```
-error: undefined reference to '_Z0Pfp9mma_16x32ILb0ELb1EEEvRU3AS4Dv8_fS3_RU3AS4KDv8_DF16bS6_S6_'
-```
-
-Entries: `prefill/qmm6_nax_b.metal:tf_mm_bf16_f32_t_nax`, `prefill/qmm6_nax_b.metal:tf_qmm6_splitk_nax`
-
 ## front end: other:variable in constant address space must be initialized (2)
 
 ```
@@ -145,15 +144,6 @@ error: line 259: Expected input to be a pointer or int or float vector or scalar
 
 Entries: `glm/router.metal:custom_kernel_tf_glm5_fused_ro`, `glm/router.metal:custom_kernel_tf_glm5_fused_ro`
 
-## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (2)
-
-```
-error: line 455: Header block '359[%359]' is contained in the loop construct headed by '213[%213]', but its merge block '405[%405]' is not
-  %359 = OpLabel
-```
-
-Entries: `ops/gemv.metal:tf_gemv_wide_bf16_v4_kl32`, `ops/gemv.metal:tf_gemv_wide_bf16_v5_kl32`
-
 ## front end: other:excess elements in scalar initializer (1)
 
 ```
@@ -167,8 +157,8 @@ Entries: `convolution/separable_causal_conv.metal:SeparableCausalConv_v0`
 ## front end: other:redefinition of 'X' (1)
 
 ```
-ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:199:15: error: redefinition of 'frag_home'
-  199 | inline short2 frag_home(ushort l) {
+ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:236:15: error: redefinition of 'frag_home'
+  236 | inline short2 frag_home(ushort l) {
       |               ^
 ```
 
@@ -197,8 +187,8 @@ Entries: `nemotron_sample.metal:tf_sample_full`
 ## front end: overload:mma_16x32 (1)
 
 ```
-prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:329:9: error: no matching function for call to 'mma_16x32'
-  329 |         mma_16x32<false, false>(acc[d], acc[d + 1], s[k], v0, v1);
+prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:366:9: error: no matching function for call to 'mma_16x32'
+  366 |         mma_16x32<false, false>(acc[d], acc[d + 1], s[k], v0, v1);
       |         ^~~~~~~~~~~~~~~~~~~~~~~
 ```
 

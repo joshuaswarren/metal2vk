@@ -14,6 +14,7 @@ module; raise the floor with `sweep/check_coverage.py RESULT.json --update` in t
 | clang 23 toolchain, re-measured baseline | 325 of 609 (53.4%) | 84 | 241 | +2 |
 | bfloat = `__bf16` + the bfloat_to_i16 pass | 382 of 609 (62.7%) | 90 | 292 | +57 |
 | cov-frontend: host-preamble injection, CONSTRAINT-aware variants, simdgroup_load/store, vec conversions, `__generic` vector aliases (re-measured after the bfloat and ptr slices landed) | 401 of 609 (65.8%) | 102 | 299 | +19 over the 382 floor |
+| cov-mpp: the MetalPerformancePrimitives shim (tensor views, `matmul2d` + cooperative tensors on the MLX/uzu/flashnext fragment layout, fp32 loops with subgroup shuffles), `mma_16x32` live behind M2V_NAX_MPP in the injected preamble, and the bfloat_to_i16 pass proving out on the flashnext modules (the clspv bfloat diagnostic loop is gone - those entries fail fast on class 3 now) | 441 of 609 (72.4%) | 102 | 339 | +40 over the 401 floor, no regressions |
 
 ## Failure classes
 
@@ -22,13 +23,33 @@ Counted by the entry's first error. The per-entry messages are in `sweep/results
 
 | # | class | entries | fix route | owner | status |
 |---|---|---|---|---|---|
-| 1 | Metal 4 tensor ops (`mpp::tensor_ops`, `tensor`, `dextents`, `execution_simdgroups`, cooperative tensors) | 138 | emulation: `matmul2d` and cooperative tensors on top of `simdgroup_matrix` and the cooperative matrix lowering | coopmat slice | open: gap list handed over |
+| 1 | Metal 4 tensor ops (`mpp::tensor_ops`, `tensor`, `dextents`, `execution_simdgroups`, cooperative tensors) | 40 | done for the constructs: the shim (`include/MetalPerformancePrimitives/MetalPerformancePrimitives.h`) implements every construct the entries reach (see the construct table below) and 40 + 8 earlier-class entries went valid with it; the 40 still stopping here all fail on one root cause: template argument deduction through the `vec` alias (`using vec = typename vec_sel<T, N>::type` is a non-deduced context; Apple's `vec` is a class template) in nax.h's frag family and uzu's `load_paired_vectors`/`row_reduce` - a real `vec` class template (needs native-vector swizzle/arithmetic parity) or concrete overloads everywhere | mpp slice | shim landed; 40 remain, all on the vec gap |
 | 2 | clspv does not finish (90 s limit; still no result at 400 s for the seven checked) | 42 | clspv patch: find the loop (pointer passes on large unrolled kernels), or an IR pre-pass that shrinks the module | sweep slice | open |
 | 3 | clspv pointer passes (`OpPhi` of a `[4 x i8]` pointer and a typed pointer: 37, `Invalid bitcast`: 2, bitcast of a non-numeric type: 2) | 41 | IR post-pass in front of clspv that retypes the pointer, or a clspv patch | sweep slice | open |
 | 4 | `c ? bfloat : float` is ambiguous (bfloat converts both ways) | 0 | closed on clang 23: `bfloat` is `__bf16` (a real arithmetic type, so Metal's rule - a conditional of bfloat and float is float - holds in C++), with `sweep/bfloat_to_i16.py` retyping the LLVM bfloat to i16 for clspv; the clang 19 struct fallback keeps the class open there | sweep slice | closed |
 | 5 | clspv, other (`ptr addrspace(N)` operand: 15, `llvm.memcpy` with mixed address spaces: 1) | 16 | clspv patch or IR pre-pass | sweep slice | open |
 | 6 | small front-end gaps (`template:frag`, clang frontend failures, the two `static_assert`s, `Mark`, `excess elements`) | 15 | shim header, constraint-aware variant picks | sweep slice | mostly closed: the `static_assert` tiles now honor uzu CONSTRAINT (gemv v0/v1 and qmm6 `tf_parts_sum` valid; on the `__bf16` shim the gemv pair moves to a bfloat-vector to float4 `static_cast`, the bfloat slice's type), the `template:frag` and qmm6 `tfq6` helpers come from the injected host preamble (the rest of qmm6_nax_b lands on the clspv timeout), `excess elements` reduced to the 4-arg vector functional cast through a typedef (`AccumulatorBlock(a, b, c, d)`, a clang OpenCL C++ limitation); `Mark` remains (clang rejects copy-constructing a program-scope `constant` struct). store_hadamard_vector, the bfloat `+=` and the constant-address-space initializer moved to fix/uzu-shim-easy |
 | 7 | symbols the host provides (`quad_dot`, `sq_acc`, `fsoftplus`, `simd_topk_all`, `fz_tile`, `simdgroup_load`, `simdgroup_store` on a layout the shim lacks) | 6 | shim header, or a stand-in value in the driver | sweep slice | closed: the driver injects the TensorFold host preambles on demand (nax.h frag family, flashnext elementwise/topk, kda_rows quad_dot/sq_acc/mlx_sigmoid_precise, identity fz_tile), the shim gained simdgroup_load/simdgroup_store (Apple 8x8 layout); every entry is valid or on another class's named error |
+
+Class 1 construct table (entries whose sources reach each construct, over all 609; class 1 blocked first on 98 entries at the c23 sweep, 40 after the shim):
+
+| construct | entries | status |
+|---|---|---|
+| `tensor<T, dextents<int32_t, 2>, tensor_inline>` views over device/threadgroup memory, `slice`, strides | 77 | shim: implemented |
+| `uint4b_format` elements (two per byte) | 36 | shim: implemented |
+| `matmul2d_descriptor` (transposes, relaxed flag, multiply / multiply_accumulate) + `matmul2d<desc, scope>` (descriptor as integer NTTP via constexpr conversion; class-type NTTPs need C++20) | 77 | shim: implemented |
+| `run(tensor, tensor, coop)` and mixed tensor/cooperative operands, fp32 accumulate | 77 | shim: implemented |
+| `get_destination_cooperative_tensor` + per-element `operator[]` | 77 | shim: implemented |
+| `execution_simdgroup` scope | 41 | shim: implemented |
+| `execution_simdgroups<2>` scope (column bands; 32-row tiles row-banded, incl. one 32-lane group covering a 32-row tile) | 36 | shim: implemented |
+| `get_multidimensional_index` (ids[0] = column, ids[1] = row) | 36 | shim: implemented |
+| `get_left/right_input_cooperative_tensor`, the left one also initialized from another op's tensor | 16 | shim: implemented |
+| `metal::remove_addrspace_t` | 48 | metal_stdlib: implemented |
+| nax.h frag family + `mma_16x32` | 48 | `mma_16x32` is live behind M2V_NAX_MPP in the injected preamble (M5 packing, on the shim); the frag helpers remain on the vec-deduction gap |
+
+The fragment layout the shim implements (MLX steel NAX, uzu `MxuFragmentOps<true>`, flashnext and nemotron all pack for it; verified bijective against all four call sites): lane l of a 32-lane group holds x = (l & 8) + 4 * (l & 1), y = 4 * ((l >> 4) & 1) + ((l >> 1) & 3); element i of a 16-row tile is at row y + 8 * ((i >> 2) & 1), column x + (i & 3) + 16 * (i >> 3); with `execution_simdgroups<N>` the 32-lane groups tile columns, or rows for 32-row tiles. uzu's `MxuStrictFragmentOps` packs for the other (strict) hardware layout; under the emulation its mma results land permuted - valid modules, Apple-relative numerics differ.
+
+The clspv bfloat diagnostic loop this slice reported (class 2): the modules reached clspv with the LLVM bfloat type still in them and clspv looped printing `Err: SrcTy = bfloat - DstTy = i16 - CstVal = 16` (~1.4M lines in 120 s). The bfloat_to_i16 pass clears it - after the pass no bfloat type remains (only mangled names and metadata strings) and those entries fail fast on class 3's `Invalid bitcast` instead of timing out; the pass is not missing a construct for these modules.
 
 Order of work: 4, 6 and 7 first (shim only, one commit each), then 3 and 5 (one IR pre-pass), then 2, with 1 following the coopmat slice.
 The coverage number is posted after each class lands.

@@ -867,6 +867,13 @@ inline void simd_topk_all(const device float* logits, uint lane, thread int* ids
 }
 """,
     "tf_frag": """
+// mma_16x32 runs on the mpp tensor-op emulation (slice/cov-mpp's shim, in this tree); the shim header is included here,
+// outside tfp, because the wrapper may not have prepended it (the source may not name MPP itself). pragma once keeps a
+// second include from the wrapper harmless.
+#define M2V_NAX_MPP 1
+#ifdef M2V_NAX_MPP
+#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>
+#endif
 // M5 tensor-unit fragments shared by every NAX kernel (nax.h): layout, loads, stores.
 namespace tfp {
 using namespace metal;
@@ -996,11 +1003,41 @@ inline void frag_put_in(thread const frag<float>& f, device O* p, int ld, int r,
   }
 }
 #endif
-// Declared so the calls parse; the definition needs the mpp tensor-op emulation (define M2V_NAX_MPP and add it). The
-// element types are fixed: the shim's vec alias cannot deduce them (16x32x16, C accumulates in float, A/B bf16).
+// mma_16x32 runs on the mpp tensor-op emulation (slice/cov-mpp's shim, in this tree), so M2V_NAX_MPP is defined and the
+// definition is live; the #else forward declaration remains for a tree without the shim. The element types are fixed:
+// the shim's vec alias cannot deduce them (16x32x16, C accumulates in float, A/B bf16). M5 packing: the M5-branch
+// layout (frag columns home.x + (e & 3), paired halves at idx e and 8 + e) is what the shim's fragment layout expects.
+#ifdef M2V_NAX_MPP
+template <bool TA, bool TB>
+inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread const frag<bfloat16_t>& a,
+                      thread const frag<bfloat16_t>& b0, thread const frag<bfloat16_t>& b1) {
+  using namespace mpp::tensor_ops;
+  constexpr auto shape = matmul2d_descriptor(16, 32, 16, TA, TB, true, matmul2d_descriptor::mode::multiply_accumulate);
+  matmul2d<shape, execution_simdgroup> op;
+  auto left = op.template get_left_input_cooperative_tensor<bfloat16_t, bfloat16_t, float>();
+  auto right = op.template get_right_input_cooperative_tensor<bfloat16_t, bfloat16_t, float>();
+  auto acc = op.template get_destination_cooperative_tensor<metal::remove_addrspace_t<decltype(left)>,
+                                                            metal::remove_addrspace_t<decltype(right)>, float>();
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    left[e] = a[e];
+    right[e] = b0[e];
+    right[8 + e] = b1[e];
+    acc[e] = lo[e];
+    acc[8 + e] = hi[e];
+  }
+  op.run(left, right, acc);
+  TF_UNROLL
+  for (short e = 0; e < 8; e++) {
+    lo[e] = acc[e];
+    hi[e] = acc[8 + e];
+  }
+}
+#else
 template <bool TA, bool TB>
 inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread const frag<bfloat16_t>& a,
                       thread const frag<bfloat16_t>& b0, thread const frag<bfloat16_t>& b1);
+#endif
 }  // namespace tfp
 using namespace tfp;
 """,
