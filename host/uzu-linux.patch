@@ -1,0 +1,298 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 420503b9..bc8f6003 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -243,3 +243,9 @@ lto = "thin"
+ [profile.test]
+ opt-level = 2
+ overflow-checks = true
++
++# Linux host layer (slice/host): route metal (mtl-rs) and objc2 through the
++# metal2vk compat crates. Paths are relative to this file.
++[patch.crates-io]
++mtl-rs = { path = "../../metal2vk/host/compat/mtl-rs" }
++objc2 = { path = "../../metal2vk/host/compat/objc2" }
+diff --git a/crates/uzu-engine/Cargo.toml b/crates/uzu-engine/Cargo.toml
+index 56ec4b73..5680ab92 100644
+--- a/crates/uzu-engine/Cargo.toml
++++ b/crates/uzu-engine/Cargo.toml
+@@ -30,6 +30,11 @@ metal = [
+     "dep:metal",
+ ]
+ 
++# Linux/vulkan-host: the metal backend runs on the metal2vk host layer; the
++# macOS-only kernel compiler (build script) stays off, so the generated kernel
++# bindings must be pre-supplied (see metal2vk host/STATUS.md).
++vulkan-host = []
++
+ grammar = ["dep:xgrammar", "dep:schemars"]
+ 
+ [build-dependencies]
+@@ -44,7 +49,7 @@ prettyplease.workspace = true
+ itertools.workspace = true
+ rhai.workspace = true
+ 
+-[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos", target_os = "visionos"))'.build-dependencies]
++[build-dependencies]
+ rayon = { workspace = true, optional = true }
+ clang-ast = { workspace = true, optional = true }
+ depfile = { workspace = true, optional = true }
+@@ -71,7 +76,8 @@ libm.workspace = true
+ itertools.workspace = true
+ parking_lot.workspace = true
+ 
+-[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos", target_os = "visionos"))'.dependencies]
++[dependencies]
++lzfse = { version = "0.6", optional = true }
+ objc2 = { workspace = true, optional = true }
+ obfstr = { workspace = true, optional = true }
+ xxhash-rust = { workspace = true, features = ["xxh3"], optional = true }
+diff --git a/crates/uzu-engine/build/main.rs b/crates/uzu-engine/build/main.rs
+index 85c1b93a..99e6cd24 100644
+--- a/crates/uzu-engine/build/main.rs
++++ b/crates/uzu-engine/build/main.rs
+@@ -27,7 +27,8 @@ fn main() -> anyhow::Result<ExitCode> {
+         println!("cargo::rustc-cfg=backend=\"cpu\"");
+     }
+ 
+-    let backend_metal = cfg!(feature = "metal") && matches!(target_os.as_ref(), "macos" | "ios" | "tvos" | "visionos");
++    let backend_metal = cfg!(feature = "metal")
++        && (matches!(target_os.as_ref(), "macos" | "ios" | "tvos" | "visionos") || cfg!(feature = "vulkan-host"));
+     if backend_metal {
+         println!("cargo::rustc-cfg=backend=\"metal\"");
+     }
+diff --git a/crates/uzu-engine/src/backends/metal/context.rs b/crates/uzu-engine/src/backends/metal/context.rs
+index 90ee23b3..bfc79160 100644
+--- a/crates/uzu-engine/src/backends/metal/context.rs
++++ b/crates/uzu-engine/src/backends/metal/context.rs
+@@ -112,7 +112,7 @@ impl Context for MetalContext {
+     type Backend = Metal;
+ 
+     fn new() -> Result<Arc<Self>, MetalError> {
+-        let device = <dyn MTLDevice>::system_default().ok_or(MetalError::CannotOpenDevice)?;
++        let device = metal::system_default_device().ok_or(MetalError::CannotOpenDevice)?;
+         let device_name = device.name();
+         let gpu_core_count = device.gpu_core_count();
+         let apple_gpu_family = device.newest_supported_apple_gpu_family();
+diff --git a/crates/uzu-engine/src/backends/metal/decompression.rs b/crates/uzu-engine/src/backends/metal/decompression.rs
+index 41ace14b..c9e822c6 100644
+--- a/crates/uzu-engine/src/backends/metal/decompression.rs
++++ b/crates/uzu-engine/src/backends/metal/decompression.rs
+@@ -1,38 +1,56 @@
+-use std::ptr::null_mut;
+-
+-const COMPRESSION_LZFSE: i32 = 0x801;
+-
+-#[link(name = "compression")]
+-unsafe extern "C" {
+-    fn compression_decode_buffer(
+-        dst_buffer: *mut u8,
+-        dst_size: usize,
+-        src_buffer: *const u8,
+-        src_size: usize,
+-        scratch_buffer: *mut u8,
+-        algorithm: i32,
+-    ) -> usize;
+-}
++#[cfg(target_os = "apple")]
++mod imp {
++    use std::ptr::null_mut;
++
++    const COMPRESSION_LZFSE: i32 = 0x801;
+ 
+-type SizeHeader = u32;
+-
+-pub fn decompress(src: &[u8]) -> Vec<u8> {
+-    let (src_header, src_body) = src.split_at(size_of::<SizeHeader>());
+-    let size = SizeHeader::from_le_bytes(src_header.try_into().unwrap()) as usize;
+-
+-    let mut output = Vec::with_capacity(size + 1);
+-    unsafe {
+-        let decompressed_size = compression_decode_buffer(
+-            output.as_mut_ptr(),
+-            output.capacity(),
+-            src_body.as_ptr(),
+-            src_body.len(),
+-            null_mut(),
+-            COMPRESSION_LZFSE,
+-        );
+-        assert!(decompressed_size > 0 && decompressed_size == size, "decompression failed");
+-        output.set_len(decompressed_size);
++    #[link(name = "compression")]
++    unsafe extern "C" {
++        fn compression_decode_buffer(
++            dst_buffer: *mut u8,
++            dst_size: usize,
++            src_buffer: *const u8,
++            src_size: usize,
++            scratch_buffer: *mut u8,
++            algorithm: i32,
++        ) -> usize;
+     }
+ 
+-    output
++    type SizeHeader = u32;
++
++    pub fn decompress(src: &[u8]) -> Vec<u8> {
++        let (src_header, src_body) = src.split_at(size_of::<SizeHeader>());
++        let size = SizeHeader::from_le_bytes(src_header.try_into().unwrap()) as usize;
++
++        let mut output = Vec::with_capacity(size + 1);
++        unsafe {
++            let decompressed_size = compression_decode_buffer(
++                output.as_mut_ptr(),
++                output.capacity(),
++                src_body.as_ptr(),
++                src_body.len(),
++                null_mut(),
++                COMPRESSION_LZFSE,
++            );
++            assert!(decompressed_size > 0 && decompressed_size == size, "decompression failed");
++            output.set_len(decompressed_size);
++        }
++
++        output
++    }
+ }
++
++#[cfg(not(target_os = "apple"))]
++mod imp {
++    type SizeHeader = u32;
++
++    pub fn decompress(src: &[u8]) -> Vec<u8> {
++        let (src_header, src_body) = src.split_at(size_of::<SizeHeader>());
++        let size = SizeHeader::from_le_bytes(src_header.try_into().unwrap()) as usize;
++        let out = lzfse::decode(&src_body).expect("lzfse decompression failed");
++        assert_eq!(out.len(), size, "decompression size mismatch");
++        out
++    }
++}
++
++pub use imp::decompress;
+diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
+index 653c31f4..fbfe8e63 100644
+--- a/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
++++ b/crates/uzu-engine/src/backends/metal/metal_extensions/compiler_extensions_pipeline.rs
+@@ -12,7 +12,7 @@ pub trait CompilerPipelineExtensions {
+     /// Optionally specializes the function with constant values.
+     fn compute_pipeline_state(
+         &self,
+-        library: &ProtocolObject<dyn MTLLibrary>,
++        library: &Retained<ProtocolObject<dyn MTLLibrary>>,
+         function_name: &str,
+         constants: Option<&MTLFunctionConstantValues>,
+     ) -> Result<Retained<ProtocolObject<dyn MTLComputePipelineState>>, MetalError>;
+@@ -21,7 +21,7 @@ pub trait CompilerPipelineExtensions {
+ impl CompilerPipelineExtensions for ProtocolObject<dyn MTL4Compiler> {
+     fn compute_pipeline_state(
+         &self,
+-        library: &ProtocolObject<dyn MTLLibrary>,
++        library: &Retained<ProtocolObject<dyn MTLLibrary>>,
+         function_name: &str,
+         constants: Option<&MTLFunctionConstantValues>,
+     ) -> Result<Retained<ProtocolObject<dyn MTLComputePipelineState>>, MetalError> {
+diff --git a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
+index 93142098..f9355534 100644
+--- a/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
++++ b/crates/uzu-engine/src/backends/metal/metal_extensions/device_extensions.rs
+@@ -1,83 +1,37 @@
+-use core::mem::transmute;
+-use std::ffi::CString;
+-
+-use metal::{MTLDevice, MTLGPUFamily};
+-use obfstr::obfstr;
+-use objc2::{
+-    Message,
+-    ffi::objc_msgSend,
+-    runtime::{NSObjectProtocol, ProtocolObject, Sel},
+-};
++use metal::{MTLDevice, MTLDeviceExt, MTLGPUFamily};
++use objc2::{Message, NSObjectProtocol, runtime::ProtocolObject};
+ 
+ use super::GpuFamilyExt;
+ 
+-// Used to bypass objc2's debug-mode class validation for proxy objects like
+-// `CaptureMTLDevice` which forward messages at the ObjC runtime level (via
+-// `forwardingTargetForSelector:`) but don't have the methods in their own class
+-// table — causing `msg_send!`'s debug check to panic even though the message
+-// would succeed.
+-//
+-// The caller must verify with `respondsToSelector:` first.
+-unsafe fn raw_msg_send<R>(
+-    obj: &(impl Message + ?Sized),
+-    sel: Sel,
+-) -> R {
+-    let object_pointer = std::ptr::from_ref(obj);
+-    let send: unsafe extern "C" fn(*const _, Sel) -> R = unsafe { transmute(objc_msgSend as *const ()) };
+-    unsafe { send(object_pointer, sel) }
+-}
+-
+-// Registers a selector by name at runtime, so the obfuscated private selector
+-// names are only ever materialized at runtime — never appearing verbatim in the
+-// binary the way a compile-time `sel!(...)` would.
+-fn register_selector(name: &str) -> Sel {
+-    Sel::register(&CString::new(name).expect("selector name has no interior NUL byte"))
+-}
+-
+-// Sends a zero-argument selector by (obfuscated) name, returning `fallback` when
+-// the device does not implement it. The `respondsToSelector:` guard is the
+-// safety precondition for `raw_msg_send`, which bypasses objc2's debug-mode
+-// class check so the send also works on the `CaptureMTLDevice` forwarding proxy
+-// (where a typed `msg_send!` would panic) — this is why the typed `mtl-rs`
+-// accessors are not used here.
+-fn optional_selector_value<R>(
+-    device: &(impl Message + NSObjectProtocol),
+-    name: &str,
+-    fallback: R,
+-) -> R {
+-    let selector = register_selector(name);
+-    if device.respondsToSelector(selector) {
+-        unsafe { raw_msg_send(device, selector) }
+-    } else {
+-        fallback
+-    }
+-}
++// On Apple hosts the private device selectors (gpuCoreCount, supportsMXU,
++// supportsPlacementSparse) are read through raw objc_msgSend behind obfuscated
++// names. The m2v host layer answers the same queries from device properties, so
++// the Linux build forwards to the compat crate's MTLDeviceExt instead: Apple7
++// family (M1-class), no MXU, no placement sparse (uzu takes its dense path).
++#[cfg(target_os = "macos")]
++include!("device_extensions_apple.rs");
+ 
+-pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol + Sized {
++#[cfg(not(target_os = "macos"))]
++pub trait DeviceExt: MTLDevice + Message + NSObjectProtocol {
+     /// Number of GPU shader cores.
+     fn gpu_core_count(&self) -> u32 {
+-        optional_selector_value(self, obfstr!("gpuCoreCount"), 8)
++        MTLDeviceExt::gpu_core_count(self)
+     }
+ 
+-    /// Whether the GPU has a Matrix eXtension Unit (neural accelerator for compute).
+-    /// True on M5+ (Gen18+), false on M1-M4.
++    /// MXU is an M5-generation feature; every host part reports false.
+     fn supports_mxu(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsMXU"), false)
++        MTLDeviceExt::supports_mxu(self)
+     }
+ 
+-    /// Whether the GPU supports placement sparse resources.
+     fn supports_placement_sparse_resources(&self) -> bool {
+-        optional_selector_value(self, obfstr!("supportsPlacementSparse"), false)
++        MTLDeviceExt::supports_placement_sparse_resources(self)
+     }
+ 
+     /// Newest Apple GPU family the device supports.
+     fn newest_supported_apple_gpu_family(&self) -> MTLGPUFamily {
+-        MTLGPUFamily::all_cases()
+-            .into_iter()
+-            .rev()
+-            .find(|family| self.supports_family(*family))
+-            .expect("unsupported Metal device: uzu requires an Apple GPU")
++        MTLDeviceExt::newest_supported_apple_gpu_family(self)
+     }
+ }
+ 
++#[cfg(not(target_os = "macos"))]
+ impl DeviceExt for ProtocolObject<dyn MTLDevice> {}
