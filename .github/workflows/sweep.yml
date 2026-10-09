@@ -1,6 +1,8 @@
 name: sweep
 
-# Runs every uzu and TensorFold Zig kernel through the pipeline (compile only, clang 23) and fails if an entry that had valid Vulkan SPIR-V loses it.
+# Three jobs. `clspv` builds the patched clspv once and saves it in the cache; `gate` compiles the five reference cases and fails on any missing
+# or invalid SPIR-V (a shim change that breaks the real pipeline fails here, in minutes); `sweep` runs every uzu and TensorFold Zig kernel
+# (compile only, clang 23) and fails if an entry that had valid Vulkan SPIR-V loses it.
 # The floor is sweep/coverage-floor.txt; raise it with `sweep/check_coverage.py RESULT.json --update` in the PR that gains entries.
 
 on:
@@ -8,42 +10,98 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: sweep-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CLSPV_SHA: f2b01dd6dce7058585eb4bcdb5326997cfeebfd4
   UZU_SHA: c92723bdc04e40f55286de458a457172ce62c5b6
   TF_SHA: f8fe17d24629aedabf90bbf78279dd776e6d62e7
+  CLSPV_KEY: clspv-${{ hashFiles('clspv-patches/**') }}-f2b01dd6
 
 jobs:
+  clspv:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: clspv cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: clspv/build/bin/clspv
+          key: ${{ env.CLSPV_KEY }}
+
+      - name: Build clspv with the m2v patches
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake ninja-build python3
+          git clone -q https://github.com/google/clspv
+          cd clspv
+          git checkout -q "$CLSPV_SHA"
+          python3 utils/fetch_sources.py --shallow
+          for p in "$GITHUB_WORKSPACE"/clspv-patches/apply-*.py; do python3 "$p" .; done
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
+          ninja -C build clspv
+
+  gate:
+    needs: clspv
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      UZU_ROOT: ${{ github.workspace }}/uzu
+      CLANG: clang-23
+      OPT: opt-23
+      CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache/restore@v4
+        with:
+          path: clspv/build/bin/clspv
+          key: ${{ env.CLSPV_KEY }}
+          fail-on-cache-miss: true
+      - name: Toolchain
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm23.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-23 llvm-23 spirv-tools python3
+      - name: Kernel sources
+        run: git clone -q https://github.com/trymirai/uzu && git -C uzu checkout -q "$UZU_SHA"
+      - name: Compile the reference cases
+        run: |
+          cases="activation softmax tilematmul_rt gemm"
+          bash compile.sh out $cases
+          # compile.sh pipes spirv-val through head, so its own "rc" line is not the validator's: check each module here
+          fail=0
+          for c in $cases; do
+            if [ ! -s "out/$c.spv" ]; then echo "::error::$c: no SPIR-V produced"; fail=1; continue; fi
+            spirv-val --target-env vulkan1.3 "out/$c.spv" || { echo "::error::$c: spirv-val failed"; fail=1; }
+          done
+          exit $fail
+
   sweep:
+    needs: clspv
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/cache/restore@v4
+        with:
+          path: clspv/build/bin/clspv
+          key: ${{ env.CLSPV_KEY }}
+          fail-on-cache-miss: true
 
       - name: Toolchain (clang 23, opt 23, spirv-tools)
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
           echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm23.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang-23 llvm-23 spirv-tools cmake ninja-build python3
-
-      - name: clspv cache
-        id: clspv-cache
-        uses: actions/cache@v4
-        with:
-          path: clspv/build/bin/clspv
-          key: clspv-${{ env.CLSPV_SHA }}-${{ hashFiles('clspv-patches/**') }}
-
-      - name: Build clspv with the cooperative matrix patch
-        if: steps.clspv-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone -q https://github.com/google/clspv
-          cd clspv
-          git checkout -q "$CLSPV_SHA"
-          python3 utils/fetch_sources.py --shallow
-          python3 "$GITHUB_WORKSPACE/clspv-patches/apply-coopmat-lowering.py" .
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCLSPV_BUILD_TESTS=OFF -B build
-          ninja -C build clspv
+          sudo apt-get install -y -qq clang-23 llvm-23 spirv-tools python3
 
       - name: Kernel sources
         run: |
