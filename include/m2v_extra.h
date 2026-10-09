@@ -154,6 +154,12 @@ METAL_FUNC void store_hadamard_vector(device T* destination, const E source) {
 }
 
 
+// ---- bfloat compound assignments: widen, operate, narrow (bfloat arithmetic goes through float) ----
+METAL_FUNC bfloat& operator+=(bfloat& a, const bfloat& b) { a = bfloat(float(a) + float(b)); return a; }
+METAL_FUNC bfloat& operator-=(bfloat& a, const bfloat& b) { a = bfloat(float(a) - float(b)); return a; }
+METAL_FUNC bfloat& operator*=(bfloat& a, const bfloat& b) { a = bfloat(float(a) * float(b)); return a; }
+METAL_FUNC bfloat& operator/=(bfloat& a, const bfloat& b) { a = bfloat(float(a) / float(b)); return a; }
+
 // ---- metal::array ----
 template <typename T, size_t N> struct array {
   T _data[N];
