@@ -57,8 +57,8 @@ impl<P: ?Sized> ProtocolObject<P> {
     /// compat layer `ProtocolObject<dyn Trait>` pointers are wide; the object
     /// address is their data word.
     pub fn host_addr(this: &Self) -> usize {
-        let fat = this as *const ProtocolObject<P>;
-        // The data word of a wide pointer leads on every supported target.
-        unsafe { *(&fat as *const *const ProtocolObject<P> as *const usize) }
+        // A cast from a wide pointer to a thin one drops the metadata and keeps the data address.
+        // No assumption about the layout of the wide pointer.
+        this as *const ProtocolObject<P> as *const () as usize
     }
 }
