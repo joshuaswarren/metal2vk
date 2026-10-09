@@ -16,8 +16,15 @@ pub struct Encoder {
     bottom_written: bool,
 }
 
+/// Single source of truth for push-vs-fallback descriptors: the queue creates
+/// the fallback pool exactly when this returns false, and the encoder uses
+/// push descriptors exactly when it returns true.
+pub(crate) fn use_push_descriptors(device: &DeviceInner) -> bool {
+    device.has_push_descriptor && std::env::var_os("M2V_NO_PUSH_DESCRIPTOR").is_none()
+}
+
 impl Encoder {
-    pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
+pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
         Encoder {
             cb,
             pipeline: None,
@@ -323,6 +330,10 @@ impl Encoder {
 
     fn bind_descriptors(&mut self, pipeline: &Arc<Pipeline>) -> Result<()> {
         let device: &DeviceInner = &self.cb.device;
+        // Honeykrisp on M2 Max (G14C) segfaults in vkCmdPushDescriptorSetKHR at
+        // record time (2026-10-09); M2V_NO_PUSH_DESCRIPTOR=1 forces the plain
+        // descriptor-set path on such drivers.
+        let use_push = use_push_descriptors(device);
         let mut infos = Vec::with_capacity(pipeline.buffer_bindings.len());
         for (arg, _binding, _set) in &pipeline.buffer_bindings {
             let addr = self
@@ -346,7 +357,7 @@ impl Encoder {
             infos.push(buffer.descriptor_range(offset));
         }
         unsafe {
-            if let Some(pd) = &device.push_descriptor {
+            if use_push {
                 let writes: Vec<vk::WriteDescriptorSet> = infos
                     .iter()
                     .zip(&pipeline.buffer_bindings)
@@ -360,7 +371,7 @@ impl Encoder {
                         ..Default::default()
                     })
                     .collect();
-                pd.cmd_push_descriptor_set(
+                device.push_descriptor.as_ref().expect("push descriptor loader").cmd_push_descriptor_set(
                     self.cb.raw,
                     vk::PipelineBindPoint::COMPUTE,
                     pipeline.layout,

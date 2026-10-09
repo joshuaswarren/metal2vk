@@ -234,9 +234,12 @@ impl Queue {
                         },
                         None,
                     )?;
-                    // Fallback only: without push descriptors each recycled
-                    // command buffer owns a pool sized for several encoders.
-                    let desc_pool = (!q.device.has_push_descriptor).then(|| {
+                    // Fallback only: each recycled command buffer owns a pool
+                    // sized for several encoders. Created whenever dispatch
+                    // will use plain descriptor sets (no extension, or the
+                    // M2V_NO_PUSH_DESCRIPTOR override).
+                    let desc_pool =
+                        (!crate::encoder::use_push_descriptors(q.device.as_ref())).then(|| {
                         let sizes = [vk::DescriptorPoolSize {
                             ty: vk::DescriptorType::STORAGE_BUFFER,
                             descriptor_count: 256,
