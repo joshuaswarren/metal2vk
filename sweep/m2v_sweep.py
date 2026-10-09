@@ -1343,6 +1343,29 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["primary"] = row["features"][0]
             return row, {}, []
         txt = ll.read_text()
+    # a memcpy between distinct address spaces (private alloca <- global buffer, left by SROA) aborts
+    # clspv's intrinsics pass; expand those to byte load/stores first (no-op otherwise)
+    m1 = re.search(r"@llvm\.memcpy\.[\w.]*?p(\d+)[\w.]*?\.p(\d+)", txt)
+    if m1 and m1.group(1) != m1.group(2):
+        rc, out, _ = sh([sys.executable, str(HERE / "memcpy_mixed_as.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["memcpy_mixed_as failed"])[-1][:140]
+            row["features"] = ["mcp:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}
+        txt = ll.read_text()
+    # a private array of pointers (buffer-select table) cannot be represented by clspv's
+    # producer; promote small ones to scalar allocas with select chains (no-op otherwise)
+    if "alloca [" in txt and re.search(r"alloca \[\d+ x ptr addrspace\(\d+\)\]", txt):
+        rc, out, _ = sh([sys.executable, str(HERE / "promote_ptr_arrays.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["promote_ptr_arrays failed"])[-1][:140]
+            row["features"] = ["pra:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}
+        txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
