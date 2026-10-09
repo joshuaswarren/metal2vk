@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Run stage of the metal2vk sweep (GPU host; run it inside a gpu-turn ticket, see sweep/README).
 For every entry the compile stages passed (spirv-val ok) this dispatches the kernel once with synthetic data and reports
-  run   the dispatch completed (m2v-run exit 0; a device error, a hang past the timeout or a crash is a FAIL with the message)
+  run   the dispatch completed (m2v-run exit 0; a device error, a hang past the timeout or a crash is a FAIL with the message;
+        a kernel with atomics or an unbounded loop is "skipped" by a source screen: it could spin on synthetic data and hang the GPU)
   ref   for the few kernels with a cheap CPU reference (REFS below): the output matches the reference
 Synthetic data: float buffers uniform in [0, 1), integer buffers zero (so data-dependent loop bounds and indices stay in range), constant
 references and POD arguments small fixed values, 4 workgroups of 64 threads (the module's own required size wins). One dispatch per kernel,
@@ -28,6 +29,19 @@ SCALAR = {"float": (np.float32, 4), "half": (np.float16, 2), "bfloat": (None, 2)
           "uint": (np.uint32, 4), "uint32_t": (np.uint32, 4), "long": (np.int64, 8), "int64_t": (np.int64, 8), "ulong": (np.uint64, 8),
           "uint64_t": (np.uint64, 8), "bool": (np.uint32, 4)}
 rng = np.random.default_rng(11)
+
+# Kernels that can spin forever on synthetic data are not dispatched: a GPU hang on the lab Macs lasts minutes and can take the host down.
+# Atomics (spin waits on a flag another workgroup never sets) and unbounded loops are screened out by source; the row says so.
+SPIN = re.compile(r"\batomic_\w+|\bwhile\s*\(\s*(?:true|1)\s*\)|\bfor\s*\(\s*;\s*;\s*\)|\bdo\s*\{")
+
+
+def screen(spvdir, row):
+    src = pathlib.Path(spvdir) / "src" / (row["tag"] + ".cl")
+    if not src.exists():
+        return "no source to screen"
+    text = re.sub(r"//[^\n]*|/\*.*?\*/", "", src.read_text(errors="replace"), flags=re.S)
+    m = SPIN.search(text)
+    return f"spin-wait risk ({m.group(0).strip()[:20]})" if m else None
 
 
 def elem_of(typ):
@@ -91,6 +105,8 @@ def run_one(row, spv, runner, work, local=64, groups=(4, 1, 1), overrides=None, 
             data = ref_value(spec["type"]) if spec["kind"] == "ref" else buffer_for(spec["type"])
             if overrides and spec["name"] in overrides:
                 data = np.asarray(overrides[spec["name"]])
+                if data.dtype.itemsize == 8:  # a Python int or float list: 32-bit words, what the kernels read
+                    data = data.astype(np.uint32 if data.dtype.kind in "iu" else np.float32)
             p = work / f"b{o}.bin"
             data.tofile(p)
             bufs[a["binding"]] = str(p)
@@ -116,16 +132,18 @@ def run_one(row, spv, runner, work, local=64, groups=(4, 1, 1), overrides=None, 
         want = next(a["binding"] for a in k["args"] if a["kind"] == "storage_buffer" and kargs[a["ordinal"]]["name"] == dump[0])
         cmd += ["--dump", f"{order.index(want)}:{dump[1]}"]
     t0 = time.time()
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
     return r, time.time() - t0
 
 
 def ref_activation(row):
     n = 8192
-    x = rng.standard_normal(n).astype(np.float32)
+    dt = np.float16 if row["variant"] == "half" else np.float32
+    x = rng.standard_normal(n).astype(dt)
     # ActivationType::SILU = 0; AXIS(n, 256): one thread per element
-    return dict(overrides={"input": x, "output": np.zeros(n, np.float32), "n": [n], "act_type": [0], "in_place": 0},
-                groups=(n // 256, 1, 1), local=256, out="output", dtype=np.float32, expect=x / (1.0 + np.exp(-x.astype(np.float64))), tol=2e-5)
+    return dict(overrides={"input": x, "output": np.zeros(n, dt), "n": [n], "act_type": [0], "in_place": 0},
+                groups=(n // 256, 1, 1), local=256, out="output", dtype=dt, expect=x.astype(np.float64) / (1.0 + np.exp(-x.astype(np.float64))),
+                tol=3e-3 if dt == np.float16 else 2e-5)
 
 
 def ref_add_bias(row):
@@ -190,6 +208,11 @@ def main():
     log = open(out / "run.log", "w")
     for i, r in enumerate(todo):
         spv = pathlib.Path(a.spvdir) / "spv" / (r["tag"] + ".spv")
+        why = None if (r["file"], r["entry"]) in REFS else screen(a.spvdir, r)
+        if why:
+            r["run"], r["run_error"] = "skipped", "screen: " + why
+            print(f"{i + 1}/{len(todo)} {r['file']} {r['entry'][:40]} run=skipped {why}", file=log, flush=True)
+            continue
         work = out / "work"
         work.mkdir(exist_ok=True)
         est = 0.5
@@ -200,7 +223,7 @@ def main():
                 r["run_error"] = (res.stderr.strip().splitlines() or ["?"])[-1][:140]
             r["run_est_s"], r["run_actual_s"] = est, round(wall, 3)
         except subprocess.TimeoutExpired:
-            r["run"], r["run_error"], r["run_est_s"], r["run_actual_s"] = "FAIL", "timeout 30 s", est, 30.0
+            r["run"], r["run_error"], r["run_est_s"], r["run_actual_s"] = "FAIL", "timeout 20 s", est, 20.0
         except Exception as e:  # noqa: BLE001 - one bad module must not stop the sweep
             r["run"], r["run_error"] = "FAIL", repr(e)[:140]
         if r.get("run") == "ok" and (r["file"], r["entry"]) in REFS:
@@ -211,6 +234,8 @@ def main():
         print(f"{i + 1}/{len(todo)} {r['file']} {r['entry'][:40]} run={r['run']} {r.get('run_error', '')}", file=log, flush=True)
     json.dump(rows, open(out / "sweep-run.json", "w"), indent=1)
     ok = sum(r.get("run") == "ok" for r in rows)
+    skipped = sum(r.get("run") == "skipped" for r in rows)
+    print(f"skipped by the spin-wait screen: {skipped}")
     refs = [r.get("ref") for r in rows if r.get("ref")]
     print(f"references: {sum(x == 'ok' for x in refs)} of {len(refs)} match")
     print(f"ran {len(todo)} entries, {ok} ok, {time.time() - t_all:.0f} s wall")
