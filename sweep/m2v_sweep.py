@@ -1387,6 +1387,55 @@ def process(job):
     return row
 
 
+def select_entry(blanked, name=None):
+    """One entry of one file by kernel (host) name or entry function name -> (eidx, kname, targs, error).
+
+    Without a name the file must hold exactly one compilable entry. With a name, kernel names (the host_name of a
+    template instantiation, else the function name) match first, then entry function names; both must leave one
+    instantiation. tools/m2v-compile uses this; the sweep's inventory path does not."""
+    cands = []
+    for ei, e in enumerate(find_entries(blanked)):
+        for kname, targs, err in variant_sets(e, blanked):
+            cands.append((ei, kname, targs, err, e["name"]))
+    if name is None:
+        ok = [c for c in cands if not c[3]]
+        if len(ok) != 1:
+            hint = "no kernel entry in file" if not cands else f"--name ({len(cands)} entries or instantiations)"
+            return -1, "", "", f"file does not hold exactly one entry; pass {hint}"
+        ei, kname, targs, _, _en = ok[0]
+        return ei, kname, targs, ""
+    m = [c for c in cands if c[1] == name] or [c for c in cands if c[4] == name]
+    if not m:
+        return -1, "", "", f"no kernel entry named {name!r}"
+    if len(m) > 1:
+        return -1, "", "", f"name {name!r} matches {len(m)} entries or instantiations"
+    ei, kname, targs, err, _en = m[0]
+    return (-1, "", "", err) if err else (ei, kname, targs, "")
+
+
+def compile_entry(src_path, name=None, outdir=None, include_dirs=None, setname="tf", use_spv=True, defs=(), syms=()):
+    """One entry of one file through the full pipeline -> (row, paths).
+
+    tools/m2v-compile calls this (same stages, retries and refusal classification as the sweep's process()); the
+    sweep's inventory and job path is unchanged. paths names the artifacts written under outdir (cl, ll, spv) and is
+    empty when the row has no tag (selection failed or nothing was compiled)."""
+    src_path = pathlib.Path(src_path)
+    outdir = pathlib.Path(outdir)
+    include_dirs = [pathlib.Path(x) for x in
+                    (include_dirs if include_dirs is not None else [src_path.parent, src_path.parent.parent])]
+    blanked = blank_comments(preprocess(src_path, include_dirs, []))
+    eidx, kname, targs, err = select_entry(blanked, name)
+    if err:
+        row = {"set": setname, "file": src_path.name, "entry": name or "(none)", "variant": "-", "parse": "FAIL",
+               "ir": "", "spv": "", "val": "", "error": err, "features": ["select: " + err], "kernel": "", "args": []}
+        return row, {}
+    row = process((setname, src_path, src_path.name, eidx, kname, targs, outdir, include_dirs, use_spv, list(defs), list(syms)))
+    tag = row.get("tag")
+    paths = {} if not tag else {ext: outdir / sub / (tag + "." + ext)
+                                for sub, ext in (("src", "cl"), ("ll", "ll"), ("spv", "spv"))}
+    return row, paths
+
+
 def mentions_mpp(path, include_dirs, seen=None):
     """The wrapper must prepend the real MetalPerformancePrimitives header when the source pulls it in, directly or through
     project includes (nax.h, uzu's ops headers) that preprocessing resolves against empty stubs."""
