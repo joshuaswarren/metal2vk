@@ -1373,6 +1373,10 @@ def missing_host_symbols(errs):
 HOST_GROUP_MACROS = {g: set(re.findall(r"^\s*#\s*define\s+(\w+)", t, re.M)) for g, t in HOST_SYMBOL_TEXT.items()}
 
 
+# printed by the metal2vk clspv patches when SimplifyPointerBitcast stops without a fixed point
+NONCONVERGED = "did not converge"
+
+
 def sh(cmd, timeout=300):
     t0 = time.time()
     try:
@@ -1650,6 +1654,13 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
+    # A pointer pass that gave up before reaching its fixed point leaves a half rewritten module: clspv continues and emits SPIR-V
+    # that reads the wrong addresses (observed on the gate+up shared scalar). Never keep such a module.
+    if rc == 0 and NONCONVERGED in out:
+        rc = 125
+        lines = ["clspv pass did not converge; the module would be miscompiled (no SPIR-V kept)"] + lines
+        if spv.exists():
+            spv.unlink()
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:
         row["spv"] = "FAIL"
         row["error"] = (lines[0] if lines else (f"clspv exit {rc} without a diagnostic (crash)" if rc != 124 else f"timeout after {CLSPV_TIMEOUT} s (clspv does not finish)"))[:140]
