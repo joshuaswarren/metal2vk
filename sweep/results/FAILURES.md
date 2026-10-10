@@ -2,15 +2,6 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
-## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (32)
-
-```
-error: line 11317: Header block '9087[%9087]' is contained in the loop construct headed by '992[%992]', but its merge block '12524[%12524]' is not
-  %9087 = OpLabel
-```
-
-Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 24 more
-
 ## clspv: clspv:Invalid bitcast (6)
 
 ```
