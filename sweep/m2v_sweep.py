@@ -1673,8 +1673,12 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     # A pointer pass that gave up before reaching its fixed point leaves a half rewritten module: clspv continues and emits SPIR-V
     # that reads the wrong addresses (observed on the gate+up shared scalar). Never keep such a module. M2V-GIVEUP marks every
     # remaining give-up/skip path of the pointer-bitcast pass; a module that hit one is not provably correct.
-    if rc == 0 and (NONCONVERGED in out or "M2V-GIVEUP:" in out):
-        rc = 125
+    # The marker check is independent of the exit code: a clspv that prints the marker and still exits
+    # nonzero must also leave no .spv behind (w7K boundary review, PR #51).
+    gave = NONCONVERGED in out or "M2V-GIVEUP:" in out
+    if gave:
+        if rc == 0:
+            rc = 125
         lines = ["clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)"] + lines
         if spv.exists():
             spv.unlink()

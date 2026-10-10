@@ -13,11 +13,16 @@ pointer offset.
 
 Three independent repairs:
 
-  A. runOnGEPFromGEP: skip the pair fold when OtherGEP's pointer operand is a
-     PHINode and the two geps live in different basic blocks. The phi reads a
-     different incoming value at the fold's block than at the inner gep, so
-     the re-associated index changes the address. This removes the +256
-     ushort access chain the shipped SPIR-V had.
+  A. runOnGEPFromGEP: skip the pair fold GEP(OtherGEP, i) -> GEP(Phi, i+off)
+     exactly when it is address-changing: OtherGEP's pointer operand is a
+     PHINode Phi defined in H, the phi's incoming values are not all the same
+     SSA value, the inner gep's block B_O differs from the outer gep's block
+     B_G and from H, B_O can reach H, and H can reach B_G over a path that
+     avoids B_O. On such a path the phi is re-selected (latch advance) after
+     OtherGEP's last execution and the new value reaches the outer gep
+     without OtherGEP re-running, so the re-associated index changes the
+     address (the gate_up tail's +256 ushort access chain). Every other
+     shape is exact and folds (the gemm_nax software-pipelined pair folds).
   B. runOnUpgradeableConstantCasts: in the main Worklist collection, do not
      push entries whose consumer is a PHINode. The phi's incoming shapes are
      owned by runOnPHIFromGEP; widening them here fights that canonicalization
@@ -58,13 +63,22 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pp.read_text()
-if "spb-converge" in s:
+# Completion guard: only a tree that already carries BOTH refinements (the per-edge reachability helper and the phi cast-site check) is
+# done. A tree patched by the first version of this script (it carries the marker comments but no M2vReach) is upgraded in place by the
+# refinement steps only: the first-version steps are not re-run on it, because later first-version steps rewrite text that earlier
+# first-version steps inserted, so their completion checks cannot see their own output. (The word "spb-converge" appears in the old
+# comments too and says nothing about the version.)
+if "M2vReach" in s and "M2vPU" in s:
     print("already patched")
     sys.exit(0)
+skip_v1 = "apply-spb-converge" in s and "M2vReach" not in s
+in_v1 = True
 
 
 def step(label, old, new):
     global s
+    if in_v1 and skip_v1:
+        return
     if new in s:
         return
     if old not in s:
@@ -264,6 +278,149 @@ step(
     "    auto new_gep = GetElementPtrInst::Create(Ty, gep->getPointerOperand(), Idxs,\n"
     "                                             \"\", gep->getIterator());\n",
 )
+
+in_v1 = False
+
+# --- Fix A refined: the cross-block guard becomes a per-edge reachability
+# predicate; the coarse different-block guard also blocked exact folds (the
+# seven gemm_nax prefill entries lost valid SPIR-V to it).
+step(
+    "CFG include for the reachability helper",
+    "#include \"llvm/IR/Module.h\"\n",
+    "#include \"llvm/IR/Module.h\"\n"
+    "#include \"llvm/IR/CFG.h\"\n",
+)
+step(
+    "reachability helper before runOnGEPFromGEP",
+    "bool clspv::SimplifyPointerBitcastPass::runOnGEPFromGEP(Module &M) const {",
+    "// metal2vk (apply-spb-converge): CFG reachability from Src to Dst; when\n"
+    "// Avoid is non-null, paths through Avoid do not count.\n"
+    "static bool M2vReach(BasicBlock *Src, BasicBlock *Dst, BasicBlock *Avoid) {\n"
+    "  if (Src == Dst) {\n"
+    "    return true;\n"
+    "  }\n"
+    "  SmallPtrSet<BasicBlock *, 32> Visited;\n"
+    "  SmallVector<BasicBlock *, 32> Work;\n"
+    "  Visited.insert(Src);\n"
+    "  Work.push_back(Src);\n"
+    "  while (!Work.empty()) {\n"
+    "    BasicBlock *BB = Work.pop_back_val();\n"
+    "    for (BasicBlock *Succ : successors(BB)) {\n"
+    "      if (Succ == Dst) {\n"
+    "        return true;\n"
+    "      }\n"
+    "      if (Avoid && Succ == Avoid) {\n"
+    "        continue;\n"
+    "      }\n"
+    "      if (Visited.insert(Succ).second) {\n"
+    "        Work.push_back(Succ);\n"
+    "      }\n"
+    "    }\n"
+    "  }\n"
+    "  return false;\n"
+    "}\n"
+    "\n"
+    "bool clspv::SimplifyPointerBitcastPass::runOnGEPFromGEP(Module &M) const {",
+)
+step(
+    "Fix A refined to the per-edge predicate",
+    "              // metal2vk (apply-spb-converge): a loop-carried phi reads\n"
+    "              // a different incoming value at the fold's block than at the\n"
+    "              // inner gep, so re-associating the inner gep's offset onto\n"
+    "              // its base across blocks changes the address (the gate_up\n"
+    "              // tail was advanced by one extra block stride). Leave the\n"
+    "              // pair split; split geps are valid IR.\n"
+    "              if (isa<PHINode>(OtherGEP->getPointerOperand()) &&\n"
+    "                  OtherGEP->getParent() != GEP->getParent()) {\n"
+    "                continue;\n"
+    "              }\n",
+    "              // metal2vk (apply-spb-converge): per-edge safety predicate\n"
+    "              // for re-associating GEP(OtherGEP, i) into GEP(Phi, i+off)\n"
+    "              // when OtherGEP's pointer operand is the PHINode Phi\n"
+    "              // (defined in H). The fold re-reads Phi at the outer GEP's\n"
+    "              // block (B_G) instead of at the inner GEP's block (B_O),\n"
+    "              // which preserves the address iff Phi's value cannot change\n"
+    "              // between OtherGEP's last execution before the outer GEP\n"
+    "              // and the outer GEP itself. A pointer phi changes its\n"
+    "              // register value exactly when control enters H (an incoming\n"
+    "              // selection), and re-entering B_O re-executes OtherGEP,\n"
+    "              // which re-syncs the pair with the phi's new value. So the\n"
+    "              // fold is unsafe iff the phi's incoming values are not all\n"
+    "              // the same SSA value, the two geps live in different\n"
+    "              // blocks, B_O is not H itself, B_O can reach H (an incoming\n"
+    "              // edge is crossed after OtherGEP's last execution), and H\n"
+    "              // can reach B_G over a path that avoids B_O (the phi's new\n"
+    "              // value reaches the outer GEP without OtherGEP re-running;\n"
+    "              // the gate_up tail shape: body -> latch -> header -> exit\n"
+    "              // tail). Otherwise the pair fold is exact and must not be\n"
+    "              // blocked.\n"
+    "              if (auto M2vPhi =\n"
+    "                      dyn_cast<PHINode>(OtherGEP->getPointerOperand())) {\n"
+    "                BasicBlock *M2vBO = OtherGEP->getParent();\n"
+    "                BasicBlock *M2vBG = GEP->getParent();\n"
+    "                BasicBlock *M2vH = M2vPhi->getParent();\n"
+    "                bool M2vAllSame = true;\n"
+    "                Value *M2vFirst = M2vPhi->getIncomingValue(0);\n"
+    "                for (unsigned M2vK = 1;\n"
+    "                     M2vK < M2vPhi->getNumIncomingValues(); ++M2vK) {\n"
+    "                  if (M2vPhi->getIncomingValue(M2vK) != M2vFirst) {\n"
+    "                    M2vAllSame = false;\n"
+    "                    break;\n"
+    "                  }\n"
+    "                }\n"
+    "                if (!M2vAllSame && M2vBO != M2vBG && M2vBO != M2vH &&\n"
+    "                    M2vReach(M2vBO, M2vH, nullptr) &&\n"
+    "                    M2vReach(M2vH, M2vBG, M2vBO)) {\n"
+    "                  continue;\n"
+    "                }\n"
+    "              }\n",
+)
+
+# --- Fix B''' refined: refuse the push only when runOnPHIFromGEP actually
+# owns the incoming, i.e. the phi user is itself an implicit-cast site. A phi
+# that is not an implicit-cast site never rewrites its incomings, so the fold
+# cannot start the c[5]/c[7] flip; the gemm_nax refusals were all such phis
+# and the folds were needed for a valid OpPtrAccessChain.
+step(
+    "implicit casts push-side guard refined to phi-cast-site check",
+    "              bool M2vPhiIncoming = false;\n"
+    "              for (auto *U : inst_gep->users()) {\n"
+    "                if (isa<PHINode>(U)) {\n"
+    "                  M2vPhiIncoming = true;\n"
+    "                  break;\n"
+    "                }\n"
+    "              }\n"
+    "              if (!M2vPhiIncoming) {\n"
+    "                Worklist.emplace_back(inst_gep);\n"
+    "              }\n",
+    "              bool M2vPhiIncoming = false;\n"
+    "              for (auto *U : inst_gep->users()) {\n"
+    "                if (auto *M2vPU = dyn_cast<PHINode>(U)) {\n"
+    "                  // metal2vk (apply-spb-converge): refuse only when\n"
+    "                  // runOnPHIFromGEP owns this incoming, i.e. the phi\n"
+    "                  // itself is an implicit-cast site (the only way c[7]\n"
+    "                  // rewrites the incoming and can fight this fold). A phi\n"
+    "                  // that is not an implicit-cast site never rewrites its\n"
+    "                  // incomings, so folding here cannot start the c[5]/c[7]\n"
+    "                  // flip.\n"
+    "                  Value *M2vS = nullptr;\n"
+    "                  Type *M2vST = nullptr;\n"
+    "                  Type *M2vDT = nullptr;\n"
+    "                  if (IsImplicitCasts(M, type_cache, *M2vPU, M2vS, M2vST,\n"
+    "                                      M2vDT, true)) {\n"
+    "                    M2vPhiIncoming = true;\n"
+    "                    break;\n"
+    "                  }\n"
+    "                }\n"
+    "              }\n"
+    "              if (!M2vPhiIncoming) {\n"
+    "                Worklist.emplace_back(inst_gep);\n"
+    "              }\n",
+)
+
+# --- docstring: Fix A's description follows the refined predicate (the
+# module docstring is this script's own text, not clspv source; edited in
+# place above this comment) ---
 
 pp.write_text(s)
 print(f"patched (clspv HEAD {sha[:8]})")
