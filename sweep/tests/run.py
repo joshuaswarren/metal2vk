@@ -96,4 +96,18 @@ with tempfile.TemporaryDirectory(prefix="m2v-selftest-") as td:
             continue
         if not verify(work, name.removesuffix(".ll")):
             fails += 1
+
+# parity references: generate every seeded input and run every reference
+# (shapes, dtypes, finiteness); needs only numpy
+try:
+    sys.path.insert(0, str(SWEEP))
+    import parity_refs  # noqa: E402
+
+    parity_refs.check_all()
+except SystemExit as e:
+    print(f"FAIL parity references: {e}")
+    fails += 1
+except ImportError as e:
+    print(f"FAIL parity references import: {e}")
+    fails += 1
 sys.exit(1 if fails else 0)

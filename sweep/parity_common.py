@@ -67,8 +67,6 @@ def bf16_to_f32(bits):
 #                      "c:[...]"  exact values (scalars, strides, params)
 #   scalar buffers ("c:[v]") are 1-element ref/constant buffers unless the
 #   shape says otherwise; "fbits" packs a float value as its uint32 bits.
-#   cpu_ref          numpy reference for kernels simple enough to check even
-#                    when the omarchy path refuses them
 #   m2v_only_note    why the kernel has no mlx-side comparison partner
 
 def _fbits(v):
@@ -100,12 +98,12 @@ GDN_HDR = ["T", "HK", "HV", "DK", "DV", "C"]
 
 
 def K(name, group, grid, tg, tmpl=(), inputs=(), outputs=(), launch_grid=None,
-      cpu_ref=None, note=None):
+      note=None):
     return dict(name=name, group=group, grid=tuple(grid), tg=tuple(tg),
                 tmpl=list(tmpl), inputs=[list(i) for i in inputs],
                 outputs=[list(o) for o in outputs],
                 launch_grid=tuple(launch_grid) if launch_grid else None,
-                cpu_ref=cpu_ref, note=note)
+                note=note)
 
 
 KERNELS = [
@@ -113,8 +111,7 @@ KERNELS = [
     K("omlx_qwen35_moe_router_topk", "sibling", (32, 1, 1), (32, 1, 1),
       [("T", "bf16"), ("NE", 512), ("K", 8)],
       [("probs", "bf16", (1, 512), "rand")],
-      [("indices", "u32", (1, 8)), ("scores", "bf16", (1, 8))],
-      cpu_ref="router_topk"),
+      [("indices", "u32", (1, 8)), ("scores", "bf16", (1, 8))]),
     K("omlx_qwen35_moe_router_gemv", "sibling", (32, 128, 1), (32, 4, 1),
       [("T", "bf16"), ("K", 2048), ("N", 512), ("M", 1), ("NSG", 4)],
       [("x", "bf16", (1, 2048), "rand"), ("w", "bf16", (512, 2048), "rand")],
@@ -125,19 +122,16 @@ KERNELS = [
     K("omlx_qwen35_moe_router_softmax_topk_row", "sibling", (32, 1, 1), (32, 1, 1),
       [("T", "bf16"), ("NE", 512), ("K", 8)],
       [("logits", "bf16", (1, 512), "rand")],
-      [("indices", "u32", (1, 8)), ("scores", "bf16", (1, 8))],
-      cpu_ref="softmax_topk"),
+      [("indices", "u32", (1, 8)), ("scores", "bf16", (1, 8))]),
     K("omlx_qwen35_moe_router_softmax_topk_rows", "sibling", (32, 4, 1), (32, 1, 1),
       [("T", "bf16"), ("NE", 512), ("K", 8)],
       [("logits", "bf16", (4, 512), "rand")],
-      [("indices", "u32", (4, 8)), ("scores", "bf16", (4, 8))],
-      cpu_ref="softmax_topk"),
+      [("indices", "u32", (4, 8)), ("scores", "bf16", (4, 8))]),
     K("omlx_qwen35_moe_combine_row", "sibling", (2048, 1, 1), (256, 1, 1),
       [("T", "bf16"), ("K", 8), ("H", 2048)],
       [("routed", "bf16", (8, 2048), "rand"), ("scores", "bf16", (8,), "rand"),
        ("shared", "bf16", (2048,), "rand"), ("gate", "bf16", (1,), "rand")],
-      [("out", "bf16", (2048,))],
-      cpu_ref="combine_row"),
+      [("out", "bf16", (2048,))]),
     # ---- sibling: fused MoE expert kernels (small 4-expert weight pool) ----
     K("omlx_qwen35_moe_gate_up_decode_b4g32f_shared_b4g32f_gate_b4g32s",
       "sibling", (32, 2306, 1), (32, 2, 1),
@@ -186,8 +180,7 @@ KERNELS = [
     # ---- sibling: attention verify/prefix ----
     K("omlx_gdn_sigmoid_probe", "sibling", (131072, 1, 1), (256, 1, 1), [],
       [("gates", "f32", (131072,), "rand")],
-      [("out", "f32", (131072,))],
-      cpu_ref="silu"),
+      [("out", "f32", (131072,))]),
     K("omlx_gdn_norm_gate_eps1em06", "sibling", (32, 128, 1), (32, 8, 1),
       [("InT", "bf16")],
       [("y", "bf16", (16384,), "rand"), ("z", "bf16", (16384,), "rand"),
@@ -314,18 +307,21 @@ KERNELS = [
     K("omlx_qwen4_gdn_verify_step", "gdn", (32, 16, 32), (32, 16, 1),
       [(n, v) for n, v in zip(GDN_HDR, ["bf16", 16, 32, 128, 128, 8192])]
       + [("S", 4)],
-      [("proj", "bf16", (32768,), "rand"), ("conv_state", "bf16", (24576,), "rand"),
+      [("proj", "bf16", (49408,), "rand"), ("conv_state", "bf16", (24576,), "rand"),
        ("conv_w", "bf16", (32768,), "rand"),
        ("q_scale", "bf16", (1,), f"c:[{QSCALE}]"),
        ("A_log", "bf16", (32,), "rand"), ("dt_bias", "bf16", (32,), "rand"),
        ("state_in", "f32", (524288,), "rand"), ("norm_w", "bf16", (128,), "rand"),
        ("eps", "f32", (1,), "c:[1e-06]")],
       [("conv_out", "bf16", (24576,)), ("window", "bf16", (57344,)),
-       ("state_out", "f32", (524288,)), ("out", "bf16", (16384,))]),
+       ("state_out", "f32", (524288,)), ("out", "bf16", (16384,))],
+      note="proj is one (S, P) buffer of per-token [qkv | z | b | a] rows, "
+           "P = C + HV*DV + 2*HV = 12352; the kernel indexes every row up "
+           "to P, so the buffer is S*P"),
     K("omlx_qwen4_gdn_verify_step_states", "gdn", (32, 16, 32), (32, 16, 1),
       [(n, v) for n, v in zip(GDN_HDR, ["bf16", 16, 32, 128, 128, 8192])]
       + [("S", 4)],
-      [("proj", "bf16", (32768,), "rand"), ("conv_state", "bf16", (24576,), "rand"),
+      [("proj", "bf16", (49408,), "rand"), ("conv_state", "bf16", (24576,), "rand"),
        ("conv_w", "bf16", (32768,), "rand"),
        ("q_scale", "bf16", (1,), f"c:[{QSCALE}]"),
        ("A_log", "bf16", (32,), "rand"), ("dt_bias", "bf16", (32,), "rand"),
@@ -333,7 +329,10 @@ KERNELS = [
        ("eps", "f32", (1,), "c:[1e-06]")],
       [("conv_out", "bf16", (24576,)), ("window", "bf16", (57344,)),
        ("state_out", "f32", (524288,)), ("states", "f32", (2097152,)),
-       ("out", "bf16", (16384,))]),
+       ("out", "bf16", (16384,))],
+      note="same proj layout as verify_step; states[S-1] is never written "
+           "(the t + 1 < S guard), the reference zeros it and comparisons "
+           "flag the unwritten region"),
     # ---- moe/vlm: gated delta + ragged sdpa ----
     K("qwen35_gated_delta_step", "moe", (32, 128, 32), (32, 4, 1),
       [("InT", "bf16"), ("StT", "f32"), ("Dk", 128), ("Dv", 128), ("Hk", 16),
@@ -395,18 +394,20 @@ def _gen_input(kname, idx, spec, seed):
     # per-buffer stream: stable across processes and python versions
     kern_tag = zlib.crc32(kname.encode()) if kname else 0
     rng = np.random.default_rng([seed & 0xFFFFFFFF, idx, kern_tag])
-    if code == "bf16":
-        return bf16_uniform(rng, n, gen).tobytes()
-    if gen == "bits":
-        return rng.integers(0, 2 ** 32, n, dtype=np.uint32).tobytes()
-    if gen.startswith("idx:"):
-        return rng.integers(0, int(gen[4:]), n, dtype=np.uint32).tobytes()
+    # exact values first: bf16 scalar params (q_scale, k_scale) must not fall
+    # into the bf16 random path below
     if gen.startswith("c:["):
         vals = [v.strip() for v in gen[3:-1].split(",")]
         arr = np.asarray([float(v) for v in vals], dtype=np.float64)
         if npdt is None:
             return bf16_round(arr).tobytes()
         return arr.astype(npdt).tobytes()
+    if code == "bf16":
+        return bf16_uniform(rng, n, gen).tobytes()
+    if gen == "bits":
+        return rng.integers(0, 2 ** 32, n, dtype=np.uint32).tobytes()
+    if gen.startswith("idx:"):
+        return rng.integers(0, int(gen[4:]), n, dtype=np.uint32).tobytes()
     # "rand": uniform [-1, 1)
     if npdt is None:
         return bf16_uniform(rng, n, gen).tobytes()
@@ -481,34 +482,6 @@ def compare(code, got_bits, want_bits):
 # ---------------------------------------------------------------------------
 # cpu references for the simple kernels (used when the omarchy path refuses)
 # ---------------------------------------------------------------------------
-def cpu_ref(kind, kern, inputs):
-    """-> {output_name: float64 numpy array}; inputs: {name: float64 array}."""
-    if kind == "router_topk":
-        x = inputs["probs"].reshape(-1, 512)
-        idx = np.argsort(-x, axis=1)[:, :8]
-        rows = np.take_along_axis(x, idx, 1)
-        s = rows.sum(1, keepdims=True)
-        return {"indices": idx.astype(np.float64), "scores": rows / s}
-    if kind == "softmax_topk":
-        x = inputs["logits"].reshape(-1, 512).astype(np.float64)
-        e = np.exp(x - x.max(1, keepdims=True))
-        p = e / e.sum(1, keepdims=True)
-        idx = np.argsort(-p, axis=1)[:, :8]
-        rows = np.take_along_axis(p, idx, 1)
-        return {"indices": idx.astype(np.float64), "scores": rows / rows.sum(1, keepdims=True)}
-    if kind == "combine_row":
-        acc = (inputs["routed"].reshape(8, 2048) * inputs["scores"].reshape(8, 1)).sum(0)
-        g = float(inputs["gate"].reshape(-1)[0])
-        sig = g / (1.0 + np.exp(-abs(g))) if g >= 0 else g * (1.0 / (1.0 + np.exp(abs(g))))
-        return {"out": acc + sig * inputs["shared"].reshape(2048)}
-    if kind == "silu":
-        g = inputs["gates"]
-        sig = np.where(g < 0, 1.0 / (1.0 + np.exp(np.abs(g))),
-                       1.0 - 1.0 / (1.0 + np.exp(np.abs(g))))
-        return {"out": g * sig}
-    raise KeyError(kind)
-
-
 # ---------------------------------------------------------------------------
 # fake kernel (CPU dry run): deterministic outputs from the input bytes
 # ---------------------------------------------------------------------------

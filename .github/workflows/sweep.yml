@@ -101,7 +101,7 @@ jobs:
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
           echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-23 main" | sudo tee /etc/apt/sources.list.d/llvm23.list
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang-23 llvm-23 spirv-tools python3
+          sudo apt-get install -y -qq clang-23 llvm-23 spirv-tools python3 python3-numpy
 
       - name: Kernel sources
         run: |
@@ -134,6 +134,17 @@ jobs:
 
       - name: Coverage gate
         run: python3 sweep/check_coverage.py out/ci.json | tee coverage.txt
+
+      - name: Parity harness dry run
+        run: |
+          PARITY_FAKE=1 PARITY_SWEEP=out/ci.json PARITY_SPV_DIR=out \
+            PARITY_OUT=out/parity-mlx python3 sweep/parity_mlx.py
+          PARITY_FAKE=1 PARITY_SWEEP=out/ci.json PARITY_SPV_DIR=out \
+            PARITY_MLX_OUT=out/parity-mlx PARITY_OUT=out/parity-cmp \
+            python3 sweep/parity_compare.py --fake
+          python3 sweep/parity_compare.py --compare-only \
+            --mlx-out out/parity-mlx --cmp-out out/parity-cmp
+          test -s out/parity-cmp/parity.tsv
 
       - name: Failure report
         if: always()

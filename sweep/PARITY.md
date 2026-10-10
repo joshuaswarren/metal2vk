@@ -67,14 +67,66 @@ Integers compare exactly; floats by relative tolerance `|a-b| / (1+|b|)`:
 | `bfloat16` | 1e-2 |
 | `float32`, `float16` | 1e-5 / 1e-3 |
 
-The table reports max abs error, max rel error, first differing index and the
-difference count. Positions where both sides are NaN are skipped and counted.
+The bfloat16 tolerance covers the references' one freedom: cross-lane `simd`
+reductions are simulated as sequential float32 sums, so summation-order ulps
+differ from the GPU; everything else in a reference is op-for-op identical to
+the assembled MSL, including every explicit bf16 rounding. The table reports
+max abs error, max rel error, first differing index and the difference count.
+Positions where both sides are NaN are skipped and counted.
 
 Statuses: `match`, `mismatch`, `refused-by-translator` (the omarchy path
-refused the kernel; the four simple ones - router top-k, both softmax top-k
-variants, combine row, sigmoid probe - additionally compare against a numpy
-reference), `no-reference` (refused and not simple enough for a reference),
+refused the kernel; the row is judged against the numpy reference in
+`sweep/parity_refs.py`), `no-reference` (refused and no reference exists),
+`no-cmp-output` (compare-only: stage B saved no dump for this kernel),
 `skipped` (metal2vk compile failed in the sweep, or the submit guard tripped).
+
+## References
+
+`sweep/parity_refs.py` registers one numpy reference per kernel the omarchy
+path refuses (all 25 at this writing: the five simple ones plus the fused MoE
+expert, GDN prework/step/verify and ragged-SDPA kernels). Each reference
+simulates the arithmetic of the assembled `.metal` op for op; `refs_common.py`
+holds the rounding conventions (bf16 round-to-nearest-even, half via float16,
+sequential-sum `simd` reductions) and `refs_router.py` is the worked example.
+`python3 sweep/parity_refs.py` generates every seeded input and runs every
+reference, checking names, shapes, dtypes and finiteness; it runs as part of
+`sweep/tests/run.py`.
+
+Two references settle the disagreements of the first G13G run:
+
+- Router top-k selects over the softmax probabilities ROUNDED TO BF16
+  (`vals[s*4+i] = float(static_cast<T>(...))` in the MSL), with ties broken
+  toward the LARGER expert index (selection key `((bits+1) << 16) | expert`,
+  descending). The pre-reference argsort over unrounded float64 probabilities
+  disagreed on exactly the tied slots (22 of 32 indices on the saved inputs;
+  the GPU run showed 19 - the gap is `precise::exp` rounding at bf16
+  boundaries). `router_topk` (no softmax inside) selects by value with ties to
+  the higher index, and renormalizes in f32 with one rounding.
+- `combine_row` rounds EVERY op to bf16 (products, each accumulate step, the
+  sigmoid chain `T(1+T(exp|g|)) -> T(1/e) -> T(1-y)`, the shared product, the
+  final add). The op-for-op simulation is bit-identical to the metal2vk
+  output; the earlier float64/one-rounding reference differed by up to 0.094
+  purely from the per-op roundings.
+
+Neither disagreement is a metal2vk translation defect.
+
+## Compare-only mode
+
+`parity_compare.py --compare-only --mlx-out DIR --cmp-out DIR` re-judges
+saved outputs with no runner, no GPU and no sweep json: it loads the mlx
+side's inputs and (where that path ran) outputs from DIR, this side's dumps
+from DIR2, and falls back to the numpy reference for refused kernels. Stage B
+saves every dispatch's dumps as `<out>/<kernel>/out_<name>.npy` (the pre-per-
+kernel flat work directory overwrote dumps across kernels - that is why the
+first G13G data lost all but the last writer of each filename). A GPU ticket
+therefore only has to run stages A and B; the table is produced afterwards on
+any machine.
+
+Execution caveat: the modules assume 32-lane subgroups (every lane owns
+NE/32 slots with `simd_*` reductions). A CPU submission through a software
+ICD whose subgroup is smaller (lavapipe/llvmpipe reports 8) executes but
+produces wrong cross-lane results; software-ICC runs are valid only for
+kernels without cross-lane ops.
 
 ## Geometry deviations (recorded per kernel in the table)
 
