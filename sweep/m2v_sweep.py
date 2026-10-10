@@ -1569,7 +1569,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
-    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
+    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:
         row["spv"] = "FAIL"
