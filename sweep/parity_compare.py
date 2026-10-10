@@ -112,7 +112,10 @@ def dispatch(kern, row, spv, entry, inputs, runner, work, fake, perturb):
             p.write_bytes(data)
         return "ok", "", {n: p.read_bytes() for n, p in dump_paths.items()}, 0.0
 
-    cmd = [str(runner), str(spv), entry, *map(str, kern["grid"]),
+    # kern["grid"] is the launch grid in THREADS (mx.fast.metal_kernel semantics, which the mlx side passes through);
+    # m2v-run dispatches workgroup COUNTS, so divide by the threadgroup size (rounding up, as dispatchThreads does).
+    groups = [-(-int(g) // int(t)) for g, t in zip(kern["grid"], kern["tg"])]
+    cmd = [str(runner), str(spv), entry, *map(str, groups),
            "--iters", "1", "--local", *map(str, kern["tg"])]
     for b in order:
         cmd += ["--buf", str(bufs[b][0])]
