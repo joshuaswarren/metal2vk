@@ -12,8 +12,12 @@ helpers here are shared by both kernels because the qwen4 gate chain and
 main_replay's gdn_decay/gdn_beta round at identical sites.
 
 Sources: the assembled verify MSL (gdn lane, S=4 fused conv+recurrence+norm
-form) and the sibling-scan main replay; qwen35_gdn_verify_fused.py next to
-the assemblers is the composed-op ground truth.
+form) and the sibling-scan main replay, re-derived op for op from those
+sources; the composed-op python next to the assemblers
+(qwen35_gdn_verify_fused.py) is kept only as the labelled SECONDARY checks
+of parity_refs (the fallback computes the conv activation without the T()
+rounding at the SiLU branch, the one site where it and the assembled MSL
+disagree; the MSL is the Metal-intended behaviour).
 
 Two table facts the references pin:
 - proj is one (S, P) buffer of per-token [qkv | z | b | a] rows with
@@ -27,7 +31,7 @@ import numpy as np
 import parity_common as pc
 
 from refs_common import bf, BF, sigmoid_f32
-from refs_gdn_prework import _l2_inv, _omlx_log1p, _silu
+from refs_gdn_prework import _l2_inv, _omlx_log1p, _silu, _silu_t
 
 _LANES = np.arange(32)
 
@@ -73,20 +77,26 @@ def _decay(x_f, dtb_f, a_log_f):
 
 
 def _beta(x_f):
-    """The shared beta: the MLX sigmoid of the raw input, rounded to InT
-    once (gdn_beta / the qwen4 tg_beta)."""
-    y = sigmoid_f32(x_f)
-    return bf(np.where(x_f < 0, y, np.float32(1.0) - y))
+    """The shared beta: the MSL computes by = 1/(1+exp(|x|)) and takes
+    (x < 0) ? by : 1 - by, which is the true sigmoid of x for both signs;
+    sigmoid_f32 is exactly that expression, so the beta is its single T()
+    rounding. (An earlier version wrapped sigmoid_f32 in a second
+    where(x < 0, y, 1 - y), which re-inverted the branch for positive x and
+    made every positive-b head diverge; the g7 dumps adjudicated the
+    kernel.)"""
+    return bf(sigmoid_f32(x_f))
 
 
 def _channels(base, n, width):
     return base + (np.arange(n)[:, None] * width + np.arange(width)[None, :])
 
 
-def _conv_act(proj_bits, proj_f, state_bits, conv_w, chans):
+def _conv_act(proj_bits, proj_f, state_bits, conv_w, chans, silu=_silu_t):
     """Depthwise conv over the three state rows and the (S, P) proj rows,
-    then SiLU with the T(...) rounding at the branch: acc is a sequential
-    f32 tap sum, conv = T(acc), act = conv * T(silu selected at conv < 0)."""
+    then SiLU. The step-kernel MSL rounds the branch value to T before the
+    product (conv * T((conv < T(0)) ? sy : 1 - sy), _silu_t); the composed
+    fallback multiplies the unrounded f32 value (_silu). acc is a sequential
+    f32 tap sum, conv = T(acc), act = conv * T(selected branch)."""
     s = proj_bits.shape[0]
     rows = np.arange(s)
     acc = None
@@ -101,10 +111,10 @@ def _conv_act(proj_bits, proj_f, state_bits, conv_w, chans):
         else:
             term = proj_f[rows[:, None, None], chans] * conv_w[chans, 3]
         acc = term if acc is None else acc + term
-    return _silu(bf(acc))
+    return silu(bf(acc))
 
 
-def _qwen4_verify(kern, inputs, with_states):
+def _qwen4_verify(kern, inputs, with_states, silu=_silu_t):
     t = _tmpl(kern)
     hk, hv, dk, dv, c, s = (int(t[k]) for k in ("HK", "HV", "DK", "DV", "C", "S"))
     b_off = c + hv * dv
@@ -128,7 +138,8 @@ def _qwen4_verify(kern, inputs, with_states):
     qk_chans = {"q": _channels(0, hk, dk),
                 "k": _channels(hk * dk, hk, dk),
                 "v": _channels(2 * hk * dk, hv, dv)}
-    act = dict((fam, _conv_act(proj_bits, proj_f, state_bits, conv_w, ch))
+    act = dict((fam, _conv_act(proj_bits, proj_f, state_bits, conv_w, ch,
+                               silu=silu))
                for fam, ch in qk_chans.items())
 
     # window = [old state rows; this block's x_t rows], conv_out = the shift
@@ -180,7 +191,10 @@ def _qwen4_verify(kern, inputs, with_states):
         inv = np.float32(1.0) / np.sqrt(sumsq / np.float32(dv) + eps)
         normed = bf(norm_w[None, :] * BF(bf(xs * inv[:, None])))
         zv = proj_f[tt, c:c + hv * dv].reshape(hv, dv)
-        sig = np.where(zv < 0, sigmoid_f32(zv), np.float32(1.0) - sigmoid_f32(zv))
+        # the MSL branch (zv < 0 ? sy : 1 - sy) with sy = 1/(1+exp(|zv|))
+        # is the true sigmoid; sigmoid_f32 is that expression, so the gate
+        # is its plain f32 value with no further branch
+        sig = sigmoid_f32(zv)
         out[tt] = bf(BF(normed) * sig)
 
     outs = {"conv_out": conv_out.reshape(-1), "window": window.reshape(-1),
@@ -199,10 +213,38 @@ def ref_omlx_qwen4_gdn_verify_step_states(kern, inputs):
     return _qwen4_verify(kern, inputs, with_states=True)
 
 
+# composed-op variants: the oMLX fallback computes the conv activation
+# WITHOUT the T() rounding at the SiLU branch (the one candidate site where
+# the composed fallback and the assembled MSL can disagree). Kept as
+# labelled secondary checks by parity_compare; the MSL side is the
+# Metal-intended behaviour. The historical composed-op references also
+# wrapped sigmoid_f32 in a second sign branch, re-inverting beta and the
+# norm-gate sig for positive inputs; that was a transcription error (the
+# composed source selects the branch once, exactly like the MSL), corrected
+# in both, so the secondary isolates the SiLU rounding.
+SECONDARY = {
+    "omlx_qwen4_gdn_verify_step":
+        lambda kern, inputs: _qwen4_verify(kern, inputs, with_states=False,
+                                           silu=_silu),
+    "omlx_qwen4_gdn_verify_step_states":
+        lambda kern, inputs: _qwen4_verify(kern, inputs, with_states=True,
+                                           silu=_silu),
+}
+
+
 def ref_omlx_gdn_verify_main_replay(kern, inputs):
     """Sibling main replay: keep_rows committed rows replayed into the state,
     then the T-token block, all one simdgroup per (head, dv) row with
-    simd_sum read as the sequential f32 lane sum."""
+    simd_sum read as the sequential f32 lane sum.
+
+    Re-derived from the assembled sibling MSL: its gdn_decay / gdn_beta are
+    the composed softplus / sigmoid rounded at exactly the sites this
+    reference rounds (T(s), T(exp(-|s|)), T(log1p term), T(sp), beta rounded
+    to T once; lo - hi is exact because one operand is zero), so the MSL and
+    composed semantics coincide op for op here and one reference is both;
+    there is no separate composed-op secondary for this kernel. The
+    remaining freedoms are precise::exp / precise::log vs numpy (f32,
+    inside the table tolerances) and the simd_sum lane order."""
     t = _tmpl(kern)
     hk, hv, dk, dv = int(t["Hk"]), int(t["Hv"]), int(t["Dk"]), int(t["Dv"])
     tok, per = int(t["T"]), int(t["P"])

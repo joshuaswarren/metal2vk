@@ -24,10 +24,21 @@ _LANES = np.arange(32)
 
 def _silu(conv_bits):
     """act = conv * T((conv < 0) ? sy : 1 - sy); sy = 1/(1+exp(|conv|)) in
-    f32, one bf16 rounding at the T(...) branch, one at the product."""
+    f32, one bf16 rounding at the branch, one at the product."""
     c = BF(conv_bits)
     sy = np.float32(1.0) / (np.float32(1.0) + np.exp(np.abs(c)))
     return bf(c * np.where(c < 0, sy, np.float32(1.0) - sy))
+
+
+def _silu_t(conv_bits):
+    """The decode/verify step kernels round the branch value to T BEFORE the
+    product: act = conv * T((conv < 0) ? sy : 1 - sy). The prework kernels'
+    MSL has the same text; their outputs are all bf16 so the distinction
+    never flips a verdict there, but the step kernels carry act into an f32
+    state where it does."""
+    c = BF(conv_bits)
+    sy = np.float32(1.0) / (np.float32(1.0) + np.exp(np.abs(c)))
+    return bf(c * BF(bf(np.where(c < 0, sy, np.float32(1.0) - sy))))
 
 
 def _l2_inv(act_bits):
@@ -206,10 +217,13 @@ def _xor_row(v):
 
 def _decode_step_row(qkv_bits, z_bits, b_bits, a_bits, state_bits, conv_w_bits,
                      q_scale_bits, A_log_bits, dtb_bits, state_in, norm_w_bits,
-                     eps, hk, hv, dk, dv, hv_idx):
-    """One value head of _QWEN4_DECODE_STEP_SOURCE: sg0/1/2 run the decode
-    prework into threadgroup q/k/v, sg3 lane 0 the gate pair, the packed
-    btree recurrence updates the f32 state, sg0 runs the norm-gate."""
+                     eps, hk, hv, dk, dv, hv_idx, silu=_silu_t):
+    """One value head of the assembled omlx_qwen4_gdn_decode_step MSL:
+    sg0/1/2 run the decode prework into threadgroup q/k/v, sg3 lane 0 the
+    gate pair, the packed btree recurrence updates the f32 state, sg0 runs
+    the norm-gate. silu is the conv activation variant: the MSL rounds the
+    branch value to T before the product (_silu_t); the composed-op
+    reference multiplies the unrounded f32 value (_silu)."""
     hk_idx = hv_idx // (hv // hk)
     q = np.zeros(dk, np.uint16)
     k = np.zeros(dk, np.uint16)
@@ -229,7 +243,7 @@ def _decode_step_row(qkv_bits, z_bits, b_bits, a_bits, state_bits, conv_w_bits,
         for tap in (1, 2):
             acc = acc + state_f[tap, chs] * w[chs, tap]
         acc = acc + qkv_f[chs] * w[chs, 3]
-        act = _silu(bf(acc))
+        act = silu(bf(acc))
         if is_q or is_k:
             act4 = act.reshape(32, 4)
             inv = _l2_inv(act4)
@@ -268,7 +282,7 @@ def _decode_step_row(qkv_bits, z_bits, b_bits, a_bits, state_bits, conv_w_bits,
     return st3.reshape(dv, dk), out_head.reshape(-1)
 
 
-def _decode_step(kern, inputs):
+def _decode_step(kern, inputs, silu=_silu_t):
     t = _heads(kern)[0]
     dk, dv = int(t["DK"]), int(t["DV"])
     hk, hv = int(t["HK"]), int(t["HV"])
@@ -294,7 +308,7 @@ def _decode_step(kern, inputs):
                 np.asarray(inputs["dt_bias"]).reshape(-1),
                 np.asarray(inputs["state_in"], np.float32).reshape(
                     batch, hv * dv, dk)[b],
-                inputs["norm_w"], eps, hk, hv, dk, dv, hv_idx)
+                inputs["norm_w"], eps, hk, hv, dk, dv, hv_idx, silu=silu)
             state_out[b, hv_idx * dv:(hv_idx + 1) * dv] = st
             out[b, hv_idx * dv:(hv_idx + 1) * dv] = o
     return {"conv_out": conv_out.reshape(-1),
@@ -307,9 +321,23 @@ def ref_omlx_qwen4_gdn_decode_step(kern, inputs):
 
 
 def ref_omlx_qwen4_gdn_batch_decode_step(kern, inputs):
-    """The batch kernel rebinds every buffer to its grid-z row and runs the
-    one-row source verbatim, so B independent single-row steps."""
+    """The batch kernel rebinds every buffer to its grid-z row
+    (batch_row = grid.z / HV) and runs the one-row source verbatim, so B
+    independent single-row steps."""
     return _decode_step(kern, inputs)
+
+
+# composed-op variants of the two step references: the oMLX fallback computes
+# the conv activation WITHOUT the T() rounding at the SiLU branch, the one
+# candidate site where the composed fallback and the assembled MSL can
+# disagree. Kept as labelled secondary checks by parity_compare; the MSL
+# side is the Metal-intended behaviour.
+SECONDARY = {
+    "omlx_qwen4_gdn_decode_step":
+        lambda kern, inputs: _decode_step(kern, inputs, silu=_silu),
+    "omlx_qwen4_gdn_batch_decode_step":
+        lambda kern, inputs: _decode_step(kern, inputs, silu=_silu),
+}
 
 
 REFS = {

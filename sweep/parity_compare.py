@@ -139,10 +139,13 @@ def ref_outputs(kern, kdir):
     inputs = {}
     for spec in kern["inputs"]:
         inputs[spec[0]] = np.load(kdir / f"{spec[0]}.npy")
-    ref = parity_refs.REFS[kern["name"]](kern, inputs)
+    return _ref_outputs(kern, inputs, parity_refs.REFS[kern["name"]])
+
+
+def _ref_outputs(kern, inputs, fn):
     outs = {}
     for name, code, shape, *_ in kern["outputs"]:
-        vals = np.asarray(ref[name]).reshape(-1)
+        vals = np.asarray(fn(kern, inputs)[name]).reshape(-1)
         dt, npdt = pc.DTYPES[code]
         if npdt is None:
             assert vals.dtype == np.uint16, f"{name}: reference must give bf16 bits"
@@ -199,6 +202,34 @@ def compare_only(mlx_out, cmp_out, only, tsv):
                 continue
             want_all = ref_outputs(kern, kdir)
             src = "reference"
+            sec = parity_refs.SECONDARY.get(name)
+            if sec is not None:
+                # labelled secondary: the composed-op fallback reference.
+                # The primary judge is the assembled-MSL reference; a
+                # composed-op disagreement is a finding about the oMLX
+                # fallback's semantics, and the MSL side is the
+                # Metal-intended behaviour.
+                try:
+                    inputs = {}
+                    for spec in kern["inputs"]:
+                        inputs[spec[0]] = np.load(kdir / f"{spec[0]}.npy")
+                    sworst = "match"
+                    for oname, ocode, *_ in kern["outputs"]:
+                        want = _ref_outputs(
+                            kern, inputs, sec)[oname].reshape(-1)
+                        r = pc.compare(ocode, got_all[oname].reshape(-1), want)
+                        if r["status"] == "mismatch":
+                            sworst = f"mismatch n={r['n_diff']}"
+                            break
+                    if sworst.startswith("mismatch"):
+                        rec["note"] += (f"; composed-op check: {sworst} "
+                                        "(oMLX fallback semantics differ from "
+                                        "the assembled MSL; the MSL is the "
+                                        "Metal-intended behaviour)")
+                    else:
+                        rec["note"] += f"; composed-op check: {sworst}"
+                except Exception as e:  # a broken secondary must not mask the verdict
+                    rec["note"] += f"; composed-op check: error ({e})"
         else:
             want_all, src = {}, "omarchy output"
             for o in kern["outputs"]:

@@ -123,6 +123,35 @@ Three references settle the disagreements of the G13G runs:
 
 None of the three is a metal2vk translation defect.
 
+Two more settle the re-derivation of the five GDN step references
+(decode/batch decode, the verify pair, the sibling main replay), all
+reference-side: the kernels were correct.
+
+- The step kernels' conv activation rounds the SiLU branch value to T
+  BEFORE the product: `act = conv * T((conv < T(0)) ? sy : 1 - sy)`. A
+  reference multiplying the unrounded f32 branch value lands about 2^-9
+  off per activation; bf16 outputs absorb that, the f32 state does not
+  (every element of every head with a non-negligible gate diverged).
+- The sigmoid-shaped gates are the true sigmoid: `by = 1/(1+exp(|x|))`
+  with the branch `(x < 0) ? by : 1 - by` is `sigmoid(x)` for both signs,
+  so the reference is that one rounding with no further branch. The old
+  verify references wrapped `sigmoid_f32` in a second identical branch,
+  re-inverting beta and the norm-gate sig for every positive input; the
+  dumps adjudicated the kernel.
+
+For the two decode steps and the two verify steps, `SECONDARY` in
+`refs_gdn_prework` / `refs_gdn_verify` keeps a composed-op variant of the
+reference (the conv activation without the branch rounding; the sigmoid
+transcription error corrected in both, so the check isolates the SiLU
+rounding). compare-only runs it for refused kernels and records the
+outcome in the table note as `composed-op check:`. A composed-vs-MSL
+difference is a finding about the oMLX fallback's semantics, and the
+assembled MSL is the Metal-intended behaviour. The sibling main replay
+MSL spells the composed replay op for op (its `gdn_decay`/`gdn_beta` round
+at exactly the reference's sites), so it has one reference serving both
+and no separate secondary. `verify_step_states` never writes
+`states[S-1]`; the row is expected to stay flagged on the unwritten hole.
+
 ## Compare-only mode
 
 `parity_compare.py --compare-only --mlx-out DIR --cmp-out DIR` re-judges
