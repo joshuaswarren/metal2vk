@@ -76,6 +76,15 @@ def bf16_to_f32(bits):
 #   (q_scale), integers stay integers. The u32 params buffers are the one
 #   bit-packed exception: the chain/verify attention kernels read their
 #   float member with as_type<float>, so SCALE there is the f32 bit pattern.
+#   launch_grid      the thread grid the REAL call launches for this table's
+#                    dims (mx.fast.metal_kernel semantics); both sides launch
+#                    it, and `grid` is the same thing in workgroup counts
+#                    (launch_grid / tg), the shape the references simulate
+#   artifact_launch  the thread grid the artifact's assembler recorded when
+#                    its own dims differ from the table's (e.g. a B=1
+#                    assembler run); --check-assemblers compares the artifact
+#                    build() and .launch against THIS, the runs use
+#                    launch_grid
 #   m2v_only_note    why the kernel has no mlx-side comparison partner
 
 def _fbits(v):
@@ -107,12 +116,14 @@ GDN_HDR = ["T", "HK", "HV", "DK", "DV", "C"]
 
 
 def K(name, group, grid, tg, tmpl=(), inputs=(), outputs=(), launch_grid=None,
-      note=None):
+      note=None, artifact_launch=None):
     return dict(name=name, group=group, grid=tuple(grid), tg=tuple(tg),
                 tmpl=list(tmpl), inputs=[list(i) for i in inputs],
                 outputs=[list(o) for o in outputs],
                 launch_grid=tuple(launch_grid) if launch_grid else None,
-                note=note)
+                note=note,
+                artifact_launch=(tuple(artifact_launch)
+                                 if artifact_launch else None))
 
 
 KERNELS = [
@@ -358,7 +369,7 @@ KERNELS = [
        ("scale", "f32", (1,), "c:[0.0625]"),
        ("k_size", "i32", (1,), "c:[256]")],
       [("out", "bf16", (8192,))]),
-    K("qwen35_ragged_sdpa_2p1", "moe", (2, 1, 4), (32, 8, 1),
+    K("qwen35_ragged_sdpa_2p1", "moe", (2, 2, 4), (32, 8, 1),
       [("T", "bf16"), ("D_SIZE", 256), ("V_SIZE", 256), ("NUM_Q_HEADS", 16),
        ("NUM_KV_HEADS", 2), ("GQA_FACTOR", 8), ("BLOCKS", 4)],
       [("queries", "bf16", (8192,), "rand"), ("keys", "bf16", (262144,), "rand"),
@@ -367,12 +378,14 @@ KERNELS = [
        ("k_size", "i32", (1,), "c:[256]")],
       [("partials", "bf16", (32768,)), ("sums", "f32", (128,)),
        ("maxs", "f32", (128,))],
-      launch_grid=(64, 8, 4),
-      note="artifact launch (64, 8, 4) threads / (32, 8, 1) tg = (2, 1, 4) "
-           "workgroups: one batch workgroup, so batch_idx only takes 0 and "
-           "partials[16384:], sums[64:], maxs[64:] are never written by the "
-           "real call (the reference zeros that hole and comparisons flag "
-           "it); kv heads and blocks are fully covered"),
+      launch_grid=(64, 16, 4),
+      artifact_launch=(64, 8, 4),
+      note="launch grid from the real call formula grid=(32*kv_heads, "
+           "(q_heads//kv_heads)*batch, blocks), tg=(32, q_heads//kv_heads, 1) "
+           "= (64, 16, 4) threads = (2, 2, 4) workgroups for this table's "
+           "B=2 dims: both kv heads, both batches and all 4 blocks are "
+           "computed, no unwritten region (the artifact .launch held the "
+           "assembler's B=1 dims, 64 x 8 x 4)"),
     K("qwen35_ragged_sdpa_2p2", "moe", (1024, 32, 1), (1024, 1, 1),
       [("T", "bf16"), ("D_SIZE", 256), ("BLOCKS", 4)],
       [("partials", "bf16", (32768,), "rand"), ("sums", "f32", (128,), "rand"),
