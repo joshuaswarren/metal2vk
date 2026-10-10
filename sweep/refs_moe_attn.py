@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""numpy references for the sibling kernels the omarchy path refuses.
+"""numpy references for the sibling kernels the omarchy path refuses, plus
+one third-side reference for a kernel it does not refuse (wide_combine -
+see that function's docstring).
 
 One function per kernel, named ``ref_<kernel>``, registered in REFS. Each
 takes ``(kern, inputs)`` where ``inputs`` maps buffer name to the numpy array
@@ -272,8 +274,64 @@ def ref_omlx_gdn_norm_gate_eps1em06(kern, inputs):
     return {"out": out.reshape(rows * cols), "xs": xs.reshape(-1)}
 
 
+# --- omlx_verify_attn_wide_combine -------------------------------------------
+def ref_omlx_verify_attn_wide_combine(kern, inputs):
+    """Sibling wide combine: the split-softmax merge half of two-level
+    attention. Threadgroup (r, qh) reads the per-split (max, sumexp) pairs
+    ml_part[((s*H + qh)*G + r)*2 .. +1] and the partial rows
+    o_part[((s*H + qh)*G + r)*256 + d], rescales each split by exp(m - M)
+    and stores bf16(acc / total) at out[(qh*L + r)*256 + d]. Only the first
+    L rows exist in the output; o_part/ml_part carry G rows per (split,
+    head) and the combine reads the first L (grid x = L*256 threads). All
+    f32 except the one store rounding.
+
+    NOT a refused kernel: the omarchy path runs it on every wheel so far.
+    This reference exists as a third judge after the g13g-g3 run disagreed
+    between the omarchy and metal2vk sides (max abs 8.94, 32 slots); it
+    says which side moved instead of leaving a two-side mismatch ambiguous.
+
+    MSL-fixed choices: the split loop order of BOTH accumulators (total and
+    acc accumulate s = 0..n_splits-1 exactly as the MSL loops), M as the
+    exact f32 max over splits (max is order-exact), the index formulas
+    ((s*H + qh)*G + r, out row qh*L + r), and the single bf16 rounding at
+    the store. MSL-free (declared freedoms): exp is numpy float32 exp
+    rather than the GPU's libm exp (ulp-class, absorbed by the bf16
+    tolerance), and the m == -INFINITY `continue` is simulated as w = 0,
+    which is contribution-identical for finite data (0*x = 0) but would
+    differ from a skip on non-finite ml_part/o_part; the seeded inputs are
+    finite by construction. Nothing here was adjusted against any saved
+    dump; the dumps only judge (the verdict they give is recorded in
+    PARITY.md, g13g-g3 adjudications)."""
+    t = dict((n, v) for n, v in kern["tmpl"])
+    g_n, h_n = int(t["G"]), int(t["H"])
+    d = 256
+    params = np.asarray(inputs["params"]).reshape(-1)
+    L, n_splits = int(params[1]), int(params[3])
+    rows = int(kern["grid"][0]) // int(kern["tg"][0])  # L
+    assert rows == L, (rows, L)
+    o_part = np.asarray(inputs["o_part"], np.float32)
+    ml = np.asarray(inputs["ml_part"], np.float32)
+    qh = np.arange(h_n)
+    r = np.arange(rows)
+    idx = (np.arange(n_splits)[:, None, None] * h_n + qh[None, :, None]) \
+        * g_n + r[None, None, :]  # (S, H, rows)
+    m = ml[idx * 2]
+    M = m.max(axis=0)
+    active = m != -np.inf
+    w = np.where(active, np.exp(m - M[None, :, :]), np.float32(0.0))
+    acc = np.zeros((h_n, rows, d), np.float32)
+    total = np.zeros((h_n, rows), np.float32)
+    for s in range(n_splits):
+        total = total + w[s] * ml[idx[s] * 2 + 1]
+        acc = acc + w[s][:, :, None] * o_part[idx[s][:, :, None] * d
+                                              + np.arange(d)[None, None, :]]
+    out = bf(acc / total[:, :, None])
+    return {"out": out.reshape(h_n * rows * d)}
+
+
 REFS = {
     "omlx_gdn_norm_gate_eps1em06": ref_omlx_gdn_norm_gate_eps1em06,
+    "omlx_verify_attn_wide_combine": ref_omlx_verify_attn_wide_combine,
     "qwen35_gated_delta_step": ref_qwen35_gated_delta_step,
     "qwen35_ragged_sdpa_1p": ref_qwen35_ragged_sdpa_1p,
     "qwen35_ragged_sdpa_2p1": ref_qwen35_ragged_sdpa_2p1,

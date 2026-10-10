@@ -151,6 +151,35 @@ def ref_outputs(kern, kdir):
     return outs
 
 
+def third_side(kern, kdir, cmp_bits, mlx_bits):
+    """When the omarchy path ran and a reference still exists, judge both
+    GPU sides against it: two agreeing sides isolate the deviating one
+    (the g13g-g3 wide_combine row was a bare cmp-vs-mlx mismatch with no
+    verdict). Returns the note fragment, '' when there is nothing to say."""
+    if kern["name"] not in parity_refs.REFS:
+        return ""
+    ref = ref_outputs(kern, kdir)
+
+    def deviates(bits_by_name):
+        worst = None
+        for oname, ocode, *_ in kern["outputs"]:
+            r = pc.compare(ocode, np.asarray(bits_by_name[oname]).reshape(-1),
+                           ref[oname].reshape(-1))
+            if r["status"] == "mismatch" or worst is None:
+                worst = r
+        return worst["status"] == "mismatch"
+
+    c_bad = deviates(cmp_bits)
+    m_bad = deviates(mlx_bits)
+    if c_bad and not m_bad:
+        return "; vs reference: metal2vk side deviates"
+    if m_bad and not c_bad:
+        return "; vs reference: omarchy side deviates"
+    if c_bad and m_bad:
+        return "; vs reference: BOTH sides deviate"
+    return ""
+
+
 def compare_only(mlx_out, cmp_out, only, tsv):
     """Compare saved metal2vk outputs against the references. No runner, no
     GPU, no sweep json: mlx-out supplies the inputs (and the reference where
@@ -217,6 +246,8 @@ def compare_only(mlx_out, cmp_out, only, tsv):
         rec["status"] = ("refused-by-translator" if mstat == "refused"
                          else worst["status"])
         rec["note"] += f"; vs {src}: {worst['status']}"
+        if mstat != "refused":
+            rec["note"] += third_side(kern, kdir, got_all, want_all)
         rows.append(rec)
         print(f"{name}: {rec['status']} tol={rec['tol']} abs={rec['max_abs']} "
               f"rel={rec['max_rel']} first={rec['first_diff']} n={rec['n_diff']}",
@@ -344,8 +375,10 @@ def main():
             continue
 
         worst = None
+        got_by_name = {}
         for oname, ocode, *_ in kern["outputs"]:
             got = np.frombuffer(dumps[oname], pc.DTYPES[ocode][1] or np.uint16)
+            got_by_name[oname] = got
             cmp = pc.compare(ocode, got, want_all[oname].reshape(-1))
             if cmp["status"] == "mismatch" or worst is None:
                 worst = cmp
@@ -355,6 +388,7 @@ def main():
             rec["note"] += f"; vs cpu reference: {worst['status']}"
         else:
             rec["status"] = worst["status"]
+            rec["note"] += third_side(kern, kdir, got_by_name, want_all)
         rows.append(rec)
         print(f"{name}: {rec['status']} abs={rec['max_abs']} rel={rec['max_rel']} "
               f"first={rec['first_diff']} n={rec['n_diff']}", flush=True)

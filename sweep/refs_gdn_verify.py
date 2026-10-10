@@ -256,8 +256,19 @@ def ref_omlx_chain_attn_partial(kern, inputs):
     """Sibling chain partial: online-softmax attention over n_splits k/v
     chunks plus the kt/vt tail (split == n_splits), one threadgroup per
     (query head, split), 8 simdgroups striding tokens by SGN = 8, then the
-    threadgroup merge the MSL writes (w_j = 0 for tm[j] == -inf). simd_sum
-    is the sequential f32 lane sum; every other op is f32."""
+    threadgroup merge the MSL writes (w_j = 0 for tm[j] == -inf).
+
+    MSL-fixed choices: every qh reads the rows of its OWN kv head
+    (kb = k + h*k_strides[1], h = qh/G - the per-qh gather below encodes
+    exactly that; an earlier revision re-indexed the gathered blocks by
+    h_of a second time, which fed every qh >= G the kv head of qh i//G and
+    is not any reading of the MSL - found and fixed via the g13g-g3 dumps,
+    which judge, not fit), the token striding t = begin + sg step SGN, the
+    online-softmax update order (l and acc rescale by alpha before the
+    p-weighted term), the merge order j = 0..SGN-1, and the w_j = 0 rule
+    for simdgroups that saw no tokens. MSL-free (declared freedoms):
+    simd_sum is the sequential f32 lane sum and exp is numpy float32 exp;
+    both ulp-class, absorbed by the rel 1e-5 tolerance."""
     t = _tmpl(kern)
     g_n, h_n = int(t["G"]), int(t["H"])
     d, sgn = 256, 8
@@ -296,7 +307,11 @@ def ref_omlx_chain_attn_partial(kern, inputs):
                 h_n, toks.size, 32, 8)
             vblk = vb[vrow[:, None] + toks[None, :]].reshape(
                 h_n, toks.size, 32, 8)
-            s = _seqsum(_seqsum(qv[:, None, :, :] * kblk[h_of], -1), -1)
+            # kblk/vblk are already gathered per query head (row h_of[i] of
+            # the source for head i); do NOT re-index by h_of here — that
+            # fed every qh >= G the block of qh i//G, i.e. KV head 0's
+            # keys/values, which is exactly the g13g-g3 qh8-15 mismatch.
+            s = _seqsum(_seqsum(qv[:, None, :, :] * kblk, -1), -1)
             for j in range(sgn):
                 if j >= toks.size:
                     continue
@@ -310,7 +325,7 @@ def ref_omlx_chain_attn_partial(kern, inputs):
                     p = np.exp(s_tok - m_new)
                     l = l * alpha + p
                     acc = (acc * alpha[:, None, None]
-                           + p[:, None, None] * vblk[h_of, pos])
+                           + p[:, None, None] * vblk[:, pos])
                     m = m_new
                 m_sg[j], l_sg[j], ta[j] = m, l, acc
         # threadgroup merge; w_j = 0 where the simdgroup saw no tokens

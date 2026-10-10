@@ -79,12 +79,17 @@ refused the kernel; the row is judged against the numpy reference in
 `sweep/parity_refs.py`), `no-reference` (refused and no reference exists),
 `no-cmp-output` (compare-only: stage B saved no dump for this kernel),
 `skipped` (metal2vk compile failed in the sweep, or the submit guard tripped).
+When the omarchy path RAN and a reference still exists, the row also judges
+both GPU sides against that reference and notes which side deviates — a
+third judge for two-side disagreements like the g13g-g3 wide_combine row.
 
 ## References
 
-`sweep/parity_refs.py` registers one numpy reference per kernel the omarchy
-path refuses (all 25 at this writing: the five simple ones plus the fused MoE
-expert, GDN prework/step/verify and ragged-SDPA kernels). Each reference
+`sweep/parity_refs.py` registers a numpy reference per kernel the omarchy
+path refuses (25 at this writing: the five simple ones plus the fused MoE
+expert, GDN prework/step/verify and ragged-SDPA kernels) plus one third-side
+reference for a kernel it does not refuse (`omlx_verify_attn_wide_combine`,
+26 in all). Each reference
 simulates the arithmetic of the assembled `.metal` op for op; `refs_common.py`
 holds the rounding conventions (bf16 round-to-nearest-even, half via float16,
 sequential-sum `simd` reductions) and `refs_router.py` is the worked example.
@@ -109,6 +114,41 @@ Two references settle the disagreements of the first G13G run:
   purely from the per-op roundings.
 
 Neither disagreement is a metal2vk translation defect.
+
+## g13g-g3 adjudications (2026-10-10, saved-dump analysis, no new dispatch)
+
+Two open findings of the g13g-g3 rerun, settled against the saved dumps
+(`~/scratch/w7g-parity-data/g13g-g3`, identical inputs to the earlier qrm4
+run - sha256-verified). Discipline: references encode only what the MSL
+defines; the dumps judge and are never fitted. In both findings below the
+MSL-as-written reading was settled by float64 recomposition of the source
+formulas, and the dumps were then compared, not tuned to.
+
+- `omlx_chain_attn_partial` (omarchy path refused; row was judged
+  reference-vs-metal2vk: 80 ml_part slots and every o_part row of qh >= 8
+  beyond rel 1e-5): THE REFERENCE WAS WRONG, not the translation.
+  `ref_omlx_chain_attn_partial` gathered k/v blocks per query head and then
+  re-indexed them by `h_of` - that second index selects the block of query
+  head `i//G`, so every qh >= 8 was judged against KV head 0's keys/values
+  (qh 0-7 were correct by accident, `i//8 == 0`). metal2vk is faithful: a
+  float64 recomposition of the MSL-as-written tail split (each qh against
+  its own kv head's kt/vt rows) matches the cmp `ml_part` bytes to 4e-8 on
+  M and 1.8e-7 on L for BOTH kv heads, and the fixed reference - the MSL
+  reading, not a dump fit - matches the saved cmp dumps with zero slots
+  beyond rel 1e-5 (max rel 2.9e-6, the declared lane-sum freedom).
+- `omlx_verify_attn_wide_combine` (omarchy ran; row was cmp-vs-mlx
+  mismatch, max abs 8.94, 32 slots): METAL2VK DEVIATES, not the omarchy
+  side. The new `ref_omlx_verify_attn_wide_combine` (a third side - see
+  above) matches the omarchy output of BOTH wheels within the exp-class
+  freedom (max rel 0.004, 0 slots beyond rel 1e-2); the qrm4 and freeze
+  omarchy outputs are bit-identical to each other, so the earlier
+  "regression between wheels" framing was an artifact of the first run's
+  lost dumps. metal2vk's deviation is exactly dims 128-159 of output row 61
+  (one wave32 of threadgroup (15, 1)), and those 32 bytes are a bit-exact
+  copy of row 53's dims 128-159 - threadgroup (13, 1)'s values. The kernel
+  has no cross-thread data flow, so this is an execution/addressing defect
+  on the metal2vk path (clspv codegen or G13G driver), not arithmetic.
+  Follow-up: re-dispatch the same module once to split codegen from driver.
 
 ## Compare-only mode
 
