@@ -12,7 +12,7 @@ refs_router for a fully worked example.
 import parity_common as pc  # noqa: F401  (table access for check()/callers)
 
 REGISTRY = ("refs_router", "refs_moe_expert", "refs_gdn_prework",
-            "refs_gdn_verify", "refs_moe_attn")
+            "refs_gdn_verify", "refs_moe_attn", "refs_attention")
 
 
 def _load():
@@ -58,8 +58,10 @@ def check_all(seed=1234):
             if arr.dtype != want_dt:
                 bad.append(f"{name}.{oname}: dtype {arr.dtype} != {want_dt}")
             f = pc.bits_to_float(ocode, arr.reshape(-1).astype(want_dt))
-            if not np.all(np.isfinite(f)):
-                bad.append(f"{name}.{oname}: non-finite values")
+            if np.isnan(f).any():
+                bad.append(f"{name}.{oname}: NaN values")
+            # +-inf can be kernel-legitimate (masked softmax rows store
+            # -INFINITY), so only NaN is a generation-side failure
     if _MISSING:
         print(f"registry: modules absent (kernels without references): {_MISSING}")
     if bad:
