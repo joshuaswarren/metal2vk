@@ -8,7 +8,11 @@ next to a clspv checkout) plus spirv-val are used when present, which is how CI 
 
 The bfloat case fails if the pass ever regresses on -inf / +inf / nan operands, on the bare integer constant in
 a float phi, or leaves a bfloat token behind. The dynamic array case fails if the flatten pass stops rewriting
-the single-member wrapper that clspv cannot lower.
+the single-member wrapper that clspv cannot lower. The pointer-phi case fails if the pass leaves a loop-carried
+pointer phi (clspv's SimplifyPointerBitcast cycles on those and the patched pass then drifts the loop-exit tail,
+PR #47) or gets the byte steps wrong; the skip case fails if it rewrites a dynamic-stride phi it cannot prove.
+When PARITY_G7_DEC (or BLEND_TOOLS) points at saved sweep data, the pointer-phi case also rewrites the real
+gate_up decode IR and requires clspv to compile it with no give-up diagnostic.
 """
 import os
 import pathlib
@@ -56,6 +60,22 @@ def verify(ll, name):
         # The IR is already in clspv's input form. The SPIR-V check
         # runs inside the clspv branch below.
         pass
+    if name == "pointer_phi_to_index":
+        if re.search(r"=\s*phi ptr\b", txt):
+            print("FAIL pointer_phi_to_index: a loop-carried pointer phi survived the rewrite")
+            return False
+        for off0 in (2, 4, 0):  # byte offsets of the constant preheader GEPs (x +1 i16, s +2 i16, w/b 0)
+            if f"[ {off0}, %entry ]" not in txt:
+                print(f"FAIL pointer_phi_to_index: the byte index phi misses its {off0} byte entry offset")
+                return False
+        for step in (6, 5, 14, 2):  # strides in bytes: x 3 x i16, w 5 x i8, s 7 x i16, b 1 x i16
+            if not re.search(rf"add i32 %m2v\.[\w.]+\.idx, {step}$", txt, re.M):
+                print(f"FAIL pointer_phi_to_index: the {step} byte loop step is missing")
+                return False
+    if name == "pointer_phi_skip":
+        if not re.search(r"=\s*phi ptr\b", txt):
+            print("FAIL pointer_phi_skip: the dynamic-stride pointer phi must be left untouched")
+            return False
     opts = [shutil.which("opt"), shutil.which("opt-23")]
     opt = next((o for o in opts if o), None)
     if opt:
@@ -78,6 +98,47 @@ def verify(ll, name):
             if r.returncode != 0:
                 print(f"FAIL {name}: spirv-val rejected clspv output: {r.stdout.strip()[:300]}")
                 return False
+        if name == "pointer_phi_to_index":
+            # the real gate_up decode IR is the shape that sent SimplifyPointerBitcast into its
+            # non-converging cycle: after the pass the module must compile with NO give-up
+            # diagnostic and pass validation (the drift itself is PR #47's gate, run on the
+            # unrewritten form). Requires the saved sweep data: PARITY_G7_DEC=<dir holding ll/>
+            for cand in ("PARITY_G7_DEC", "BLEND_TOOLS"):
+                p = os.environ.get(cand, "")
+                if not p:
+                    continue
+                rep = (pathlib.Path(p) / "ll" /
+                       ("e_b4g32f_shared_b4g32f_gate_b4g32s_metal__custom_"
+                        "kernel_omlx_qwen35_moe_gate_up_de_2bc98e69.ll"))
+                if not rep.exists():
+                    continue
+                work = ll.with_name("gateup_" + rep.name)
+                work.write_text(rep.read_text())
+                r = subprocess.run([sys.executable, str(SWEEP / "pointer_phi_to_index.py"), str(work)],
+                                   capture_output=True, text=True)
+                if r.returncode != 0 or "rewrote 0 " in r.stdout:
+                    print(f"FAIL pointer_phi_to_index: the pass did not rewrite the g7 gate_up "
+                          f"decode IR: {(r.stderr or r.stdout).strip()[:200]}")
+                    return False
+                r = subprocess.run([clspv, "-x", "ir", "--cl-std=CLC++2021", "--fp16",
+                                    "--inline-entry-points", "--spv-version=1.5",
+                                    "--long-vector", str(work), "-o", str(work) + ".spv"],
+                                   capture_output=True, text=True, timeout=120)
+                log = r.stdout + r.stderr
+                if r.returncode != 0 or "did not converge" in log:
+                    print(f"FAIL pointer_phi_to_index: clspv still gives up on the rewritten "
+                          f"gate_up decode IR: {log.strip()[:200]}")
+                    return False
+                val = shutil.which("spirv-val")
+                if val:
+                    r = subprocess.run([val, "--target-env", "vulkan1.3", str(work) + ".spv"],
+                                       capture_output=True, text=True)
+                    if r.returncode != 0:
+                        print("FAIL pointer_phi_to_index: spirv-val rejected the rewritten "
+                              "gate_up module: " + r.stdout.strip()[:200])
+                        return False
+                pathlib.Path(str(work) + ".spv").unlink(missing_ok=True)
+                print("ok pointer_phi_to_index: g7 gate_up decode rewrites clean (no give-up)")
         if name == "spb_tail_drift":
             # The block-drift bug in SimplifyPointerBitcast non-convergence
             # adds an extra BLOCK_SIZE (256) to the tail x-pointer offset,
@@ -147,6 +208,8 @@ CASES = {
     "bfloat_consts.ll": ["bfloat_to_i16.py", "flatten_single_member_structs.py"],
     "dynamic_struct_array.ll": ["flatten_single_member_structs.py"],
     "spb_tail_drift.ll": [],   # IR is ready to hand to clspv; no text pass
+    "pointer_phi_to_index.ll": ["pointer_phi_to_index.py"],
+    "pointer_phi_skip.ll": ["pointer_phi_to_index.py"],
 }
 
 fails = 0
