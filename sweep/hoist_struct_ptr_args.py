@@ -215,14 +215,20 @@ def main():
                     pointee = gm.group(1).strip()
                     break
             if new_meta is meta_adds and meta_ids:
-                meta_adds.setdefault(meta_ids["kernel_arg_addr_space"], []).append("i32 1")
-                meta_adds.setdefault(meta_ids["kernel_arg_access_qual"], []).append('!"none"')
-                meta_adds.setdefault(meta_ids["kernel_arg_type"], []).append(f'!"{pointee}*"')
-                meta_adds.setdefault(meta_ids["kernel_arg_base_type"], []).append(f'!"{pointee}*"')
-                meta_adds.setdefault(meta_ids["kernel_arg_type_qual"], []).append('!""')
-            if new_meta is meta_adds and "kernel_arg_name" in meta_ids:
-                meta_adds.setdefault(meta_ids["kernel_arg_name"], []).append(
-                    f'!"m2v_h{member}_of_{arg.lstrip("%")}"')
+                entries = {
+                    "kernel_arg_addr_space": "i32 1",
+                    "kernel_arg_access_qual": '!"none"',
+                    "kernel_arg_type": f'!"{pointee}*"',
+                    "kernel_arg_base_type": f'!"{pointee}*"',
+                    "kernel_arg_type_qual": '!""',
+                }
+                if "kernel_arg_name" in meta_ids:
+                    entries["kernel_arg_name"] = f'!"m2v_h{member}_of_{arg.lstrip("%")}"'
+                done = set()  # kernel_arg_type and kernel_arg_base_type can be one uniqued node
+                for key, entry in entries.items():
+                    if meta_ids[key] not in done:
+                        done.add(meta_ids[key])
+                        meta_adds.setdefault(meta_ids[key], []).append(entry)
 
         newargtext = argtext + (", " if argtext.strip() else "") + ", ".join(new_args)
         head, rest = chunk[0].split("(", 1)
