@@ -67,6 +67,9 @@ template <typename T> struct remove_addrspace<__private T> { using type = T; };
 template <typename T> using remove_addrspace_t = typename remove_addrspace<T>::type;
 template <typename T> struct remove_cv<volatile T> { using type = T; };
 template <typename T> using remove_cv_t = typename remove_cv<T>::type;
+// Non-deduced spelling of T (a driver pass wraps a spelled parameter when a sibling `thread T*` parameter already
+// deduces T with the private address space inside; the scalar argument then just converts).
+template <typename T> struct no_deduce { using type = T; };
 template <typename T> struct is_integral : bool_constant<__is_integral(T)> {};
 template <typename T> struct is_floating_point : bool_constant<__is_floating_point(T)> {};
 template <typename T> struct is_signed : bool_constant<(T(-1) < T(0))> {};
@@ -249,6 +252,14 @@ template <typename T> METAL_FUNC T copysign(T a, T b) { return ::copysign(a, b);
 template <typename T> METAL_FUNC T max(T a, T b) { return a > b ? a : b; }
 template <typename T> METAL_FUNC T min(T a, T b) { return a < b ? a : b; }
 template <typename T> METAL_FUNC T clamp(T x, T lo, T hi) { return x < lo ? lo : (x > hi ? hi : x); }
+// Metal's select: elementwise cond ? t : f. OpenCL's builtin select needs the condition elements to be as wide as the
+// value elements; Metal's boolN (the shim's vec<short, N>) is accepted against any vector, so this overload covers the
+// narrow-condition calls the builtin rejects. Same-width conditions keep matching the builtin with the same result.
+template <typename T, int N, typename C> METAL_FUNC vec<T, N> select(vec<T, N> f, vec<T, N> t, vec<C, N> cond) {
+  vec<T, N> r;
+  for (int i = 0; i < N; i++) r[i] = cond[i] ? t[i] : f[i];
+  return r;
+}
 template <typename V> METAL_FUNC auto dot(V a, V b) { return ::dot(a, b); }
 #define M2V_MATH1(N) template <typename T> METAL_FUNC T N(T x) { return ::N(x); }
 M2V_MATH1(exp) M2V_MATH1(exp2) M2V_MATH1(log) M2V_MATH1(log2) M2V_MATH1(sqrt) M2V_MATH1(rsqrt) M2V_MATH1(tanh)

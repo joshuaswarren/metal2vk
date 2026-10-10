@@ -58,6 +58,11 @@ OPT = os.environ.get("OPT", "opt")  # the LLVM opt of the same version as CLANG
 # InstCombine, which rewrites typed GEPs into byte offsets that clspv's pointer passes cannot follow). M2V_OPT overrides it, e.g. the old
 # route: M2V_OPT="-O2 -fno-slp-vectorize -fno-vectorize -mllvm -inline-threshold=100000".
 FE_OPT = shlex.split(os.environ.get("M2V_OPT", "-O0 -Xclang -disable-O0-optnone"))
+# The fallback front-end route (compile.sh's old one): full clang -O2 inlining. Entries whose clspv run crashes on the
+# typed-GEP route are retried here - inlined argument uses give clspv's descriptor pass inferable types (uzu Gemm_v1's
+# captured global pointers), while the typed-GEP route stays the default because -O2's InstCombine rewrites the GEPs
+# several other modules depend on.
+ALT_FE_OPT = ["-O2", "-fno-slp-vectorize", "-fno-vectorize", "-mllvm", "-inline-threshold=100000"]
 
 THREAD_ATTRS = {
     "thread_position_in_grid": "get_global_id",
@@ -243,6 +248,71 @@ def uzu_compat(text):
     text = IDENTITY_DECL.sub(lambda m: "static constexpr %s identity() { return %s; }" % (m.group(1), m.group(2)), text)
     text = OP_IDENTITY.sub("Op::identity()", text)
     text = SHARED_OPERAND.sub("? (typename Op::value_type)shared[", text)
+    return text
+
+
+VEC_CTOR_CAST = re.compile(r"\bvec<\s*[A-Za-z_]\w*\s*,\s*\d+\w*\s*>\s*\(")
+VEC_ALIAS_DECL = re.compile(r"\busing\s+(\w+)\s*=\s*vec<")
+STATIC_VEC_CAST = re.compile(r"\bstatic_cast<((?:float|half|bfloat|char|uchar|short|ushort|int|uint|long|ulong|bool)(?:2|3|4|8|16)|vec<\s*[A-Za-z_]\w*\s*,\s*\d+\w*\s*)>")
+
+
+def vec_ctor_calls(text):
+    """Metal's functional-cast vector construction converts elementwise when the element counts match (float4 <-> a
+    bfloat vector narrows round-to-nearest-even); C++ for OpenCL only accepts the same-total-size bitcast and the
+    single-scalar splat. Route every vector-typed functional cast, static_cast and vec-alias constructor through the
+    shim's m2v::mk (the helper behind the float4(...) macros: splat from a scalar, __builtin_convertvector between
+    same-length vectors, element list otherwise), which is exactly Metal's semantics.
+    - `vec<T, N>(x)` spellings: rewritten outright (the alias cannot carry constructors).
+    - `NAME(x)` for aliases declared as `using NAME = vec<...>` in the same text.
+    - `static_cast<floatN>(x)` / `static_cast<vec<...> >(x)` / alias static_casts (single argument by construction)."""
+    names = set(VEC_ALIAS_DECL.findall(text))
+    text = VEC_CTOR_CAST.sub(lambda m: "m2v::mk<" + m.group(0).rstrip().rstrip("(") + " >(", text)
+    for n in sorted(names):
+        text = re.sub(r"\b%s\(" % n, "m2v::mk<%s>(" % n, text)
+    text = STATIC_VEC_CAST.sub(lambda m: "m2v::mk<" + m.group(1) + ">", text)
+    return text
+
+
+IDENTITY_DEDUC = re.compile(r"\bthread (\w+)\s*\*\s*(\w+)\s*,\s*const \1 (\w+)([,)])")
+
+
+def identity_deduction(text):
+    """`thread T* out, const T identity` in one parameter list (uzu's fragment row_reduce): the thread macro is empty,
+    so the array argument decays to a private-qualified pointer and deduces T = __private AccumType, while the scalar
+    identity (-INFINITY) deduces plain T - no consistent deduction, no matching member function. Wrap the scalar
+    parameter in a non-deduced alias: T comes from the pointer alone and the scalar argument converts, as Metal's
+    thread-qualified pointer parameter does."""
+    return IDENTITY_DEDUC.sub(r"thread \1* \2, const typename metal::no_deduce<\1>::type \3\4", text)
+
+
+PROGRAM_CONST_CLASS = re.compile(r"(?m)^constant constexpr ([A-Za-z_]\w*) ([A-Za-z_]\w*) = (\{.*?\});")
+BUILTIN_TYPES = {"char", "uchar", "short", "ushort", "int", "uint", "long", "ulong", "float", "half", "bfloat", "bool",
+                 "size_t", "ptrdiff_t"}
+
+
+def program_const_values(text):
+    """A program-scope `constant constexpr Struct NAME = {...};` (TensorFold's sampling constants) cannot be passed by
+    value: the class copy constructor takes an unqualified reference and a __constant lvalue cannot bind to it. Turn
+    the declaration into a constexpr-like accessor function and route the name through a macro: every use sees a fresh
+    return-value prvalue (a braced-init operand of a conditional would materialize with an explicit address space and
+    refuse to unify with the plain class type on the other side). Scalar and vector program constants copy without a
+    constructor and stay as they are."""
+    def repl(m):
+        if m.group(1) in BUILTIN_TYPES:
+            return m.group(0)
+        return ("inline %s m2v_%s() { return %s %s; }\n#define %s m2v_%s()" %
+                (m.group(1), m.group(2), m.group(1), m.group(3), m.group(2), m.group(2)))
+    return PROGRAM_CONST_CLASS.sub(repl, text)
+
+
+def class_conditional_operands(text):
+    """A conditional whose first operand is a const class lvalue has no composite type in C++ for OpenCL: the prvalue
+    operand carries no address space, and `const __private Mark` vs `Mark` do not unify for class types (builtins take
+    the lvalue-to-rvalue path, classes do not). Spell the conversion out - an explicit copy of the lvalue."""
+    structs = set(re.findall(r"\b(?:struct|class)\s+(\w+)", text))
+    for t, n in sorted(set(re.findall(r"\bconst\s+(\w+)\s+(\w+)\s*=", text))):
+        if t in structs and re.search(r"\? %s :" % re.escape(n), text):
+            text = re.sub(r"\? %s :" % re.escape(n), "? %s(%s) :" % (t, n), text)
     return text
 
 
@@ -438,7 +508,7 @@ def find_entries(text):
             if j >= len(text) or text[j] != "{":
                 continue  # a declaration or an explicit instantiation, not a definition
             bend = balanced(text, j, "{", "}")
-            run = attr_run_start(text, m.start()) if style == "dsl" else m.start()
+            run = attr_run_start(text, m.start())
             th = template_header_before(text, run)
             variants = {}
             if style == "dsl":
@@ -1139,20 +1209,21 @@ inline void frag_put_in(thread const frag<float>& f, device O* p, int ld, int r,
 }
 #endif
 // mma_16x32 runs on the mpp tensor-op emulation (slice/cov-mpp's shim, in this tree), so M2V_NAX_MPP is defined and the
-// definition is live; the #else forward declaration remains for a tree without the shim. The element types are fixed:
-// the shim's vec alias cannot deduce them (16x32x16, C accumulates in float, A/B bf16). M5 packing: the M5-branch
-// layout (frag columns home.x + (e & 3), paired halves at idx e and 8 + e) is what the shim's fragment layout expects.
+// definition is live; the #else forward declaration remains for a tree without the shim. The element types deduce from
+// the fragments (the shim's vec alias is directly deducible): C accumulates in float, A/B are bf16 or fp32 (16x32x16).
+// M5 packing: the M5-branch layout (frag columns home.x + (e & 3), paired halves at idx e and 8 + e) is what the shim's
+// fragment layout expects.
 #ifdef M2V_NAX_MPP
-template <bool TA, bool TB>
-inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread const frag<bfloat16_t>& a,
-                      thread const frag<bfloat16_t>& b0, thread const frag<bfloat16_t>& b1) {
+template <bool TA, bool TB, typename C, typename A, typename B>
+inline void mma_16x32(thread frag<C>& lo, thread frag<C>& hi, thread const frag<A>& a, thread const frag<B>& b0,
+                      thread const frag<B>& b1) {
   using namespace mpp::tensor_ops;
   constexpr auto shape = matmul2d_descriptor(16, 32, 16, TA, TB, true, matmul2d_descriptor::mode::multiply_accumulate);
   matmul2d<shape, execution_simdgroup> op;
-  auto left = op.template get_left_input_cooperative_tensor<bfloat16_t, bfloat16_t, float>();
-  auto right = op.template get_right_input_cooperative_tensor<bfloat16_t, bfloat16_t, float>();
+  auto left = op.template get_left_input_cooperative_tensor<A, B, C>();
+  auto right = op.template get_right_input_cooperative_tensor<A, B, C>();
   auto acc = op.template get_destination_cooperative_tensor<metal::remove_addrspace_t<decltype(left)>,
-                                                            metal::remove_addrspace_t<decltype(right)>, float>();
+                                                            metal::remove_addrspace_t<decltype(right)>, C>();
   TF_UNROLL
   for (short e = 0; e < 8; e++) {
     left[e] = a[e];
@@ -1169,9 +1240,9 @@ inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread con
   }
 }
 #else
-template <bool TA, bool TB>
-inline void mma_16x32(thread frag<float>& lo, thread frag<float>& hi, thread const frag<bfloat16_t>& a,
-                      thread const frag<bfloat16_t>& b0, thread const frag<bfloat16_t>& b1);
+template <bool TA, bool TB, typename C, typename A, typename B>
+inline void mma_16x32(thread frag<C>& lo, thread frag<C>& hi, thread const frag<A>& a, thread const frag<B>& b0,
+                      thread const frag<B>& b1);
 #endif
 }  // namespace tfp
 using namespace tfp;
@@ -1374,6 +1445,13 @@ def process(job):
             break
         defs += [f"-D{n}={TF_DEFAULTS.get(n, 'bfloat' if undecl[n] == 'type' else MACRO_DEFAULT)}" for n in new]
         syms += add_syms
+    if row["spv"] == "FAIL" and "crash" in row["error"] and FE_OPT != ALT_FE_OPT:
+        # clspv died without a diagnostic on the typed-GEP route: retry the same entry through the fully inlining
+        # route, whose argument uses the descriptor pass can infer (uzu Gemm_v1). Whichever run gets further wins.
+        alt, _, _, _ = process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms, ALT_FE_OPT)
+        rank = lambda r: (r["val"] == "ok", r["spv"] == "ok", r["ir"] == "ok")
+        if rank(alt) > rank(row):
+            row = alt
     if row["val"] != "ok" and row["parse"] != "n/a":
         # a failure whose first diagnostic names a Metal 4 tensor op is a refusal, not a bug: the retry has run, so this is final
         first = ((row.get("detail") or row["error"]).splitlines() or [""])[0]
@@ -1453,7 +1531,7 @@ def mentions_mpp(path, include_dirs, seen=None):
     return False
 
 
-def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms=()):
+def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dirs, use_spv, defs, syms=(), fe_opt=None):
     row = {"set": setname, "file": rel, "entry": kname, "variant": targs[:60] if targs else "-", "parse": "", "ir": "", "spv": "",
            "val": "", "error": "", "features": [], "kernel": "", "args": []}
     text0 = preprocess(src_path, include_dirs, defs + (["-DDSL_ANALYZE"] if setname == "uzu" else []))
@@ -1485,11 +1563,12 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     pre += "".join(HOST_SYMBOL_TEXT[g] for g in syms)
     if mentions_mpp(src_path, include_dirs):
         pre += '#include "MetalPerformancePrimitives/MetalPerformancePrimitives.h"\n'
-    cl.write_text(pre + VEC_ALIASES + uzu_compat(norm_decls(strip_annotate(src))) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
+    cl.write_text(pre + VEC_ALIASES + class_conditional_operands(program_const_values(identity_deduction(vec_ctor_calls(
+        uzu_compat(norm_decls(strip_annotate(src))))))) + '\n#line 1 "m2v-wrapper"\n' + wsrc)
     ll = d / "ll" / (tag + ".ll")
     ll.parent.mkdir(parents=True, exist_ok=True)
     cmd = [CLANG, "--target=spir", "-x", "cl", "-cl-std=clc++2021", "-Xclang", "-finclude-default-header",
-           "-cl-ext=-__opencl_c_generic_address_space", *FE_OPT, "-fno-strict-return", "-cl-kernel-arg-info", "-w", "-ferror-limit=100",
+           "-cl-ext=-__opencl_c_generic_address_space", *(fe_opt if fe_opt is not None else FE_OPT), "-fno-strict-return", "-cl-kernel-arg-info", "-w", "-ferror-limit=100",
            *M2V_DEFS, *defs, f"-I{INC}", *[f"-I{x}" for x in include_dirs], "-S", "-emit-llvm", str(cl), "-o", str(ll)]
     rc, out, _ = sh(cmd)
     errs = [ln for ln in out.splitlines() if " error: " in ln or "fatal error" in ln]
@@ -1506,7 +1585,7 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         return row, undeclared_macros(errs), missing_host_symbols(errs), m4
     row["parse"] = "ok"
     txt = ll.read_text()
-    if "-O0" in FE_OPT:
+    if "-O0" in (fe_opt if fe_opt is not None else FE_OPT):
         # clang marks every -O0 function noinline; drop that, then inline and SROA with LLVM's own passes
         ll.write_text(re.sub(r"\bnoinline\b", "", txt))
         rc, out, _ = sh([OPT, "-passes=cgscc(inline),function(sroa,early-cse,simplifycfg)", "-inline-threshold=100000", "-S", str(ll), "-o", str(ll) + ".opt"])
