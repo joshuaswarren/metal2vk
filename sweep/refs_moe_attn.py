@@ -156,15 +156,16 @@ def ref_qwen35_ragged_sdpa_2p1(kern, inputs):
     cross-block merge: partials keep the UNNORMALIZED o rounded to bf16,
     sums/maxs keep this block's denominator and running max.
 
-    Geometry is the ARTIFACT LAUNCH, not the template's full extent:
-    launch_grid (threads) / threadgroup = the workgroup counts the real
-    oMLX call dispatches. For the pinned template that is (2, 1, 4): x
-    covers both kv heads, z all 4 blocks, but y is ONE batch workgroup, so
-    batch_idx only takes 0 and q_batch_head_idx stays below 16. The kernel
-    as shipped never writes partials[16384:], sums[64:] or maxs[64:] (the
-    batch-1 half of the declared outputs); the reference zeros that hole
-    (the verify_step_states convention) and the comparison flags it. The
-    template still supports a batch axis: a wider launch would compute it."""
+    Geometry follows the REAL oMLX call (mlx_vlm qwen3_5 language): grid =
+    (32*kv_heads, (q_heads//kv_heads)*batch, blocks) threads over
+    threadgroup (32, q_heads//kv_heads, 1), i.e. workgroups
+    (kv_heads, batch, blocks). For this table's B=2 dims that is
+    launch_grid (64, 16, 4) = (2, 2, 4) workgroups, so the reference
+    simulates both batches and every declared output element is written;
+    the zero-hole convention below only bites if a launch really
+    under-covers (the artifact .launch's (64, 8, 4) was the assembler's
+    B=1 dims, not the serving call - a B=1 run of these buffers WOULD leave
+    partials[16384:], sums[64:], maxs[64:] unwritten)."""
     t = dict((n, v) for n, v in kern["tmpl"])
     qh_n, kvh, gqa = (int(t["NUM_Q_HEADS"]), int(t["NUM_KV_HEADS"]),
                       int(t["GQA_FACTOR"]))
@@ -220,10 +221,10 @@ def ref_qwen35_ragged_sdpa_2p1(kern, inputs):
             o = o * factor[..., None, None] \
                 + (e * valid)[..., None, None] * vt
         # partials[qbh*4*256 + block*256 + lane*8 + j], qbh = b*16 + 8*kv + gqa.
-        # The declared outputs cover the template's full batch extent, but the
-        # launch only computes batches < B: everything at or beyond
-        # q_batch_head B*qh_n stays zero here (the kernel never writes it) and
-        # the comparison flags that hole against the poisoned dumps.
+        # The declared outputs cover the template's full batch extent; the
+        # launch computes batches < B and the rest (empty at B covering the
+        # buffers) would stay zero here - an unwritten hole the comparison
+        # flags against the poisoned dumps.
         outs = dict((o[0], int(np.prod(o[2]))) for o in kern["outputs"])
         pt = np.zeros(outs["partials"], np.uint16)
         pt[:B * qh_n * blocks * 256] = \
