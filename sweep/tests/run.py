@@ -86,6 +86,19 @@ def verify(ll, name):
             return False
     clspv = os.environ.get("CLSPV", "")
     if clspv and pathlib.Path(clspv).exists():
+        if name == "structured_merge_continue":
+            # This case exercises the producer-level merge/continue separation
+            # from clspv-patches/apply-structured-merge-continue.py. On a
+            # binary built without that script the case is skipped: CI builds
+            # clspv with every script from clspv-patches/, so the case only
+            # has to hold when the patch is applied, and it must stay red
+            # exactly when the patch is applied and broken.
+            marker = b"metal2vk:apply-structured-merge-continue:v1"
+            if marker not in pathlib.Path(clspv).read_bytes():
+                print("skip structured_merge_continue: CLSPV was built without "
+                      "apply-structured-merge-continue.py, the producer-level "
+                      "merge/continue separation is not in this binary")
+                return True
         outer_spv = ll.with_suffix(".spv")
         r = subprocess.run([clspv, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points",
                             "--spv-version=1.5", str(ll), "-o", str(outer_spv)], capture_output=True, text=True)
@@ -98,6 +111,55 @@ def verify(ll, name):
             if r.returncode != 0:
                 print(f"FAIL {name}: spirv-val rejected clspv output: {r.stdout.strip()[:300]}")
                 return False
+        if name == "structured_merge_continue":
+            # The producer must never emit one loop's merge block as another
+            # loop's continue target, and both barriers must stay inside their
+            # loop constructs. Labels come in structured order (spirv-val
+            # enforces it), so a construct spans from its header label to its
+            # merge label in the disassembly.
+            dis = shutil.which("spirv-dis")
+            if not dis:
+                print("FAIL structured_merge_continue: spirv-dis is required for the "
+                      "merge/continue structure check")
+                return False
+            r = subprocess.run([dis, str(outer_spv)], capture_output=True, text=True)
+            if r.returncode != 0:
+                print(f"FAIL structured_merge_continue: spirv-dis failed: {r.stderr.strip()[:200]}")
+                return False
+            labels = {}   # block id -> label line
+            loops = []    # (header, merge, continue)
+            barriers = []  # (block, line)
+            cur = None
+            for i, ln in enumerate(r.stdout.splitlines()):
+                m = re.match(r"\s*%(\d+) = OpLabel\s*$", ln)
+                if m:
+                    cur = m.group(1)
+                    labels.setdefault(cur, i)
+                    continue
+                m = re.search(r"OpLoopMerge %(\d+) %(\d+) ", ln)
+                if m and cur is not None:
+                    loops.append((cur, m.group(1), m.group(2)))
+                    continue
+                if "OpControlBarrier" in ln and cur is not None:
+                    barriers.append((cur, i))
+            if len(loops) < 2:
+                print(f"FAIL structured_merge_continue: expected the nested loop pair to "
+                      f"survive, found {len(loops)} loops (the inner loop must not be "
+                      f"optimized away)")
+                return False
+            for h1, m1, _c1 in loops:
+                for _h2, _m2, c2 in loops:
+                    if m1 == c2:
+                        print(f"FAIL structured_merge_continue: merge block %{m1} of one "
+                              f"loop is the continue target %{c2} of another")
+                        return False
+            for blk, line in barriers:
+                if not any(labels.get(h, -1) < line < labels.get(m, -1) for h, m, _c in loops):
+                    print(f"FAIL structured_merge_continue: the barrier in block %{blk} "
+                          f"sits outside every loop construct")
+                    return False
+            print(f"ok structured_merge_continue: {len(loops)} loops, {len(barriers)} "
+                  f"barriers, every merge block distinct from every continue target")
         if name == "pointer_phi_to_index":
             # the real gate_up decode IR is the shape that sent SimplifyPointerBitcast into its
             # non-converging cycle: after the pass the module must compile with NO give-up
@@ -208,6 +270,7 @@ CASES = {
     "bfloat_consts.ll": ["bfloat_to_i16.py", "flatten_single_member_structs.py"],
     "dynamic_struct_array.ll": ["flatten_single_member_structs.py"],
     "spb_tail_drift.ll": [],   # IR is ready to hand to clspv; no text pass
+    "structured_merge_continue.ll": [],   # producer-level merge/continue separation
     "pointer_phi_to_index.ll": ["pointer_phi_to_index.py"],
     "pointer_phi_skip.ll": ["pointer_phi_to_index.py"],
 }
