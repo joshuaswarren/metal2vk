@@ -5,6 +5,16 @@ host_name instantiation. A count is a number of entries.
 
 ## Compile rates
 
+Before (the shim and flags of main when the sweep started):
+
+| set | entries | IR | SPIR-V | valid | refused | runs | matches reference |
+|---|---|---|---|---|---|---|---|
+| uzu | 121 | 121 (100.0%) | 121 (100.0%) | 121 (100.0%) | 0 | not run here | 0 |
+| tf | 489 | 489 (100.0%) | 479 (98.0%) | 477 (97.5%) | 0 | not run here | 0 |
+| all | 610 | 610 (100.0%) | 600 (98.4%) | 598 (98.0%) | 0 | not run here | 0 |
+
+After:
+
 | set | entries | IR | SPIR-V | valid | refused | runs | matches reference |
 |---|---|---|---|---|---|---|---|
 | uzu | 121 | 121 (100.0%) | 121 (100.0%) | 121 (100.0%) | 0 | not run here | 0 |
