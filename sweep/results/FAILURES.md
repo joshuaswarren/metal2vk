@@ -42,14 +42,6 @@ attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no 
 
 Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`
 
-## clspv: clspv:MNV: SimplifyPointerBitcast does not converge; changing sub-passes: N N (3)
-
-```
-M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
-```
-
-Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g64`, `ops/qmv.metal:tf_gather_qmv_b8_g64`
-
 ## front end: other: from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size (3)
 
 ```
