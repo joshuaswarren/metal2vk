@@ -225,9 +225,7 @@ KERNELS = [
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("q", "bf16", (32768,), "rand"), ("k", "bf16", (1048576,), "rand"),
        K_STRIDES, ("v", "bf16", (1048576,), "rand"), V_STRIDES, PARAMS_WIDE],
-      [("o_part", "f32", (131072,)), ("ml_part", "f32", (1024,))],
-      note="metal2vk compile fails on the simdgroup_matrix store (t1); "
-           "mlx side still runs"),
+      [("o_part", "f32", (131072,)), ("ml_part", "f32", (1024,))]),
     K("omlx_verify_attn_wide_combine", "sibling", (1024, 16, 1), (256, 1, 1),
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("o_part", "f32", (131072,), "rand"), ("ml_part", "f32", (1024,), "rand"),

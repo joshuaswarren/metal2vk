@@ -18,18 +18,20 @@ REGISTRY = ("refs_router", "refs_moe_expert", "refs_gdn_prework",
 def _load():
     refs = {}
     secondary = {}
+    judges = {}
     missing = []
     for mod in REGISTRY:
         try:
             m = __import__(mod)
             refs.update(m.REFS)
             secondary.update(getattr(m, "SECONDARY", {}))
+            judges.update(getattr(m, "JUDGES", {}))
         except ImportError:
             missing.append(mod)
-    return refs, missing, secondary
+    return refs, missing, secondary, judges
 
 
-REFS, _MISSING, SECONDARY = _load()
+REFS, _MISSING, SECONDARY, JUDGES = _load()
 
 
 def check_all(seed=1234):

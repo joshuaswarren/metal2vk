@@ -143,7 +143,6 @@ def ref_omlx_verify_attn_wide_partial(kern, inputs, skip_block_at=None,
 
 REFS["omlx_verify_attn_wide_partial"] = ref_omlx_verify_attn_wide_partial
 
-
 def judge_o_part(got, want):
     """The exp-flip judgment: per 128-wide output row, pass when every slot
     is within 5e-4 of that row's max |want|."""
@@ -185,3 +184,16 @@ def self_check(dump_dir, mlx_dir):
 def t_begin_of(split, inputs):
     p = inputs["params"].reshape(-1).view(np.uint32)
     return int(p[2]) * split
+
+
+# The exp-flip freedom (exp() precision flipping bf16 P entries) is the
+# named, control-tested judgment for o_part; ml_part stays on the table
+# tolerance. Criterion: per 128-wide row, within 5e-4 of the row's max
+# |want| (judge_o_part). Negative controls in self_check.
+JUDGES = {
+    "omlx_verify_attn_wide_partial": {
+        "o_part": judge_o_part,
+    },
+}
+
+
