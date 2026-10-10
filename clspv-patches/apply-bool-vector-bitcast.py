@@ -92,18 +92,18 @@ step(
     "  SPIRVID GenerateFabs(SPIRVID Input, Type *InputTy);\n",
     "  SPIRVID GenerateFabs(SPIRVID Input, Type *InputTy);\n"
     "  // metal2vk: legal lowering for bool-vector <-> small-integer bitcasts.\n"
-    "  SPIRVID GenerateBoolVectorBitcast(CastInst &I);\n",
+    "  SPIRVID GenerateBoolVectorBitcast(Instruction &I);\n",
     "helper declaration",
 )
 
 # 3. the definition, placed before GenerateFabs's definition
 step(
     "SPIRVID SPIRVProducerPassImpl::GenerateFabs(SPIRVID Input, Type *InputTy) {",
-    """SPIRVID SPIRVProducerPassImpl::GenerateBoolVectorBitcast(CastInst &I) {
+    """SPIRVID SPIRVProducerPassImpl::GenerateBoolVectorBitcast(Instruction &I) {
   auto *VecTy = cast<FixedVectorType>(I.getOperand(0)->getType());
   const unsigned lanes = VecTy->getNumElements();
-  auto *I32 = Type::getInt32Ty(Context);
-  auto *WideTy = (lanes <= 32) ? I32 : Type::getInt64Ty(Context);
+  auto *I32 = Type::getInt32Ty(I.getContext());
+  auto *WideTy = (lanes <= 32) ? I32 : Type::getInt64Ty(I.getContext());
   SPIRVID pack = getSPIRVConstant(ConstantInt::get(WideTy, 0));
   SPIRVID result;
   SPIRVOperandVec Ops;
