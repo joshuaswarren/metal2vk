@@ -323,7 +323,8 @@ tf	nemotron_round.metal	tf_round_root	-	ok	ok	ok	ok			?	?
 tf	nemotron_round.metal	tf_round_sib	-	ok	ok	ok	ok			?	?	
 tf	nemotron_round.metal	tf_round_tail	-	ok	ok	ok	ok			?	?	
 tf	nemotron_round.metal	tf_round_top1	-	ok	ok	ok	ok			?	?	
-tf	nemotron_sample.metal	tf_sample_full	-	FAIL						?	?	no matching constructor for initialization of 'X'
+tf	nemotron_sample.metal	tf_sample_full	false	ok	ok	ok	ok			?	?	
+tf	nemotron_sample.metal	tf_sample_full_ids	true	ok	ok	ok	ok			?	?	
 tf	nemotron_tree.metal	tf_gather_rows	-	ok	ok	ok	ok			?	?	
 tf	nemotron_tree.metal	tf_kv_compact	-	ok	ok	ok	ok			?	?	
 tf	nemotron_tree.metal	tf_lane_tokens	-	ok	ok	ok	ok			?	?	
@@ -447,7 +448,7 @@ tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_32	-	ok	ok	ok	ok			?	?
 tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_64	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax_128	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_attn256_nax	-	FAIL						?	?	no matching function for call to 'X'
+tf	prefill/qmm6_nax_b.metal	tf_attn256_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax_b.metal	tf_mm_bf16_f32_t_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax_b.metal	tf_parts_sum	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax_b.metal	tf_qmm6_splitk_nax	-	ok	ok	ok	ok			?	?	
@@ -490,7 +491,7 @@ tf	runtime_tests.metal	tf_vadd	-	ok	ok	ok	ok			?	?
 uzu	activation/activation.metal	Activation_v0	half	ok	ok	ok	ok			?	?	
 uzu	activation/activation.metal	Activation_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	activation_transform/activation_transform.metal	ActivationTransform_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	FAIL						?	?	 from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size
+uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	ok	ok	ok	ok			?	?	
 uzu	activation_transform/trellis.metal	TrellisTransform_v0	4096	ok	ok	ok	ok			?	?	
 uzu	activation_transform/trellis.metal	TrellisTransform_v1	19968	ok	ok	ok	ok			?	?	
 uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	ok	ok			?	?	
@@ -498,8 +499,8 @@ uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v0	float	o
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v0	float	ok	ok	ok	ok			?	?	
 uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	attention/attention_gemm.metal	AttentionGemm_v0	bfloat, 32, 64, false	FAIL						?	?	no matching member function for call to 'X'
-uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 64, true	FAIL						?	?	no matching member function for call to 'X'
+uzu	attention/attention_gemm.metal	AttentionGemm_v0	bfloat, 32, 64, false	ok	ok	ok	ok			?	?	
+uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 64, true	ok	ok	ok	ok			?	?	
 uzu	attention/attention_prepare.metal	AttentionPrepare_v0	bfloat, float	ok	ok	ok	ok			?	?	
 uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	ok	ok			?	?	
 uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	ok	ok			?	?	
@@ -509,19 +510,19 @@ uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v0	float, 64	ok	ok	ok	o
 uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v1	bfloat, 512	ok	ok	ok	ok			?	?	
 uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v0	bfloat, 128	ok	ok	ok	ok			?	?	
 uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v1	bfloat, 256	ok	ok	ok	ok			?	?	
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v0	bfloat, 32, 128, 2	FAIL						?	?	no matching member function for call to 'X'
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v1	bfloat, 32, 256, 4	FAIL						?	?	no matching member function for call to 'X'
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v0	bfloat, 32, 128, 2	ok	ok	ok	ok			?	?	
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v1	bfloat, 32, 256, 4	ok	ok	ok	ok			?	?	
 uzu	attention/kv_cache_update.metal	KVCacheUpdate_v0	float	ok	ok	ok	ok			?	?	
 uzu	attention/kv_cache_update.metal	KVCacheUpdate_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	attention/qkv_norm.metal	QKVNorm_v0	float, float, float, float	ok	ok	ok	ok			?	?	
 uzu	attention/qkv_norm.metal	QKVNorm_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			?	?	
 uzu	attention/sigmoid_gate.metal	SigmoidGate_v0	float	ok	ok	ok	ok			?	?	
 uzu	attention/sigmoid_gate.metal	SigmoidGate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	convolution/separable_causal_conv.metal	SeparableCausalConv_v0	bfloat	FAIL						?	?	excess elements in scalar initializer
+uzu	convolution/separable_causal_conv.metal	SeparableCausalConv_v0	bfloat	ok	ok	ok	ok			?	?	
 uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v0	float	ok	ok	ok	ok			?	?	
 uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v0	float	ok	ok	ok	ok			?	?	
-uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v1	bfloat	FAIL						?	?	 from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size
+uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v0	32	ok	ok	ok	ok			?	?	
 uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v1	64	ok	ok	ok	ok			?	?	
 uzu	gdn/chunked/causal_inv.metal	DeltaNetChunkedCausalInv_v0	32, 16	ok	ok	ok	ok			?	?	
@@ -558,13 +559,13 @@ uzu	gdn/update.metal	DeltaNetUpdate_v1	bfloat, 128	ok	ok	ok	ok			?	?
 uzu	logit_transform/logit_transform.metal	LogitTransform_v0	float	ok	ok	ok	ok			?	?	
 uzu	logit_transform/logit_transform.metal	LogitTransform_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm.metal	Gemm_v0	bfloat, bfloat, bfloat, GemmTiling::Tile8x32x32_Simdgroups1x	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm.metal	Gemm_v1	float, bfloat, float, GemmTiling::Tile128x128x256_Simdgroups	FAIL						?	?	no matching function for call to 'X'
+uzu	matmul/gemm/gemm.metal	Gemm_v1	float, bfloat, float, GemmTiling::Tile128x128x256_Simdgroups	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	FAIL						?	?	 from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size
+uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	ok	ok	ok	ok			?	?	
-uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	FAIL						?	?	static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allowed
+uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	ok	ok	ok	ok			?	?	
 uzu	matmul/gemv/gemv.metal	Gemv_v1	float, bfloat, float, GemmBPrologueKind::ScaleSymmetricDequa	ok	ok	ok	ok			?	?	
 uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok			?	?	
 uzu	normalization/normalization.metal	Normalization_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			?	?	
