@@ -225,9 +225,7 @@ KERNELS = [
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("q", "bf16", (32768,), "rand"), ("k", "bf16", (1048576,), "rand"),
        K_STRIDES, ("v", "bf16", (1048576,), "rand"), V_STRIDES, PARAMS_WIDE],
-      [("o_part", "f32", (131072,)), ("ml_part", "f32", (1024,))],
-      note="metal2vk compile fails on the simdgroup_matrix store (t1); "
-           "mlx side still runs"),
+      [("o_part", "f32", (131072,)), ("ml_part", "f32", (1024,))]),
     K("omlx_verify_attn_wide_combine", "sibling", (1024, 16, 1), (256, 1, 1),
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("o_part", "f32", (131072,), "rand"), ("ml_part", "f32", (1024,), "rand"),
@@ -486,7 +484,8 @@ def compare(code, got_bits, want_bits):
     want = bits_to_float(code, want_bits).astype(np.float64)
     both_nan = np.isnan(got) & np.isnan(want)
     fin = np.isfinite(got) & np.isfinite(want)
-    diff = np.where(fin, got - want, 0.0)
+    with np.errstate(invalid="ignore"):
+        diff = np.where(fin, got - want, 0.0)
     adiff = np.abs(diff)
     rdiff = adiff / np.where(fin, 1.0 + np.abs(want), 1.0)
     tol = TOL[code]
