@@ -130,12 +130,19 @@ kernels without cross-lane ops.
 
 ## Geometry deviations (recorded per kernel in the table)
 
-The artifacts pin launch grids that were never GPU-validated; four of them
+The artifacts pin launch grids that were never GPU-validated; several of them
 index out of the kernel's own buffers. Parity runs the kernel-consistent grid
 and the artifact grid stays in `launch_grid` for the check:
 
 - `omlx_qwen35_moe_router_gemv`: s = tg.y*NSG covers 2048 experts against 512
   weight rows; parity runs tg.y = 128.
+- `omlx_qwen35_moe_gate_up_decode/window/topk`: the artifact grid launches 2x
+  the kernel-consistent block count (the plan launcher multiplies NSG in a
+  second time). Blocks past the consistent count read `rhs` past its entries
+  and their y writes land on the shared-expert region (slot >= TOPK), racing
+  the blocks that own it - the first G13G run's shared-region mismatches were
+  this race, not an arithmetic difference. Parity runs 1153 (decode/topk) and
+  4612 (window).
 - `omlx_qwen35_moe_down_combine_decode/window`: grid y writes y rows up to
   18432 against a 2048-row (4x2048-row) output; parity runs the covering 1024
   (2048).

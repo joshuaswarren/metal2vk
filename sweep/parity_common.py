@@ -134,12 +134,17 @@ KERNELS = [
       [("out", "bf16", (2048,))]),
     # ---- sibling: fused MoE expert kernels (small 4-expert weight pool) ----
     K("omlx_qwen35_moe_gate_up_decode_b4g32f_shared_b4g32f_gate_b4g32s",
-      "sibling", (32, 2306, 1), (32, 2, 1),
+      "sibling", (32, 1153, 1), (32, 2, 1),
       [("T", "bf16"), ("K", 2048), ("NI", 512), ("RPS", 2), ("NSG", 2),
        ("TOPK", 8), ("NS", 512)],
       [("x", "bf16", (2048,), "rand"), GATE_UP_W, *GATE_UP_SB,
        ("rhs", "u32", (8,), f"idx:{E4}"), *SHARED],
-      [("y", "bf16", (4609,))]),
+      [("y", "bf16", (4609,))],
+      launch_grid=(32, 2306, 1),
+      note="artifact grid launches 2x the kernel-consistent blocks "
+           "(1 + NS/ROWS + TOPK*NI/ROWS = 1153); blocks past that read rhs "
+           "past its 8 entries and rewrite the shared-expert region of y, "
+           "so parity runs 1153"),
     K("omlx_qwen35_moe_down_combine_decode_b4g32f_shared_b4g32f",
       "sibling", (32, 1024, 1), (32, 9, 1),
       [("T", "bf16"), ("K", 512), ("N", 2048), ("TOPK", 8), ("KS", 512),
@@ -151,12 +156,17 @@ KERNELS = [
       note="artifact grid y=9216 writes y rows up to 18432 for a 2048-row "
            "output; parity runs the covering 1024"),
     K("omlx_qwen35_moe_gate_up_window_b4g32f_shared_b4g32f_gate_b4g32s",
-      "sibling", (32, 9224, 1), (32, 2, 1),
+      "sibling", (32, 4612, 1), (32, 2, 1),
       [("T", "bf16"), ("K", 2048), ("NI", 512), ("RPS", 2), ("NSG", 2),
        ("TOPK", 8), ("NS", 512), ("M", 4)],
       [("x", "bf16", (8192,), "rand"), GATE_UP_W, *GATE_UP_SB,
        ("rhs", "u32", (32,), f"idx:{E4}"), *SHARED],
-      [("y", "bf16", (18436,))]),
+      [("y", "bf16", (18436,))],
+      launch_grid=(32, 9224, 1),
+      note="artifact grid launches 2x the kernel-consistent blocks "
+           "((1 + NS/ROWS + TOPK*NI/ROWS) * M = 4612); blocks past that read "
+           "rhs past the per-row entries and rewrite the shared region, so "
+           "parity runs 4612"),
     K("omlx_qwen35_moe_down_combine_window_b4g32f_shared_b4g32f",
       "sibling", (32, 2048, 1), (32, 9, 1),
       [("T", "bf16"), ("K", 512), ("N", 2048), ("TOPK", 8), ("KS", 512),
@@ -168,15 +178,18 @@ KERNELS = [
       note="artifact grid writes y rows up to 18428 for a 4x2048-row output; "
            "parity runs the covering 2048"),
     K("omlx_qwen35_moe_gate_up_topk_b4g32f_shared_b4g32f_gate_b4g32s",
-      "sibling", (32, 2306, 1), (32, 2, 1),
+      "sibling", (32, 1153, 1), (32, 2, 1),
       [("T", "bf16"), ("K", 2048), ("NI", 512), ("RPS", 2), ("NSG", 2),
        ("TOPK", 8), ("NS", 512), ("NE", 512), ("M", 1), ("YW", 4609)],
       [("x", "bf16", (2048,), "rand"), GATE_UP_W, *GATE_UP_SB,
        ("logits", "bf16", (512,), "logi"), *SHARED],
       [("y", "bf16", (4609,)), ("indices", "u32", (8,)),
        ("scores", "bf16", (8,))],
+      launch_grid=(32, 2306, 1),
       note="logits outside the 4-expert weight pool are pinned to -1000 so "
-           "the folded top-k stays inside the small weight pool"),
+           "the folded top-k stays inside the small weight pool; artifact "
+           "grid launches 2x the kernel-consistent 1153 (same shape as the "
+           "decode variant), so parity runs 1153"),
     # ---- sibling: attention verify/prefix ----
     K("omlx_gdn_sigmoid_probe", "sibling", (131072, 1, 1), (256, 1, 1), [],
       [("gates", "f32", (131072,), "rand")],
@@ -197,8 +210,8 @@ KERNELS = [
        ("v", "bf16", (16384,), "rand"), ("a", "bf16", (128,), "rand"),
        ("b", "bf16", (128,), "rand")],
       [("y", "bf16", (16384,)), ("state_out", "f32", (524288,))],
-      note="metal2vk compile fails on metal::numeric_limits<half> (t1); "
-           "mlx side still runs"),
+      note="the reference mirrors the composed replay; the omarchy path "
+           "refuses the kernel, so the reference is the only judge"),
     K("omlx_verify_attn_wide_partial", "sibling", (2048, 4, 1), (128, 1, 1),
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("q", "bf16", (32768,), "rand"), ("k", "bf16", (1048576,), "rand"),
@@ -280,8 +293,7 @@ KERNELS = [
        ("state_in", "f32", (2097152,), "rand"), ("norm_w", "bf16", (128,), "rand"),
        ("eps", "f32", (1,), "c:[1e-06]")],
       [("conv_out", "bf16", (98304,)), ("state_out", "f32", (2097152,)),
-       ("out", "bf16", (16384,))],
-      note="metal2vk compile fails on threadgroup scope (t1); mlx side still runs"),
+       ("out", "bf16", (16384,))]),
     K("omlx_qwen4_gdn_decode_norm_gate", "gdn", (32, 1, 32), (32, 1, 1),
       [("T", "bf16"), ("HV", 32), ("DV", 128)],
       [("y", "bf16", (4096,), "rand"), ("z", "bf16", (4096,), "rand"),
