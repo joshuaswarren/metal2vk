@@ -2,27 +2,56 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
-## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (74)
+## front end: overload:frag_get (19)
 
 ```
-error: line 11311: Header block '9081[%9081]' is contained in the loop construct headed by '992[%992]', but its merge block '12516[%12516]' is not
-  %9081 = OpLabel
+core_affine_mm_metal__tf_affine_row_sums_6e1dd751.cl:192:13: error: no matching function for call to 'frag_get'
+  192 |             frag_get(b[j][i], (const threadgroup bfloat*)tile, PAD, tn + 16 * i, kk + 16 * j, home);
+      |             ^~~~~~~~
 ```
 
-Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v1`, `gdn/tree_verify/tree_gram.metal:BuildTreeGram_v1`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v0`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v1`, `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g` and 66 more
+Entries: `core/affine_mm.metal:tf_affine_row_sums`, `core/affine_mm.metal:tf_affine_mm`, `core/affine_mm.metal:tf_affine_gather_32`, `core/affine_mm.metal:tf_affine_gather_64`, `core/affine_mm.metal:tf_affine_gather_scatter_32`, `core/affine_mm.metal:tf_affine_gather_scatter_64`, `glm_absorb_nax.metal:glm_absorb_nax`, `glm_sparse_nax.metal:glm_sparse_nax` and 11 more
 
-## clspv: clspv:Invalid bitcast (6)
+## front end: overload:frag_get_in (19)
+
+```
+glm_attn_metal__glm_latent_scores_f9e7009f.cl:139:5: error: no matching function for call to 'frag_get_in'
+  139 |     frag_get_in(a, q, 512, row0, k0, home, 64, 512);
+      |     ^~~~~~~~~~~
+```
+
+Entries: `glm_attn.metal:glm_latent_scores`, `glm_attn.metal:glm_latent_values`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/attention_nax.metal:custom_kernel_tf_attention_nax`, `prefill/fn_attn.metal:tf_idx_scores_nax`, `prefill/fn_attn.metal:tf_sattn_nax` and 11 more
+
+## clspv: clspv:Invalid bitcast (15)
 
 ```
 Invalid bitcast
-  %121 = bitcast <4 x i8> %120 to ptr addrspace(1)
+  %303 = bitcast <4 x i16> %302 to <8 x i16>
 Invalid bitcast
-  %138 = bitcast <4 x i8> %137 to ptr addrspace(1)
-Invalid bitcast
-  %155 = bitcast <4 x i8> %154 to ptr addrspace(1)
+  %351 = bitcast <4 x i16> %350 to <8 x i16>
+LLVM ERROR: Broken module found, compilation aborted!
 ```
 
-Entries: `kimi/experts.metal:k3_xp_up_r1`, `kimi/experts.metal:k3_xp_up_r4`, `kimi/experts.metal:k3_xp_down_r1`, `kimi/experts.metal:k3_xp_down_r4`, `kimi/kda.metal:k3_kda`, `kimi/mla.metal:k3_mla_attend`
+Entries: `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_a803238811388b40.metal:custom_kernel_lane_qmm_bytes_g` and 7 more
+
+## spirv-val: spirv-val:error: line N: [VUID-StandaloneSpirv-None-N] Having N components for TypeVector requires the VectorN (11)
+
+```
+error: line 205: [VUID-StandaloneSpirv-None-12295] Having 8 components for TypeVector requires the Vector16 or LongVectorEXT capability
+  %v8ushort = OpTypeVector %ushort 8
+```
+
+Entries: `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_a803238811388b40-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 3 more
+
+## front end: overload:load_paired_vectors (6)
+
+```
+gdn_chunked_output_and_state_metal__DeltaNetChunkedOutputAndState_v1_80824eb5.cl:889:13: error: no matching function for call to 'load_paired_vectors'
+  889 |             load_paired_vectors(cooperative_right, right_col_0, right_col_1);
+      |             ^~~~~~~~~~~~~~~~~~~
+```
+
+Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v1`, `gdn/tree_verify/tree_gram.metal:BuildTreeGram_v1`, `matmul/gemm/gemm.metal:Gemm_v1`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v0`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v1`
 
 ## clspv: clspv:ptr addrspace(N) (4)
 
@@ -42,24 +71,23 @@ attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no 
 
 Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`
 
-## front end: other: from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size (3)
+## clspv: clspv:MNV: SimplifyPointerBitcast does not converge; changing sub-passes: N N (3)
 
 ```
-ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274:25: error:  from vector 'float4' (vector of 4 'float' values) to vector 'vec<__bf16, 4>' (vector of 4 '__bf16' values) of different size
+M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+```
+
+Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g64`, `ops/qmv.metal:tf_gather_qmv_b8_g64`
+
+## front end: other: from vector 'X' (vector of N 'X' values) to vector 'X' (aka 'X') of different size (3)
+
+```
+ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274:25: error:  from vector 'float4' (vector of 4 'float' values) to vector 'vec<__bf16, 4>' (aka 'typename vec_sel<__bf16, 4>::type') of different size
   274 |         values = float4(vec<T, 4>(values)) + float4(load_hadamard_vector(bias + first_index));
       |                         ^~~~~~~~~~~~~~~~~
 ```
 
 Entries: `activation_transform/activation_transform.metal:ActivationTransform_v1`, `gated_act_mul/gated_act_mul.metal:GatedActMul_v1`, `matmul/gemm/gemm_split_k_reduce.metal:GemmSplitKReduce_v1`
-
-## spirv-val: spirv-val:error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f (3)
-
-```
-error: line 392: OpAccessChain result type <id> '164[%uchar]' (OpTypeInt) does not match the type that results from indexing into the base <id> '1[%uint]' (OpTypeInt). (The types must be the exact same Id, so the two types referenced are slighlty different)
-  %166 = OpAccessChain %_ptr_StorageBuffer_uchar %163
-```
-
-Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g64`, `ops/qmv.metal:tf_gather_qmv_b8_g64`
 
 ## spirv-val: spirv-val:error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast (2)
 
@@ -80,10 +108,20 @@ convolution_separable_causal_conv_metal__SeparableCausalConv_v0_c4e1e48c.cl:93:3
 
 Entries: `convolution/separable_causal_conv.metal:SeparableCausalConv_v0`
 
+## front end: other:redefinition of 'X' (1)
+
+```
+ops_nax_gemm_metal__tf_nax_gemm_nn_bf16_8d9e6ed0.cl:236:15: error: redefinition of 'frag_home'
+  236 | inline short2 frag_home(ushort l) {
+      |               ^
+```
+
+Entries: `ops/nax_gemm.metal:tf_nax_gemm_nn_bf16`
+
 ## front end: other:static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allowed (1)
 
 ```
-matmul_gemv_gemv_metal__Gemv_v0_616987e7.cl:531:35: error: static_cast from 'I4' (aka 'vec<__bf16, 4>') to 'float4' (vector of 4 'float' values) is not allowed
+matmul_gemv_gemv_metal__Gemv_v0_616987e7.cl:531:35: error: static_cast from 'I4' (aka 'typename vec_sel<__bf16, 4>::type') to 'float4' (vector of 4 'float' values) is not allowed
   531 |       const float4 input_values = static_cast<float4>(*reinterpret_cast<const device I4*>(input));
       |                                   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ```
@@ -109,13 +147,3 @@ prefill_qmm6_nax_b_metal__tf_attn256_nax_58fcd5b1.cl:366:9: error: no matching f
 ```
 
 Entries: `prefill/qmm6_nax_b.metal:tf_attn256_nax`
-
-## front end: overload:select (1)
-
-```
-matmul_gemm_gemm_metal__Gemm_v1_3053a573.cl:1936:28: error: no matching function for call to 'select'
- 1936 |           scales[tile_n] = select(ScaleVector(0), scales[tile_n], live);
-      |                            ^~~~~~
-```
-
-Entries: `matmul/gemm/gemm.metal:Gemm_v1`
