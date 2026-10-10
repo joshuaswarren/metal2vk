@@ -38,8 +38,32 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 producer = (root / "lib/SPIRVProducerPass.cpp").read_text()
-if "M2vFoldOk" in pass_cpp.read_text() and "requires the capability" in producer:
+marker = 'errs() << "M2V-GIVEUP: gepfromgep-skip\\n";'
+if marker in pass_cpp.read_text() and "requires the capability" in producer:
     print("already patched")
+    sys.exit(0)
+
+# v2 upgrade: a tree carrying the v1 skip (without the marker) is upgraded in
+# place - only the marker line is inserted.
+v1_skip = (
+    "    if (!M2vFoldOk) {\n"
+    "      // metal2vk: leave the split GEPs in place; they are valid IR and the next\n"
+    "      // pass will not re-report them as progress.\n"
+    "      continue;\n"
+    "    }\n"
+)
+_pc = pass_cpp.read_text()
+if "M2vFoldOk" in _pc and v1_skip in _pc:
+    _pc = _pc.replace(
+        v1_skip,
+        v1_skip.replace(
+            "      continue;",
+            '      errs() << "M2V-GIVEUP: gepfromgep-skip\\n";\n      continue;',
+        ),
+        1,
+    )
+    pass_cpp.write_text(_pc)
+    print(f"patched (clspv HEAD {sha[:8]})")
     sys.exit(0)
 
 
@@ -155,6 +179,7 @@ step(
     "    if (!M2vFoldOk) {\n"
     "      // metal2vk: leave the split GEPs in place; they are valid IR and the next\n"
     "      // pass will not re-report them as progress.\n"
+    '      errs() << "M2V-GIVEUP: gepfromgep-skip\\n";\n'
     "      continue;\n"
     "    }\n"
     "    Value *NewGEP = nullptr;",

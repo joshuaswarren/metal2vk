@@ -27,8 +27,30 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pass_cpp.read_text()
-if "M2vIterHash" in s:
+if "M2V-GIVEUP: spb-iter-hash" in s:
     print("already patched")
+    sys.exit(0)
+
+# v1 upgrade: a tree carrying the v1 guard (hash state without the marker) is
+# upgraded in place - only the marker line is inserted.
+v1_guard = (
+    "      if (M2vIterHashValid && M2vIterHash == M2vIterHashPrev) {\n"
+    "        changed = false;\n"
+    "      }\n"
+)
+if "M2vIterHash" in s:
+    if v1_guard not in s:
+        raise SystemExit("anchor missing: v1 iteration-hash guard")
+    s = s.replace(
+        v1_guard,
+        "      if (M2vIterHashValid && M2vIterHash == M2vIterHashPrev) {\n"
+        '        errs() << "M2V-GIVEUP: spb-iter-hash\\n";\n'
+        "        changed = false;\n"
+        "      }\n",
+        1,
+    )
+    pass_cpp.write_text(s)
+    print(f"patched (clspv HEAD {sha[:8]})")
     sys.exit(0)
 
 a = (
@@ -52,6 +74,7 @@ s = s.replace(
     "      M.print(M2vIterStream, nullptr);\n"
     "      size_t M2vIterHash = std::hash<std::string>{}(M2vIterStream.str());\n"
     "      if (M2vIterHashValid && M2vIterHash == M2vIterHashPrev) {\n"
+    '        errs() << "M2V-GIVEUP: spb-iter-hash\\n";\n'
     "        changed = false;\n"
     "      }\n"
     "      M2vIterHashPrev = M2vIterHash;\n"
