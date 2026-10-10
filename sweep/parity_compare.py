@@ -39,6 +39,7 @@ import numpy as np
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import parity_common as pc
+import parity_refs
 
 MAX_SUBMIT_S = 5.0
 REFLECT = HERE.parent / "m2v-reflect.py"
@@ -133,36 +134,125 @@ def ref_outputs(kern, kdir):
     """numpy reference outputs for a refused kernel (saved-output form)."""
     inputs = {}
     for spec in kern["inputs"]:
-        arr = np.load(kdir / f"{spec[0]}.npy")
-        inputs[spec[0]] = pc.bits_to_float(spec[1], arr.reshape(-1)).astype(np.float64)
-    ref = pc.cpu_ref(kern["cpu_ref"], kern, inputs)
+        inputs[spec[0]] = np.load(kdir / f"{spec[0]}.npy")
+    ref = parity_refs.REFS[kern["name"]](kern, inputs)
     outs = {}
     for name, code, shape, *_ in kern["outputs"]:
-        vals = ref[name].reshape(-1)
+        vals = np.asarray(ref[name]).reshape(-1)
         dt, npdt = pc.DTYPES[code]
         if npdt is None:
-            bits = pc.bf16_round(vals.astype(np.float32))
-        elif code == "u32":
-            bits = vals.astype(np.uint32)
+            assert vals.dtype == np.uint16, f"{name}: reference must give bf16 bits"
+            bits = vals
+        elif code == "f32":
+            bits = vals.astype(np.float32)
         else:
             bits = vals.astype(npdt)
         outs[name] = bits
     return outs
 
 
+def compare_only(mlx_out, cmp_out, only, tsv):
+    """Compare saved metal2vk outputs against the references. No runner, no
+    GPU, no sweep json: mlx-out supplies the inputs (and the reference where
+    the omarchy path ran), cmp-out supplies this side's saved outputs."""
+    rows = []
+    for kern in pc.KERNELS:
+        name = kern["name"]
+        if only and only not in name:
+            continue
+        rec = dict(kernel=name, status="", note=kern.get("note") or "",
+                   max_abs="", max_rel="", first_diff="", n_diff="", n_nan="",
+                   tol="", run_est_s="", run_actual_s="")
+        kdir = mlx_out / name
+        missing = [s[0] for s in kern["inputs"]
+                   if not (kdir / f"{s[0]}.npy").exists()]
+        if missing:
+            rec["status"] = "skipped"
+            rec["note"] += f"; mlx inputs missing: {missing[0]}"
+            rows.append(rec)
+            print(f"{name}: skipped (no saved inputs)", flush=True)
+            continue
+        got_all, gone = {}, []
+        for o in kern["outputs"]:
+            p = cmp_out / name / f"out_{o[0]}.npy"
+            if p.exists():
+                got_all[o[0]] = np.load(p)
+            else:
+                gone.append(o[0])
+        if gone:
+            rec["status"] = "no-cmp-output"
+            rec["note"] += "; stage B saved no dump for " + gone[0]
+            rows.append(rec)
+            print(f"{name}: no-cmp-output ({gone[0]})", flush=True)
+            continue
+        mstat = json.loads((mlx_out / "mlx_status.json").read_text()).get(name, "missing") \
+            if (mlx_out / "mlx_status.json").exists() else "missing"
+        if mstat == "refused":
+            if name not in parity_refs.REFS:
+                rec["status"] = "no-reference"
+                rows.append(rec)
+                print(f"{name}: no-reference", flush=True)
+                continue
+            want_all = ref_outputs(kern, kdir)
+            src = "reference"
+        else:
+            want_all, src = {}, "omarchy output"
+            for o in kern["outputs"]:
+                p = kdir / f"out_{o[0]}.npy"
+                if p.exists():
+                    want_all[o[0]] = np.load(p)
+            if len(want_all) != len(kern["outputs"]):
+                rec["status"] = "no-reference"
+                rec["note"] += f"; mlx outputs missing ({mstat})"
+                rows.append(rec)
+                print(f"{name}: no-reference (omarchy {mstat})", flush=True)
+                continue
+        worst = None
+        for oname, ocode, *_ in kern["outputs"]:
+            cmp_r = pc.compare(ocode, got_all[oname].reshape(-1),
+                               want_all[oname].reshape(-1))
+            if cmp_r["status"] == "mismatch" or worst is None:
+                worst = cmp_r
+        rec.update(worst)
+        rec["status"] = ("refused-by-translator" if mstat == "refused"
+                         else worst["status"])
+        rec["note"] += f"; vs {src}: {worst['status']}"
+        rows.append(rec)
+        print(f"{name}: {rec['status']} tol={rec['tol']} abs={rec['max_abs']} "
+              f"rel={rec['max_rel']} first={rec['first_diff']} n={rec['n_diff']}",
+              flush=True)
+    pc.write_tsv(tsv, rows)
+    counts = Counter(r["status"] for r in rows)
+    print(f"{sum(counts.values())} kernels: {dict(counts)}")
+    print(f"table: {tsv}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--fake", action="store_true")
+    ap.add_argument("--compare-only", action="store_true",
+                    help="compare saved outputs against the references; "
+                         "no runner, no GPU, no sweep json")
+    ap.add_argument("--mlx-out", default="")
+    ap.add_argument("--cmp-out", default="")
     a = ap.parse_args()
     fake = a.fake or os.environ.get("PARITY_FAKE") == "1"
 
-    sweep = json.load(open(pc.env_path("PARITY_SWEEP", "./t1.json")))
-    spvdir = pc.env_path("PARITY_SPV_DIR", "./OUT")
-    runner = pc.env_path("PARITY_RUNNER", "./m2v-run")
     mlx_out = pc.env_path("PARITY_MLX_OUT", "./parity-mlx-out")
     out = pc.env_path("PARITY_OUT", "./parity-compare-out")
     tsv = pc.env_path("PARITY_TSV", str(out / "parity.tsv"))
     only = os.environ.get("PARITY_ONLY", "")
+    if a.compare_only:
+        if not (a.mlx_out and a.cmp_out):
+            raise SystemExit("--compare-only needs --mlx-out and --cmp-out")
+        tsv.parent.mkdir(parents=True, exist_ok=True)
+        compare_only(pathlib.Path(a.mlx_out), pathlib.Path(a.cmp_out),
+                     only, tsv)
+        return
+
+    sweep = json.load(open(pc.env_path("PARITY_SWEEP", "./t1.json")))
+    spvdir = pc.env_path("PARITY_SPV_DIR", "./OUT")
+    runner = pc.env_path("PARITY_RUNNER", "./m2v-run")
     out.mkdir(parents=True, exist_ok=True)
     mlx_status = {}
     if (mlx_out / "mlx_status.json").exists():
@@ -217,7 +307,7 @@ def main():
         perturb = (kern["outputs"][0][0], 0x55) if fake and name == first_name else None
         status, err, dumps, wall = dispatch(
             kern, row, spvdir / "spv" / (row["tag"] + ".spv"), row["entry"],
-            inputs, runner, out / "work", fake, perturb)
+            inputs, runner, out / name / "work", fake, perturb)
         rec["run_actual_s"] = round(wall, 4)
         if status != "ok":
             rec["status"] = "skipped" if fake else "mismatch"
@@ -225,10 +315,16 @@ def main():
             rows.append(rec)
             print(f"{name}: {rec['status']} ({err[:60]})", flush=True)
             continue
+        # save the dumps in the same form the mlx side uses, so the
+        # comparison can be re-run later with --compare-only and no runner
+        kout = out / name
+        for oname, obytes in dumps.items():
+            spec = next(o for o in kern["outputs"] if o[0] == oname)
+            pc.save_arr(kout, f"out_{oname}", spec[1], obytes, spec[2])
 
         mstat = mlx_status.get(name, "missing")
         if mstat == "refused":
-            if not kern.get("cpu_ref"):
+            if kern["name"] not in parity_refs.REFS:
                 rec["status"] = "no-reference"
                 rows.append(rec)
                 print(f"{name}: no-reference (omarchy path refused)", flush=True)
