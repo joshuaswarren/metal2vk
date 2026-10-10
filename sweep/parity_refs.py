@@ -33,6 +33,7 @@ def check_all(seed=1234):
     """Generate every input from the seeded table and run every reference.
     Catches shape/dtype errors and non-finite results without any dispatch."""
     import numpy as np
+    pc.check_constant_bytes(seed)
     bad = []
     for name, fn in sorted(REFS.items()):
         kern = pc.BY_NAME[name]
