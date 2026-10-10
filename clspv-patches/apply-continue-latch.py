@@ -11,7 +11,8 @@ nested loop's merge block is that same exit block, and a merge block must not
 double as the continue target of the enclosing loop. spirv-val rejects the
 module with "Header block 'X' is contained in the loop construct headed by
 'Y', but its merge block 'Z' is not" (nemotron/attn_partial_*, ops/gemv wide,
-and on the structurized trees of the vec-deduction slice many more).
+and on the structurized trees of the cov-vec slice this was the largest
+class at 74 entries).
 
 But preferring the latch is not enough on its own, because in the LLVM IR the
 nested loop's unique exit block can BE the parent loop's latch (one block,
@@ -30,11 +31,16 @@ Both halves are required: without the analysis refresh the isolateContinue
 split never happens; without the latch preference the producer's continue
 scan can still pick the nested exit block on shapes where the blocks differ.
 
+Trees patched with the first version of this script (the no-unique-latch
+fallback called DT.dominates with a null latch inside a `Latch &&` guard, so
+it never assigned a continue target) are upgraded in place: the old block is
+replaced by the corrected one, loudly.
+
 Tested against clspv f2b01dd6 plus the apply-coopmat-lowering.py,
 apply-coopmat-f16.py, apply-m2v-marker.py and apply-spec-constants.py
 patches (the CI order of .github/workflows/sweep.yml).
 
-Usage: python3 apply-continue-latch.py /path/to/clspv   (idempotent)
+Usage: python3 apply-continue-latch.py /path/to/clspv   (idempotent, upgrades)
 """
 import pathlib
 import subprocess
@@ -43,6 +49,7 @@ import sys
 root = pathlib.Path(sys.argv[1])
 prod = root / "lib/SPIRVProducerPass.cpp"
 order = root / "lib/ComputeStructuredOrder.cpp"
+fix = root / "lib/FixupStructuredCFGPass.cpp"
 
 
 def head_sha(repo: pathlib.Path) -> str:
@@ -62,34 +69,13 @@ if not sha_short.startswith("f2b01dd"):
         file=sys.stderr,
     )
 
+NEW_MARK = "no-unique-latch fallback keeps the last non-header block"
+
 s = prod.read_text()
-if "metal2vk: prefer the latch itself as the continue target" in s:
+if NEW_MARK in s:
     print("producer already patched")
 else:
-    a = """          // From SPIR-V spec 2.11, Continue Target must dominate that back-edge
-          // block.
-          BasicBlock *Header = L->getHeader();
-          BasicBlock *Latch = L->getLoopLatch();
-          for (auto *loop_block : L->blocks()) {
-            if (loop_block == Header) {
-              continue;
-            }
-
-            // Check whether block dominates block with back-edge.
-            // The loop latch is the single block with a back-edge. If it was
-            // possible, StructurizeCFG made the loop conform to this
-            // requirement, otherwise |Latch| is a nullptr.
-            if (DT.dominates(loop_block, Latch)) {
-              ContinueBB = loop_block;
-            }
-          }
-"""
-    assert a in s, "SPIRVProducerPass.cpp continue scan anchor not found"
-    b = """          // From SPIR-V spec 2.11, Continue Target must dominate that back-edge
-          // block.
-          BasicBlock *Header = L->getHeader();
-          BasicBlock *Latch = L->getLoopLatch();
-          // metal2vk: prefer the latch itself as the continue target. The scan
+    old_b = """          // metal2vk: prefer the latch itself as the continue target. The scan
           // below can pick a nested loop's exit block (it dominates the latch
           // through the single exit chain), and that block is then also the
           // nested loop's merge block; a merge block must not double as the
@@ -117,29 +103,73 @@ else:
             }
           }
 """
-    s = s.replace(a, b, 1)
+    new_b = """          // metal2vk: prefer the latch itself as the continue target. The scan
+          // below can pick a nested loop's exit block (it dominates the latch
+          // through the single exit chain), and that block is then also the
+          // nested loop's merge block; a merge block must not double as the
+          // continue target of the enclosing loop (spirv-val: "Header block
+          // 'X' is contained in the loop construct headed by 'Y', but its
+          // merge block 'Z' is not"). The latch dominates itself, so it always
+          // satisfies the spec requirement; isolateConvergentLatch has already
+          // split any convergent content out of it. Without a unique latch,
+          // keep what the upstream scan computed: with a null latch,
+          // DominatorTree::dominates answers true for every block, so the scan
+          // picked the last non-header block of the loop - kept here without
+          // calling dominates on a null latch. """ + NEW_MARK + """.
+          if (Latch) {
+            ContinueBB = Latch;
+          } else {
+            for (auto *loop_block : L->blocks()) {
+              if (loop_block == Header) {
+                continue;
+              }
+              ContinueBB = loop_block;
+            }
+          }
+"""
+    if old_b in s:
+        upgraded = True
+        # v1 already emitted the Header/Latch declarations above its comment;
+        # the upgrade only replaces the guarded block that follows them.
+        s = s.replace(old_b, new_b, 1)
+    else:
+        upgraded = False
+        a = """          // From SPIR-V spec 2.11, Continue Target must dominate that back-edge
+          // block.
+          BasicBlock *Header = L->getHeader();
+          BasicBlock *Latch = L->getLoopLatch();
+          for (auto *loop_block : L->blocks()) {
+            if (loop_block == Header) {
+              continue;
+            }
+
+            // Check whether block dominates block with back-edge.
+            // The loop latch is the single block with a back-edge. If it was
+            // possible, StructurizeCFG made the loop conform to this
+            // requirement, otherwise |Latch| is a nullptr.
+            if (DT.dominates(loop_block, Latch)) {
+              ContinueBB = loop_block;
+            }
+          }
+"""
+        assert a in s, "SPIRVProducerPass.cpp continue scan anchor not found"
+        pristine_b = new_b.replace(
+            "// metal2vk: prefer the latch itself as the continue target.",
+            "// From SPIR-V spec 2.11, Continue Target must dominate that\n"
+            "          // back-edge block.\n"
+            "          BasicBlock *Header = L->getHeader();\n"
+            "          BasicBlock *Latch = L->getLoopLatch();\n"
+            "          // metal2vk: prefer the latch itself as the continue target.",
+            1)
+        s = s.replace(a, pristine_b, 1)
     prod.write_text(s)
-    print("patched SPIRVProducerPass.cpp")
+    print("patched SPIRVProducerPass.cpp" + (" (upgraded from v1)" if upgraded else ""))
 
 s = order.read_text()
-if "metal2vk: prefer the latch itself" in s:
+if NEW_MARK in s:
     print("ComputeStructuredOrder already patched")
 else:
-    a = """      auto *header = loop->getHeader();
-      auto *latch = loop->getLoopLatch();
-      for (auto *bb : loop->blocks()) {
-        if (bb == header)
-          continue;
-
-        // Several block might dominate the latch, we can pick any.
-        if (DT->dominates(bb, latch))
-          continue_block = bb;
-      }
-"""
-    assert a in s, "ComputeStructuredOrder.cpp continue scan anchor not found"
-    b = """      auto *header = loop->getHeader();
-      auto *latch = loop->getLoopLatch();
-      // metal2vk: prefer the latch itself (see PopulateStructuredCFGMaps in
+    old_b = """      // metal2vk: prefer the latch itself (see PopulateStructuredCFGMaps in
       // SPIRVProducerPass.cpp for the reasoning); it always dominates the
       // back-edge block. Only scan when the loop has no unique latch.
       if (latch) {
@@ -155,10 +185,50 @@ else:
         }
       }
 """
-    assert a in s, "ComputeStructuredOrder.cpp continue scan body not found"
-    s = s.replace(a, b, 1)
+    new_b = """      // metal2vk: prefer the latch itself (see PopulateStructuredCFGMaps in
+      // SPIRVProducerPass.cpp for the reasoning); it always dominates the
+      // back-edge block. Without a unique latch, keep what the upstream scan
+      // computed: with a null latch, DominatorTree::dominates answers true for
+      // every block, so the scan picked the last non-header block of the loop
+      // - kept here without calling dominates on a null latch. """ + NEW_MARK + """.
+      if (latch) {
+        continue_block = latch;
+      } else {
+        for (auto *bb : loop->blocks()) {
+          if (bb == header)
+            continue;
+          continue_block = bb;
+        }
+      }
+"""
+    if old_b in s:
+        upgraded = True
+        # v1 already emitted the header/latch declarations above its comment;
+        # the upgrade only replaces the guarded block that follows them.
+        s = s.replace(old_b, new_b, 1)
+    else:
+        upgraded = False
+        a = """      auto *header = loop->getHeader();
+      auto *latch = loop->getLoopLatch();
+      for (auto *bb : loop->blocks()) {
+        if (bb == header)
+          continue;
+
+        // Several block might dominate the latch, we can pick any.
+        if (DT->dominates(bb, latch))
+          continue_block = bb;
+      }
+"""
+        assert a in s, "ComputeStructuredOrder.cpp continue scan anchor not found"
+        pristine_b = new_b.replace(
+            "// metal2vk: prefer the latch itself (see PopulateStructuredCFGMaps in",
+            "auto *header = loop->getHeader();\n"
+            "      auto *latch = loop->getLoopLatch();\n"
+            "      // metal2vk: prefer the latch itself (see PopulateStructuredCFGMaps in",
+            1)
+        s = s.replace(a, pristine_b, 1)
     order.write_text(s)
-    print("patched ComputeStructuredOrder.cpp")
+    print("patched ComputeStructuredOrder.cpp" + (" (upgraded from v1)" if upgraded else ""))
 
 # The analysis-staleness half of the fix. FixupStructuredCFGPass rewrites the
 # CFG with three helpers that all share one cached LoopInfo (the pass claims
@@ -169,7 +239,6 @@ else:
 # before every helper, run isolateContinue once more on the settled CFG, and
 # drop the stale results again so the SPIR-V producer recomputes them. Without
 # this the latch preference above is unreachable in the maps.
-fix = root / "lib/FixupStructuredCFGPass.cpp"
 s = fix.read_text()
 if "metal2vk: the helpers below rewrite the CFG" in s:
     print("FixupStructuredCFGPass already patched")
@@ -194,9 +263,9 @@ clspv::FixupStructuredCFGPass::run(Function &F, FunctionAnalysisManager &FAM) {
   // analyses, and a helper running on stale loop objects silently no-ops or,
   // worse, re-creates the shape a previous helper fixed (a nested loop whose
   // unique exit block is the parent latch - a merge block that doubles as the
-  // enclosing loop's continue target, which spirv-val rejects). Recompute the
-  // analyses before every analysis-driven step, and run isolateContinue once
-  // more on the settled CFG. The whole-manager invalidate is used because
+  // continue target of the enclosing loop, which spirv-val rejects). Recompute
+  // the analyses before every analysis-driven step, and run isolateContinue
+  // once more on the settled CFG. The whole-manager invalidate is used because
   // clearAnalysis erases end() and crashes when the analysis is not cached.
   FAM.invalidate(F, PreservedAnalyses::none());
   isolateContinue(F, FAM);
