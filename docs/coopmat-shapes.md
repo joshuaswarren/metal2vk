@@ -30,3 +30,15 @@ with f32 inputs, 1024^3:
 
 No speed gain on G13C: the kernel is bound by the matrix path, not by operand loads. The value of the half path is that half buffers
 are consumed without widening, which halves operand memory.
+
+Same ticket on the other two chips (1024^3, 8x8x8 f16/f16/f32 against f32 inputs, correct to 1.3e-6 on all three):
+
+| chip | tiling | half A/B | f32 A/B |
+|---|---|---|---|
+| G13G (M1) | 2x2 | 560 GFLOP/s | 560 |
+| G13G (M1) | 4x4 | 1364 | 1327 |
+| G14C (M2 Max) | 2x2 | 2518 | 2436 |
+| G14C (M2 Max) | 4x4 | 4658 | 4765 |
+
+Half inputs are not faster on any of the three chips.
+
