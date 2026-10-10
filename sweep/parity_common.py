@@ -54,9 +54,13 @@ def bf16_to_f32(bits):
 # ---------------------------------------------------------------------------
 # One entry per assembled kernel (32). Fields:
 #   group/name       .metal file is f"{group}/{name}.metal" in the kernel root
-#   grid, tg         launch geometry used by BOTH sides (what parity runs at)
-#   launch_grid      geometry recorded in the artifact .launch, when the parity
-#                    grid deviates from it (notes explain every deviation)
+#   grid, tg         launch geometry used by BOTH sides when launch_grid is
+#                    absent: grid in THREADS (mx.fast.metal_kernel semantics),
+#                    tg the threadgroup size; workgroup counts are grid / tg
+#   launch_grid      the thread grid recorded in the artifact .launch; when set
+#                    both sides launch it (grid is then only the count shape the
+#                    references were written against, equal to launch_grid / tg
+#                    in the units the reference simulates)
 #   tmpl             [(name, value)] template arguments; dtype names as codes
 #   inputs/outputs   (name, dtype-code, shape, gen) with gen one of
 #                      "rand"     uniform [-1, 1) in the buffer dtype
@@ -117,8 +121,7 @@ KERNELS = [
       [("x", "bf16", (1, 2048), "rand"), ("w", "bf16", (512, 2048), "rand")],
       [("y", "bf16", (1, 512),)],
       launch_grid=(32, 512, 1),
-      note="artifact grid over-launches 4x (s = tg.y*NSG covers 2048 experts "
-           "for 512 weight rows); parity runs the kernel-consistent 128"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_qwen35_moe_router_softmax_topk_row", "sibling", (32, 1, 1), (32, 1, 1),
       [("T", "bf16"), ("NE", 512), ("K", 8)],
       [("logits", "bf16", (1, 512), "rand")],
@@ -141,10 +144,7 @@ KERNELS = [
        ("rhs", "u32", (8,), f"idx:{E4}"), *SHARED],
       [("y", "bf16", (4609,))],
       launch_grid=(32, 2306, 1),
-      note="artifact grid launches 2x the kernel-consistent blocks "
-           "(1 + NS/ROWS + TOPK*NI/ROWS = 1153); blocks past that read rhs "
-           "past its 8 entries and rewrite the shared-expert region of y, "
-           "so parity runs 1153"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_qwen35_moe_down_combine_decode_b4g32f_shared_b4g32f",
       "sibling", (32, 1024, 1), (32, 9, 1),
       [("T", "bf16"), ("K", 512), ("N", 2048), ("TOPK", 8), ("KS", 512),
@@ -153,8 +153,7 @@ KERNELS = [
        ("rhs", "u32", (8,), f"idx:{E4}"), ("scores", "bf16", (8,), "rand")],
       [("y", "bf16", (2048,))],
       launch_grid=(32, 9216, 1),
-      note="artifact grid y=9216 writes y rows up to 18432 for a 2048-row "
-           "output; parity runs the covering 1024"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_qwen35_moe_gate_up_window_b4g32f_shared_b4g32f_gate_b4g32s",
       "sibling", (32, 4612, 1), (32, 2, 1),
       [("T", "bf16"), ("K", 2048), ("NI", 512), ("RPS", 2), ("NSG", 2),
@@ -163,10 +162,7 @@ KERNELS = [
        ("rhs", "u32", (32,), f"idx:{E4}"), *SHARED],
       [("y", "bf16", (18436,))],
       launch_grid=(32, 9224, 1),
-      note="artifact grid launches 2x the kernel-consistent blocks "
-           "((1 + NS/ROWS + TOPK*NI/ROWS) * M = 4612); blocks past that read "
-           "rhs past the per-row entries and rewrite the shared region, so "
-           "parity runs 4612"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_qwen35_moe_down_combine_window_b4g32f_shared_b4g32f",
       "sibling", (32, 2048, 1), (32, 9, 1),
       [("T", "bf16"), ("K", 512), ("N", 2048), ("TOPK", 8), ("KS", 512),
@@ -175,8 +171,7 @@ KERNELS = [
        ("rhs", "u32", (32,), f"idx:{E4}"), ("scores", "bf16", (32,), "rand")],
       [("y", "bf16", (8192,))],
       launch_grid=(32, 18432, 1),
-      note="artifact grid writes y rows up to 18428 for a 4x2048-row output; "
-           "parity runs the covering 2048"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_qwen35_moe_gate_up_topk_b4g32f_shared_b4g32f_gate_b4g32s",
       "sibling", (32, 1153, 1), (32, 2, 1),
       [("T", "bf16"), ("K", 2048), ("NI", 512), ("RPS", 2), ("NSG", 2),
@@ -187,9 +182,7 @@ KERNELS = [
        ("scores", "bf16", (8,))],
       launch_grid=(32, 2306, 1),
       note="logits outside the 4-expert weight pool are pinned to -1000 so "
-           "the folded top-k stays inside the small weight pool; artifact "
-           "grid launches 2x the kernel-consistent 1153 (same shape as the "
-           "decode variant), so parity runs 1153"),
+           "the folded top-k stays inside the small weight pool"),
     # ---- sibling: attention verify/prefix ----
     K("omlx_gdn_sigmoid_probe", "sibling", (131072, 1, 1), (256, 1, 1), [],
       [("gates", "f32", (131072,), "rand")],
@@ -230,8 +223,7 @@ KERNELS = [
        K_STRIDES, ("v", "bf16", (1048576,), "rand"), V_STRIDES, PARAMS_GQA],
       [("o_part", "f32", (262144,)), ("ml_part", "f32", (2048,))],
       launch_grid=(512, 8, 1),
-      note="metal2vk compile fails on the mpp tensor constructor (t1); "
-           "artifact grid x=512 over-launches kv heads 256x; parity runs x=KVH"),
+      note="metal2vk refuses it by name (Metal 4 tensor ops)"),
     K("omlx_verify_attn_gqa_combine", "sibling", (256, 64, 2), (256, 1, 1),
       [("T_", "bf16"), ("G", 8), ("KVH", 2)],
       [("o_part", "f32", (262144,), "rand"), ("ml_part", "f32", (2048,), "rand"),
@@ -245,8 +237,7 @@ KERNELS = [
        PARAMS_WIDE],
       [("o_part", "f32", (20480,)), ("ml_part", "f32", (160,))],
       launch_grid=(4096, 5, 1),
-      note="artifact grid x=heads*256 indexes q[qh*D] out of bounds for 16 "
-           "heads; parity runs x=heads"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("omlx_chain_attn_combine", "sibling", (256, 16, 1), (256, 1, 1),
       [("T_", "bf16"), ("G", 8), ("H", 16)],
       [("o_part", "f32", (20480,), "rand"), ("ml_part", "f32", (160,), "rand"),
@@ -372,8 +363,7 @@ KERNELS = [
       [("partials", "bf16", (32768,)), ("sums", "f32", (128,)),
        ("maxs", "f32", (128,))],
       launch_grid=(64, 8, 4),
-      note="artifact grid (64,8,4) indexes 64 kv heads x 8 batches against a "
-           "2-kv-head template; parity runs (KVH, B, BLOCKS)"),
+      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
     K("qwen35_ragged_sdpa_2p2", "moe", (1024, 32, 1), (1024, 1, 1),
       [("T", "bf16"), ("D_SIZE", 256), ("BLOCKS", 4)],
       [("partials", "bf16", (32768,), "rand"), ("sums", "f32", (128,), "rand"),

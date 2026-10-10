@@ -25,12 +25,9 @@ lane per 512 block); the guarded tail path of the shared-expert gate row
 (FAST = 0) degenerates to the same arithmetic for K = 2048 because every
 lane keeps a full 16-value tail.
 
-Grid notes. The recorded launch grids of the three gate+up kernels multiply
-the block count by NSG twice (the plan launcher computes NSG * blocks where
-the kernel already spreads NSG simdgroups per block), so they over-launch
-the kernel-consistent block count 1 + NS/ROWS + TOPK*NI/ROWS two fold; these
-references run the kernel-consistent blocks, the same policy the table
-applies to the router gemv and the down kernels through launch_grid. The
+Grid notes. The recorded launch grids are thread grids; divided by the threadgroup size they
+give the block counts these references simulate (1 + NS/ROWS + TOPK*NI/ROWS blocks for the gate+up kernels).
+The
 folded top-k of gate_up_topk fills its last four slots from the
 zero-probability experts outside the 4-expert weight pool; the kernel would
 read past the weight table there, the reference writes zeros (their scores
