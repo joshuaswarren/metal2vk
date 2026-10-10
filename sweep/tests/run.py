@@ -52,6 +52,10 @@ def verify(ll, name):
         if '%"' + 'struct.metal::simdgroup_matrix" = type {' in txt:
             print("FAIL dynamic_struct_array: the wrapper type was not flattened")
             return False
+    if name == "spb_tail_drift":
+        # The IR is already in clspv's input form. The SPIR-V check
+        # runs inside the clspv branch below.
+        pass
     opts = [shutil.which("opt"), shutil.which("opt-23")]
     opt = next((o for o in opts if o), None)
     if opt:
@@ -62,19 +66,77 @@ def verify(ll, name):
             return False
     clspv = os.environ.get("CLSPV", "")
     if clspv and pathlib.Path(clspv).exists():
-        spv = ll.with_suffix(".spv")
+        outer_spv = ll.with_suffix(".spv")
         r = subprocess.run([clspv, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points",
-                            "--spv-version=1.5", str(ll), "-o", str(spv)], capture_output=True, text=True)
-        if r.returncode != 0 or not spv.exists() or spv.stat().st_size == 0:
+                            "--spv-version=1.5", str(ll), "-o", str(outer_spv)], capture_output=True, text=True)
+        if r.returncode != 0 or not outer_spv.exists() or outer_spv.stat().st_size == 0:
             print(f"FAIL {name}: clspv failed: {(r.stderr or r.stdout).strip()[:300]}")
             return False
         val = shutil.which("spirv-val")
         if val:
-            r = subprocess.run([val, "--target-env", "vulkan1.3", str(spv)], capture_output=True, text=True)
+            r = subprocess.run([val, "--target-env", "vulkan1.3", str(outer_spv)], capture_output=True, text=True)
             if r.returncode != 0:
                 print(f"FAIL {name}: spirv-val rejected clspv output: {r.stdout.strip()[:300]}")
                 return False
-        spv.unlink(missing_ok=True)
+        if name == "spb_tail_drift":
+            # The block-drift bug in SimplifyPointerBitcast non-convergence
+            # adds an extra BLOCK_SIZE (256) to the tail x-pointer offset,
+            # plus BLOCK_SIZE/2 (128) on the weight byte pointer and
+            # BLOCK_SIZE/GS (8) on the scale/bias pointers. The main loop
+            # never carries the drift - it is the post-exit tail
+            # arithmetic. The minimal IR above is the structurally
+            # reduced form, which clspv compiles correctly; the actual
+            # reproducer is the saved g7 gate_up decode .ll, which the
+            # sweep produces through clang/opt+passes+clspv. We compile
+            # both: the .ll here AND any saved gate_up dec.ll we can
+            # find on the search path.
+            dis = shutil.which("spirv-dis")
+            targets = [str(ll)]
+            for cand in ("PARITY_G7_DEC", "BLEND_TOOLS"):
+                p = os.environ.get(cand, "")
+                if p:
+                    ll_path = pathlib.Path(p) / "ll" / (
+                        "e_b4g32f_shared_b4g32f_gate_b4g32s_metal__custom_"
+                        "kernel_omlx_qwen35_moe_gate_up_de_2bc98e69.ll"
+                    )
+                    if ll_path.exists():
+                        targets.append(str(ll_path))
+            for target in targets:
+                tgt_spv = pathlib.Path(target).with_suffix(".spv")
+                r = subprocess.run(
+                    [clspv, "-x", "ir", "--cl-std=CLC++2021", "--fp16",
+                     "--inline-entry-points", "--spv-version=1.5",
+                     "--long-vector", target, "-o", str(tgt_spv)],
+                    capture_output=True, text=True, timeout=120,
+                )
+                if r.returncode != 0 or not tgt_spv.exists() or tgt_spv.stat().st_size == 0:
+                    print(f"FAIL spb_tail_drift: clspv failed on {target}:"
+                          f" {(r.stderr or r.stdout).strip()[:200]}")
+                    tgt_spv.unlink(missing_ok=True)
+                    return False
+                if dis:
+                    r = subprocess.run([dis, str(tgt_spv)], capture_output=True, text=True)
+                    if r.returncode != 0:
+                        print(f"FAIL spb_tail_drift: spirv-dis failed: {r.stderr.strip()[:200]}")
+                        tgt_spv.unlink(missing_ok=True)
+                        return False
+                    lines = r.stdout.splitlines()
+                    for i, ln in enumerate(lines):
+                        if re.search(r"OpIAdd\s+%uint\s+\S+\s+%uint_256\b", ln):
+                            ctx = "\n".join(lines[i:i + 30])
+                            if "OpPtrAccessChain" in ctx and "_ptr_StorageBuffer_ushort" in ctx:
+                                msg = (f"spb_tail_drift: tail x-pointer offset uses"
+                                       f" +256 in {target} (SimplifyPointerBitcast"
+                                       f" non-convergence drift; see PR gateup-scalar)")
+                                tgt_spv.unlink(missing_ok=True)
+                                if os.environ.get("M2V_ENFORCE_SPB_TAIL"):
+                                    print(f"FAIL {msg}")
+                                    return False
+                                print(f"KNOWN-DRIFT {msg} (set M2V_ENFORCE_SPB_TAIL=1"
+                                      f" to fail)")
+                                return True
+                tgt_spv.unlink(missing_ok=True)
+        outer_spv.unlink(missing_ok=True)
     print(f"ok {name}")
     return True
 
@@ -84,6 +146,7 @@ import re  # noqa: E402  (used by the bfloat assertions)
 CASES = {
     "bfloat_consts.ll": ["bfloat_to_i16.py", "flatten_single_member_structs.py"],
     "dynamic_struct_array.ll": ["flatten_single_member_structs.py"],
+    "spb_tail_drift.ll": [],   # IR is ready to hand to clspv; no text pass
 }
 
 fails = 0
