@@ -76,10 +76,13 @@ class _Q:
         Each lane owns 16 consecutive inputs per 512 block. The kernel
         prescales x_thread by the nibble position and shifts each nibble up
         by the same power of two, so every product is the raw input times
-        the raw nibble with one rounding; sum (the bias term) walks the raw
-        inputs in load_vector order. qdot_n folds one 4-product group per
-        u16 word, result accumulates one group per block, and the cross-lane
-        simd_sum is the sequential f32 stand-in.
+        the raw nibble with one rounding; the bias term walks the raw
+        inputs in load_vector order, where `x` is `const device T*` and
+        every paren group `((x[i]+x[i+1])+x[i+2])+x[i+3]` rounds to T at
+        each add before the float accumulator picks it up. qdot_n folds
+        one 4-product group per u16 word, the result accumulates one
+        group per block, and the cross-lane simd_sum is the sequential
+        f32 stand-in.
         """
         rows = np.asarray(rows, np.int64)
         nib = self.nib[rows]
@@ -91,10 +94,10 @@ class _Q:
             xv = xf[e]
             ssum = np.zeros(32, np.float32)
             for i in range(4):
-                g = xv[:, 4 * i] + xv[:, 4 * i + 1]
-                g = g + xv[:, 4 * i + 2]
-                g = g + xv[:, 4 * i + 3]
-                ssum = ssum + g
+                g = bf(xv[:, 4 * i] + xv[:, 4 * i + 1])
+                g = bf(BF(g) + xv[:, 4 * i + 2])
+                g = bf(BF(g) + xv[:, 4 * i + 3])
+                ssum = ssum + BF(g)
             nb = nib[:, k0:k0 + 512].reshape(-1, 32, 16)
             acc = np.zeros((len(rows), 32), np.float32)
             for i in range(4):
