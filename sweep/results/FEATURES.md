@@ -7,9 +7,9 @@ host_name instantiation. A count is a number of entries.
 
 | set | entries | IR | SPIR-V | valid | refused | runs | matches reference |
 |---|---|---|---|---|---|---|---|
-| uzu | 121 | 111 (91.7%) | 111 (91.7%) | 110 (90.9%) | 0 | not run here | 0 |
-| tf | 488 | 486 (99.6%) | 476 (97.5%) | 443 (90.8%) | 0 | not run here | 0 |
-| all | 609 | 597 (98.0%) | 587 (96.4%) | 553 (90.8%) | 0 | not run here | 0 |
+| uzu | 121 | 111 (91.7%) | 111 (91.7%) | 110 (90.9%) | 0 | 108 of 110 | 4 |
+| tf | 488 | 486 (99.6%) | 476 (97.5%) | 443 (90.8%) | 0 | 416 of 440 | 0 |
+| all | 609 | 597 (98.0%) | 587 (96.4%) | 553 (90.8%) | 0 | 524 of 550 | 4 |
 
 ## Families, ranked by the entries they block first
 

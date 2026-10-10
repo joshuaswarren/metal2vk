@@ -24,6 +24,16 @@ module; raise the floor with `sweep/check_coverage.py RESULT.json --update` in t
 | cov-loop: clspv patch (`clspv-patches/apply-continue-latch.py`), measured on the rebased tree (origin/main e01e895, incl. the cov-vec floor 508) with the CT clang 23.1.1 | 550 of 609 (90.3%) | 110 | 440 | +42 over the 508 floor, 0 lost. The spirv-val loop-structure class closes completely (74 -> 0): 16 nemotron/attn_partial + 2 ops/gemv wide + the stragglers only the structurized tree reaches (decode/fn_lane, glm_attn, glm_sparse_nax, nemotron_tree, ops/nax_gemm, prefill/fn_attn x2, uzu gdn/tree_verify out + tree_gram, matmul/gemm_trellis x2). Another 13 gains from the fail-fast classes the stale-LoopInfo CFG was also blocking (qmm6_nax 7, qmm6_nax_b 2, qmm_nax 3, kimi/dense_mma). Remaining: front-end overloads, Invalid bitcast, ptr addrspace, non-convergence, plus a small tail |
 | cov-cap: producer private OpPtrAccessChain case + lossless implicit-cast merge (`apply-producer-private-ptr-access-chain.py`, `apply-implicit-casts-lossless-merge.py`), measured on the merged continue-latch tree with the CT clang 23.1.1 and a clean f2b01dd6 build of all 15 CI-order patches | 553 of 609 (90.8%) | 110 | 443 | +3 over the 550 floor, 0 lost; the last 4 target entries close: all 3 tf_gather_qmv and kimi k3_slice_mma (the continue-latch patch removed its loop-structure failure and the producer fix removed its untyped one); 12 of the 13 entries this slice started from were already valid in the 550 floor |
 
+## Run stage (GPU)
+
+`sweep/m2v_sweep_run.py` dispatches every valid module once with synthetic data (4 workgroups of the kernel's size, random buffers, scalar arguments 1.0, 32 or false) on a
+G13G Honeykrisp device (Mesa 6543eeb7df, the omarchy-mlx ICD) and checks four kernels against a numpy reference. Input: the 550 valid modules
+of the sweep at e01e895 (the three modules that became valid later are not in it). Result: 524 of 550 dispatch and complete, 0 fail, 26 are
+skipped by the source screen (25 use atomics and 1 has an unbounded `for (;;)`: a synthetic buffer could hang them). The slowest dispatch took
+1.5 s and the 524 together 30 s of the 98 s wall time. The four references match: Activation_v0 (half), Softmax_v0, TensorAddBias_v0 and
+TensorAddScale_v0. "Dispatches and completes" is not "computes the right thing": only those four kernels have a reference, and the sweep
+table's `run` column is empty for entries not in this input.
+
 
 ## Failure classes
 
