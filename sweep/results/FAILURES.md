@@ -2,6 +2,16 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
+## clspv: clspv:clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept) (8)
+
+```
+clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+M2V-GIVEUP: spb-iter-hash
+M2V-GIVEUP: spb-iter-hash
+```
+
+Entries: `nemotron/expert_down.metal:custom_kernel_nemotron_rows_ex`, `nemotron/expert_up.metal:custom_kernel_nemotron_rows_ex`, `nemotron_expert_down.metal:custom_kernel_nemotron_rows_ex`, `nemotron_expert_up.metal:custom_kernel_nemotron_rows_ex`, `nemotron_experts.metal:tf_xup_rows2`, `nemotron_experts.metal:tf_xdown_rows2`, `nemotron_experts.metal:tf_xup_rows4`, `nemotron_experts.metal:tf_xdown_rows4`
+
 ## clspv: clspv:Invalid bitcast (6)
 
 ```

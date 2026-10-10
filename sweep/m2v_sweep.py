@@ -1654,11 +1654,16 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
+    if os.environ.get("M2V_KEEP_CLSPV_LOG"):
+        logd = d / "clspvlog"
+        logd.mkdir(exist_ok=True)
+        (logd / (tag + ".log")).write_text(out)
     # A pointer pass that gave up before reaching its fixed point leaves a half rewritten module: clspv continues and emits SPIR-V
-    # that reads the wrong addresses (observed on the gate+up shared scalar). Never keep such a module.
-    if rc == 0 and NONCONVERGED in out:
+    # that reads the wrong addresses (observed on the gate+up shared scalar). Never keep such a module. M2V-GIVEUP marks every
+    # remaining give-up/skip path of the pointer-bitcast pass; a module that hit one is not provably correct.
+    if rc == 0 and (NONCONVERGED in out or "M2V-GIVEUP:" in out):
         rc = 125
-        lines = ["clspv pass did not converge; the module would be miscompiled (no SPIR-V kept)"] + lines
+        lines = ["clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)"] + lines
         if spv.exists():
             spv.unlink()
     if rc != 0 or not spv.exists() or spv.stat().st_size == 0:

@@ -1,611 +1,611 @@
 set	file	entry	variant	parse	ir	spv	val	run	ref	before_ir	before_val	first_error
-tf	core/affine_mm.metal	tf_affine_gather_32	-	ok	ok	ok	ok			?	?	
-tf	core/affine_mm.metal	tf_affine_gather_64	-	ok	ok	ok	ok			?	?	
-tf	core/affine_mm.metal	tf_affine_gather_scatter_32	-	ok	ok	ok	ok			?	?	
-tf	core/affine_mm.metal	tf_affine_gather_scatter_64	-	ok	ok	ok	ok			?	?	
-tf	core/affine_mm.metal	tf_affine_mm	-	ok	ok	ok	ok			?	?	
-tf	core/affine_mm.metal	tf_affine_row_sums	-	ok	ok	ok	ok			?	?	
-tf	core/hc_boundary.metal	tf_hc_expand_mix	true	ok	ok	ok	ok			?	?	
-tf	core/hc_boundary.metal	tf_hc_first_mix	false	ok	ok	ok	ok			?	?	
-tf	core/hc_boundary.metal	tf_hc_split	-	ok	ok	ok	ok			?	?	
-tf	core/moe_route.metal	tf_route_logits	-	ok	ok	ok	ok			?	?	
-tf	core/moe_route.metal	tf_route_select	-	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q2_bf16	4, 2, false, 2, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q2_f32	4, 2, false, 2, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q4_bf16	4, 2, false, 4, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q4_f32	4, 2, false, 4, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q6_bf16	4, 2, false, 6, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q6_f32	4, 2, false, 6, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q8_bf16	4, 2, false, 8, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_q8_f32	4, 2, false, 8, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_bf16	4, 2, true, 2, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_f32	4, 2, true, 2, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_bf16	4, 2, true, 4, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_f32	4, 2, true, 4, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_bf16	4, 2, true, 6, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_f32	4, 2, true, 6, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_bf16	4, 2, true, 8, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_f32	4, 2, true, 8, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q2_bf16	4, 2, 2, false, 2, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q2_f32	4, 2, 2, false, 2, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q4_bf16	4, 2, 2, false, 4, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q4_f32	4, 2, 2, false, 4, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q6_bf16	4, 2, 2, false, 6, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q6_f32	4, 2, 2, false, 6, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q8_bf16	4, 2, 2, false, 8, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_q8_f32	4, 2, 2, false, 8, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q2_bf16	4, 2, 2, true, 2, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q2_f32	4, 2, 2, true, 2, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q4_bf16	4, 2, 2, true, 4, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q4_f32	4, 2, 2, true, 4, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q6_bf16	4, 2, 2, true, 6, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q6_f32	4, 2, 2, true, 6, false	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q8_bf16	4, 2, 2, true, 8, true	ok	ok	ok	ok			?	?	
-tf	core/row_projection.metal	tf_row_projection_relu2_q8_f32	4, 2, 2, true, 8, false	ok	ok	ok	ok			?	?	
-tf	decode/fn_gdn.metal	fz_gdn	-	ok	ok	ok	ok			?	?	
-tf	decode/fn_lane.metal	fz_lane	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_35e293dbee531073_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal	custom_kernel_lane_qmm_bytes_grouped_35e293dbee531073_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_68a0697c6f38c26d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal	custom_kernel_lane_qmm_bytes_grouped_68a0697c6f38c26d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_6dc76fc8a1f7fac9_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9.metal	custom_kernel_lane_qmm_bytes_grouped_6dc76fc8a1f7fac9_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_88c1bf5dd9357153_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153.metal	custom_kernel_lane_qmm_bytes_grouped_88c1bf5dd9357153_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_98e87a6da79ccc48_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48.metal	custom_kernel_lane_qmm_bytes_grouped_98e87a6da79ccc48_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_a803238811388b40-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_a803238811388b40_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_a803238811388b40.metal	custom_kernel_lane_qmm_bytes_grouped_a803238811388b40_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_ba76543b6f461aa8_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8.metal	custom_kernel_lane_qmm_bytes_grouped_ba76543b6f461aa8_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_xsum_4b7f6628d328811b.metal	custom_kernel_lane_qmm_xsum_4b7f6628d328811b_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/lane_qmm_xsum_ae73f2ece35700de.metal	custom_kernel_lane_qmm_xsum_ae73f2ece35700de_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_attn_merge_gate_7070840cd3c22e98.metal	custom_kernel_q4_attn_merge_gate_7070840cd3c22e98_float_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_attn_parts_f6b4ffe8e2609998.metal	custom_kernel_q4_attn_parts_f6b4ffe8e2609998_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_float_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_attn_prep_63a42a6cd8e0434a.metal	custom_kernel_q4_attn_prep_63a42a6cd8e0434a_bfloat16_t_int32_t_float_float_float_floatc_floatc_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_gdn_pipe_bf57ffcc8e75e07f.metal	custom_kernel_q4_gdn_pipe_bf57ffcc8e75e07f_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_gdn_step_af87f500308a9afb.metal	custom_kernel_q4_gdn_step_af87f500308a9afb_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_hc_norm_grouped_07247b697e2950aa.metal	custom_kernel_q4_hc_norm_grouped_07247b697e2950aa_bfloat16_t_bfloat16_t_bfloat16_t_float_float_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_hc_norm_none_4e0640a899baccfe.metal	custom_kernel_q4_hc_norm_none_4e0640a899baccfe_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_hc_norm_plain_5c1ff86fb3418a23.metal	custom_kernel_q4_hc_norm_plain_5c1ff86fb3418a23_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_idx_pool_6d826f5ebecec197.metal	custom_kernel_q4_idx_pool_6d826f5ebecec197_bfloat16_t_int32_tc_float_floatc_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_idx_scores_44c714a153f460b5.metal	custom_kernel_q4_idx_scores_44c714a153f460b5_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_idx_select_4092b8bd389cc7ed.metal	custom_kernel_q4_idx_select_4092b8bd389cc7ed_float_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_ple_conv_f30f7bbf4be76b4e.metal	custom_kernel_q4_ple_conv_f30f7bbf4be76b4e_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_ple_gate_6b4b48a5b2338042.metal	custom_kernel_q4_ple_gate_6b4b48a5b2338042_bfloat16_t_bfloat16_t_float_float_float_floatc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_rms_rows_ccb0cf9f4c81c0be.metal	custom_kernel_q4_rms_rows_ccb0cf9f4c81c0be_bfloat16_t_float_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_rms_rows_d1bbe7db65370c4b.metal	custom_kernel_q4_rms_rows_d1bbe7db65370c4b_bfloat16_t_float_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/q4_router_float_68e59b1069c61a07.metal	custom_kernel_q4_router_float_68e59b1069c61a07_bfloat16_t_bfloat16_t_int32_tc_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_embed_rows_8e76338f159f9901.metal	custom_kernel_qa_embed_rows_8e76338f159f9901_uint32_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_embed_rows_ff07df15b2c8240b.metal	custom_kernel_qa_embed_rows_ff07df15b2c8240b_uint32_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_expert_down_y_346a3e7c6008e1ac.metal	custom_kernel_qa_expert_down_y_346a3e7c6008e1ac_bfloat16_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_tc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_expert_gateup_fd30a642315017a8.metal	custom_kernel_qa_expert_gateup_fd30a642315017a8_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_uint32_t_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_down_mma_8109b1736382e7e0.metal	custom_kernel_qa_hc_down_mma_8109b1736382e7e0_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_down_mma_95e91baff920cd60.metal	custom_kernel_qa_hc_down_mma_95e91baff920cd60_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_down_row_85069d94acd4e9c1.metal	custom_kernel_qa_hc_down_row_85069d94acd4e9c1_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_down_row_c0844985c18debc0.metal	custom_kernel_qa_hc_down_row_c0844985c18debc0_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_mma_29397929facfdff7.metal	custom_kernel_qa_hc_up_mma_29397929facfdff7_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_mma_5dcbb2ccf20c6d91.metal	custom_kernel_qa_hc_up_mma_5dcbb2ccf20c6d91_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_mma_68e89dda67027c57.metal	custom_kernel_qa_hc_up_mma_68e89dda67027c57_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_mma_baf373fed50f01d7.metal	custom_kernel_qa_hc_up_mma_baf373fed50f01d7_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_row_1e87f3c82e93adaa.metal	custom_kernel_qa_hc_up_row_1e87f3c82e93adaa_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_hc_up_row_bc634afbd2016a85.metal	custom_kernel_qa_hc_up_row_bc634afbd2016a85_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	flashnext/qa_ple_lookup_c9861329fad34fa4.metal	custom_kernel_qa_ple_lookup_c9861329fad34fa4_uint32_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	glm/gemv_scores.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_4_1_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 4, 1, 1, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/gemv_scores_le32.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/gemv_scores_lt4.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_1_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 1, 4	ok	ok	ok	ok			?	?	
-tf	glm/gemv_t_igate.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_2_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 2, 8, 4, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/gemv_t_values.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_4_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 4, 8, 4, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/hc_expand_10.metal	custom_kernel_tf_glm5_fused_hc_expand_cc77af98f2__4096_1_0_0_0_bfloat16_t_bfloat16_t_float_float_floatc_bfloat16_t_float_float	4096, 1, 0, 0, 0	ok	ok	ok	ok			?	?	
-tf	glm/kda_rows.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__64_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/kda_rows_tp.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__32_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm/moe_combine.metal	custom_kernel_tf_glm5_fused_moe_combine_split_101a658555__4096_8_bfloat16_t_bfloat16_t_float_bfloat16_t	4096, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_down_1.metal	custom_kernel_tf_glm5_fused_moe_down_d50fa183fa__2048_4096_4_8_16_128_1_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_bfloat16_t	2048, 4096, 4, 8, 16, 128, 1, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_down_2.metal	custom_kernel_tf_glm5_fused_moe_down_d50fa183fa__2048_4096_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_bfloat16_t	2048, 4096, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_down_2h.metal	custom_kernel_tf_glm5_fused_moe_down_partial_53f9b53e4a__1024_4096_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_float	1024, 4096, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_gateup_1.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_2048_4_8_16_128_1_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 2048, 4, 8, 16, 128, 1, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_gateup_2.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_2048_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 2048, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_gateup_2h.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_1024_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 1024, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			?	?	
-tf	glm/moe_route.metal	custom_kernel_tf_glm5_fused_moe_route_f1ea09c9f4__288_8_16_512_float_float_floatc_int32_t_float_int32_t_int32_t_int32_t	288, 8, 16, 512	ok	ok	ok	ok			?	?	
-tf	glm/qmv_12288_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__12288_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	12288, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_1536_12288.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__1536_12288_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1536, 12288, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_1536_20480.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__1536_20480_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1536, 20480, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_16384_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__16384_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	16384, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_12288.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_12288_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 12288, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_12576.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_12576_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 12576, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_154880.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_154880_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 154880, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_2208.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_2208_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 2208, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_24576.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_24576_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 24576, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_24896.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_24896_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 24896, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_4096_77440.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_77440_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 77440, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmv_8192_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__8192_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	8192, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmvp_4096_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__4096_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	4096, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmvp_6144_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__6144_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	6144, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/qmvp_8192_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__8192_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	8192, 4096, 4	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_10_4_1024_float_bfloat16_t_float	4096, 288, 10, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_11_4_1024_float_bfloat16_t_float	4096, 288, 11, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_12_4_1024_float_bfloat16_t_float	4096, 288, 12, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_13_4_1024_float_bfloat16_t_float	4096, 288, 13, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_14_4_1024_float_bfloat16_t_float	4096, 288, 14, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_15_4_1024_float_bfloat16_t_float	4096, 288, 15, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_16_4_1024_float_bfloat16_t_float	4096, 288, 16, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_1_8_1024_float_bfloat16_t_float	4096, 288, 1, 8, 1024	ok	ok	ok	FAIL			?	?	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_2_8_1024_float_bfloat16_t_float	4096, 288, 2, 8, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_3_8_1024_float_bfloat16_t_float	4096, 288, 3, 8, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_4_8_1024_float_bfloat16_t_float	4096, 288, 4, 8, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_5_4_1024_float_bfloat16_t_float	4096, 288, 5, 4, 1024	ok	ok	ok	FAIL			?	?	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_6_4_1024_float_bfloat16_t_float	4096, 288, 6, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_7_4_1024_float_bfloat16_t_float	4096, 288, 7, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_8_4_1024_float_bfloat16_t_float	4096, 288, 8, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_9_4_1024_float_bfloat16_t_float	4096, 288, 9, 4, 1024	ok	ok	ok	ok			?	?	
-tf	glm/sparse_attention.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9e57bce4__512_2051_64_bfloat16_t_bfloat16_t_int32_t_floatc_int32_tc_bfloat16_t	512, 2051, 64	ok	ok	ok	ok			?	?	
-tf	glm/sparse_attention_tp.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9e57bce4__512_2051_32_bfloat16_t_bfloat16_t_int32_t_floatc_int32_tc_bfloat16_t	512, 2051, 32	ok	ok	ok	ok			?	?	
-tf	glm_absorb_nax.metal	glm_absorb_nax	-	ok	ok	ok	ok			?	?	
-tf	glm_attn.metal	glm_latent_scores	-	ok	ok	ok	ok			?	?	
-tf	glm_attn.metal	glm_latent_values	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_amax_merge	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_amax_send	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_localize	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_pack	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_post	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_rcombine	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_rfinal	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_rsend	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_rsum	-	ok	ok	ok	ok			?	?	
-tf	glm_ep.metal	ep_unpack	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_absorb	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_act2	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_add	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_argmax	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_cast_f32	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_copy_u32	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_dense_indices	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_exp_f32	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_index_scores	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_index_select	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_layer_norm	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_pool	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_rms	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_route_rows	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_scale	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_stream_mean	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_streams	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_swiglu	-	ok	ok	ok	ok			?	?	
-tf	glm_glue.metal	glm_unabsorb	-	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_post	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_post_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_pre	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_pre_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_scan	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_kda_prompt.metal	glm_kda_scan_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_sparse_nax.metal	glm_sparse_nax	-	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_glu_r1	1	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_glu_r2	2	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_glu_r4	4	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_glu_r8	8	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_interleave	-	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_bf16_r1	bfloat, 1	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_bf16_r2	bfloat, 2	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_bf16_r4	bfloat, 4	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_bf16_r8	bfloat, 8	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_f32_r1	float, 1	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_f32_r2	float, 2	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_f32_r4	float, 4	ok	ok	ok	ok			?	?	
-tf	kimi/dense.metal	k3_rows_f32_r8	float, 8	ok	ok	ok	ok			?	?	
-tf	kimi/dense_mma.metal	k3_slice_mma	-	ok	ok	ok	ok			?	?	
-tf	kimi/dense_mma.metal	k3_slice_out_bf16	bfloat	ok	ok	ok	ok			?	?	
-tf	kimi/dense_mma.metal	k3_slice_out_f32	float	ok	ok	ok	ok			?	?	
-tf	kimi/experts.metal	k3_route_plan	-	ok	ok	ok	ok			?	?	
-tf	kimi/experts.metal	k3_xp_combine	bfloat	ok	ok	ok	ok			?	?	
-tf	kimi/experts.metal	k3_xp_combine_f32	float	ok	ok	ok	ok			?	?	
-tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/kda.metal	k3_kda	-	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL				?	?	Invalid bitcast
-tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	FAIL				?	?	ptr addrspace(1)
-tf	kimi/norms.metal	k3_add2	-	ok	ok	ok	ok			?	?	
-tf	kimi/norms.metal	k3_argmax	-	ok	ok	ok	ok			?	?	
-tf	kimi/norms.metal	k3_embed	-	ok	ok	ok	ok			?	?	
-tf	kimi/norms.metal	k3_res_norm	-	ok	ok	ok	ok			?	?	
-tf	kimi/norms.metal	k3_rms_norm	-	ok	ok	ok	ok			?	?	
-tf	kimi/norms.metal	k3_router	-	ok	ok	ok	ok			?	?	
-tf	kimi/synth.metal	k3_fill_bf16	-	ok	ok	ok	ok			?	?	
-tf	kimi/synth.metal	k3_fill_f32	-	ok	ok	ok	ok			?	?	
-tf	kimi/synth.metal	k3_fill_u8	-	ok	ok	ok	ok			?	?	
-tf	kimi/synth.metal	k3_fp4_dequant	-	ok	ok	ok	ok			?	?	
-tf	kimi/synth.metal	k3_mma_peak	-	ok	ok	ok	ok			?	?	
-tf	nemotron/add_norm_moe_xs.metal	custom_kernel_nemotron_add_norm_moe_xs_a50e79554f8d9c70__2688_896_6_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896, 6	ok	ok	ok	ok			?	?	
-tf	nemotron/add_norm_xs.metal	custom_kernel_nemotron_add_norm_xs_ff2bfad9575aba69__2688_896_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_merge.metal	custom_kernel_lane_attention_merge_da4fb5aad03402b1__16_128_float_float_float_int32_tc_bfloat16_t	16, 128	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_1.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_1_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 1, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_10.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_10_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 10, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_11.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_11_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 11, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_12.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_12_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 12, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_13.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_13_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 13, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_14.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_14_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 14, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_15.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_15_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 15, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_16.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_16_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 16, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_2.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_2_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 2, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_3.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_3_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 3, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_4.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_4_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 4, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_5.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_5_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 5, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_6.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_6_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 6, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_7.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_7_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 7, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_8.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_8_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 8, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_9.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_9_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 9, 512, 64	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_down_1_0.metal	custom_kernel_lane_qmm_coop_b8e6f3fa04e56ee6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_down_2_0.metal	custom_kernel_lane_qmm_coop_04da295c6d1530b5_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_down_2_1.metal	custom_kernel_lane_qmm_coop_0cd515214a35d1de_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_draft_1_0.metal	custom_kernel_lane_qmm_coop_4c35d74043a34ef6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_draft_2_0.metal	custom_kernel_lane_qmm_coop_aff8c89fa45bf1ae_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_draft_2_1.metal	custom_kernel_lane_qmm_coop_d7b813599db81398_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_1_0.metal	custom_kernel_lane_qmm_coop_9e4cbc62b5e688cb_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_3ae75679c96b1229_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_2_0.metal	custom_kernel_lane_qmm_coop_4f2bcc8a45894365_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_3860ffb5671693da_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_2_1.metal	custom_kernel_lane_qmm_coop_41ca06f3e97f3e2e_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_eh_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_5b5df4535cbd3657_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_head_1_0.metal	custom_kernel_lane_qmm_coop_c52fd89bfd6fb912_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_head_2_0.metal	custom_kernel_lane_qmm_coop_a95f15631c84cb0f_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_head_2_1.metal	custom_kernel_lane_qmm_coop_965c8dbe0a145820_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_1_0.metal	custom_kernel_lane_qmm_coop_be5ed53207180aa6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_0dfca98dc3af6502_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_2_0.metal	custom_kernel_lane_qmm_coop_abb1874db28ad0f1_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_ec966a77a9a6ad16_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_2_1.metal	custom_kernel_lane_qmm_coop_37b481c991921038_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_in_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_55cde4e5b95c0f45_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_1_0.metal	custom_kernel_lane_qmm_coop_f0841e0fb465f1e4_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_d521c7b2fd89610d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_2_0.metal	custom_kernel_lane_qmm_coop_65631edac897b114_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_96d7e870f60d4d07_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_2_1.metal	custom_kernel_lane_qmm_coop_ea55622ed45d5ac4_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_out_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_69dad70fc2413cfc_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_qkv_1_0.metal	custom_kernel_lane_qmm_coop_c85a2eb32f8b453e_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_qkv_2_0.metal	custom_kernel_lane_qmm_coop_260354f463500030_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_qkv_2_1.metal	custom_kernel_lane_qmm_coop_56605072e599c3fc_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_up_1_0.metal	custom_kernel_lane_qmm_coop_4227ce6bf430ddea_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_up_2_0.metal	custom_kernel_lane_qmm_coop_ed0d9930224491eb_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/coop_up_2_1.metal	custom_kernel_lane_qmm_coop_6a90b660f80b6a12_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/expert_down.metal	custom_kernel_nemotron_rows_expert_down_7cd919f2cf068abd__1856_2688_64_4_2_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1856, 2688, 64, 4, 2	ok	ok	ok	ok			?	?	
-tf	nemotron/expert_up.metal	custom_kernel_nemotron_rows_expert_up_3c904b6b27dccc2b__2688_1856_64_4_2_6_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	2688, 1856, 64, 4, 2, 6	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_112.metal	custom_kernel_nemotron_group_norm_xs_f1410833a53def6c_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_128.metal	custom_kernel_nemotron_group_norm_xs_6588f0366ec0aaeb_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_16.metal	custom_kernel_nemotron_group_norm_xs_d5ea27bb1dcaa1a5_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_32.metal	custom_kernel_nemotron_group_norm_xs_ecb62fc8bae57a0c_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_48.metal	custom_kernel_nemotron_group_norm_xs_2eaf152cbecc189f_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_64.metal	custom_kernel_nemotron_group_norm_xs_e6ad27e0e98b80d0_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_80.metal	custom_kernel_nemotron_group_norm_xs_990d36bef878e5ae_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/group_norm_xs_96.metal	custom_kernel_nemotron_group_norm_xs_a13cecd18562d797_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/mamba_conv.metal	custom_kernel_nemotron_mamba_conv_83552c1c128bdbca__4096_8_128_4_10304_4096_bfloat16_t_bfloat16_t_float_float_int32_t_int32_t_int32_t_int32_t_bfloat16_t_bfloat16_t	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			?	?	
-tf	nemotron/mamba_scan.metal	custom_kernel_nemotron_mamba_scan_52242b2ed609b53e__64_64_8_128_4096_10304_10240_524288_bfloat16_t_bfloat16_t_float_float_float_float_floatc_int32_tc_int32_t_int32_t_int32_t_bfloat16_t_float	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			?	?	
-tf	nemotron/route.metal	custom_kernel_nemotron_route_8776d7e9b3d3f6f3__128_6_bfloat16_t_float_floatc_uint32_t_float	128, 6	ok	ok	ok	ok			?	?	
-tf	nemotron/route_group.metal	custom_kernel_nemotron_rows_route_group_128_6_4fa7b8da8d929d0d_bfloat16_t_float_floatc_int32_tc_uint32_t_float_uint32_t_int32_t_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/router.metal	custom_kernel_nemotron_router_84d0c5e2f26dd05a__2688_128_8_16_bfloat16_t_bfloat16_t_int32_tc_bfloat16_t	2688, 128, 8, 16	ok	ok	ok	ok			?	?	
-tf	nemotron/sample.metal	custom_kernel_tf_gpu_sample_8c4c58e786a0306b_bfloat16_t_uint32_t_uint32_t_float_uint32_t_uint32_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/sample_ids.metal	custom_kernel_tf_gpu_sample_ids_73b577bd038b04ad_bfloat16_t_uint32_t_uint32_t_float_uint32_t_uint32_t_uint32_t	-	ok	ok	ok	ok			?	?	
-tf	nemotron/up_relu2_1_0.metal	custom_kernel_nemotron_lane_up_relu2_090709f730e8c237_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/up_relu2_2_0.metal	custom_kernel_nemotron_lane_up_relu2_6b2e65a73d7027d0_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/up_relu2_2_1.metal	custom_kernel_nemotron_lane_up_relu2_d68559363a899336_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/xsum_2688.metal	custom_kernel_lane_qmm_xsum_8e840c6f3ffb9838_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/xsum_3712.metal	custom_kernel_lane_qmm_xsum_b74f870c45676ff1_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/xsum_4096.metal	custom_kernel_lane_qmm_xsum_6902641c761b7636_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron/xsum_5376.metal	custom_kernel_lane_qmm_xsum_28dbe6341ee44cdb_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	nemotron_expert_down.metal	custom_kernel_nemotron_rows_expert_down_7cd919f2cf068abd__1856_2688_64_4_2_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1856, 2688, 64, 4, 2	ok	ok	ok	ok			?	?	
-tf	nemotron_expert_up.metal	custom_kernel_nemotron_rows_expert_up_3c904b6b27dccc2b__2688_1856_64_4_2_6_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	2688, 1856, 64, 4, 2, 6	ok	ok	ok	ok			?	?	
-tf	nemotron_experts.metal	tf_xdown_rows2	1856, 2688, 64, 4, 2, 6, 2, false	ok	ok	ok	ok			?	?	
-tf	nemotron_experts.metal	tf_xdown_rows4	1856, 2688, 64, 4, 2, 6, 4, false	ok	ok	ok	ok			?	?	
-tf	nemotron_experts.metal	tf_xup_rows2	2688, 1856, 64, 4, 2, 6, 2, true	ok	ok	ok	ok			?	?	
-tf	nemotron_experts.metal	tf_xup_rows4	2688, 1856, 64, 4, 2, 6, 4, true	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_argmax_bf16	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_attn_out	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_attn_q	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_coop_combine	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_copy_rows	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_copy_u32	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_embed_q4	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_kv_write	-	ok	ok	ok	ok			?	?	
-tf	nemotron_glue.metal	tf_rms_mlx	-	ok	ok	ok	ok			?	?	
-tf	nemotron_head.metal	tf_head_norm	-	ok	ok	ok	ok			?	?	
-tf	nemotron_head.metal	tf_head_prep	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_accept	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_args	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_attsel	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_copy	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_gather	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_root	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_sib	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_tail	-	ok	ok	ok	ok			?	?	
-tf	nemotron_round.metal	tf_round_top1	-	ok	ok	ok	ok			?	?	
-tf	nemotron_sample.metal	tf_sample_full	false	ok	ok	ok	ok			?	?	
-tf	nemotron_sample.metal	tf_sample_full_ids	true	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_gather_rows	-	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_kv_compact	-	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_lane_tokens	-	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_topk_probs	-	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_tree_conv	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_tree_merge	16, 128, 512	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_tree_scan	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_tree_tail	16, 128, 512, 64, 64	ok	ok	ok	ok			?	?	
-tf	ops/argmax.metal	tf_argmax_merge	-	ok	ok	ok	ok			?	?	
-tf	ops/argmax.metal	tf_argmax_part_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_add_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_causal_mask_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_gather_u32	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_moe_combine	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_moe_combine_rows	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_relu2_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/elementwise.metal	tf_scale_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/embed_norm.metal	tf_embed_b4_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/embed_norm.metal	tf_embed_b6_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/embed_norm.metal	tf_embed_b8_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/embed_norm.metal	tf_embed_rms_b4_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/embed_norm.metal	tf_rms_norm_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/gemv.metal	tf_gemv_bf16_tm4	-	ok	ok	ok	ok			?	?	
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	ok	ok			?	?	
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	ok	ok			?	?	
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	ok	ok			?	?	
-tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_b6_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_fast_b4_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_fast_b6_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_fast_b8_g64	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	ok	ok			?	?	
-tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	ok	ok			?	?	
-tf	ops/route.metal	tf_route_topk	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_2p1_d128	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_2p1_d128_cqt	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_2p1_gqa16_d128	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_2p2_d128	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_vec_d128	-	ok	ok	ok	ok			?	?	
-tf	ops/sdpa.metal	tf_sdpa_vec_d128_cqt	-	ok	ok	ok	ok			?	?	
-tf	ops/softmax.metal	tf_softmax_bf16	-	ok	ok	ok	ok			?	?	
-tf	ops/softmax.metal	tf_softmax_looped_bf16	-	ok	ok	ok	ok			?	?	
-tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_n_n_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_n_t_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_n_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_t_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/conv.metal	custom_kernel_tf_conv1d_depthwise_bf16_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_attn.metal	tf_idx_scores_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_attn.metal	tf_mma_peak	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_attn.metal	tf_sattn_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_act	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_copy	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gather_rows	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gdn_post	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gdn_pre	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gdn_scan	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gdn_scan4	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_gdn_scan8	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_hc_act	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_hc_mix	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_hc_normed	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_offsets	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_route	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_router	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_scatter_y	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_prompt.metal	pf_sort	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_select.metal	fz_idx_pool_abs	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_select.metal	fz_sel_meta	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_n_n_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_n_t_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_t_n_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_t_t_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_n_n_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_t_n_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_t_n_t_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_t_t_t_t_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_t_t_t_t_t_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_nax_bf16_n_t_n_t_64_64_256_2_2_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_nax_bf16_n_t_t_t_64_64_256_2_2_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_sum_bf16_float_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/gemv.metal	custom_kernel_tf_gemv_rows_f32_4_4_4_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_conv_act_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_conv_keep_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_conv_pack_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_exp_f32_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_kv_put_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_mamba_a_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_mamba_dt_bfloat16_t_bfloat16_t_float_bfloat16_t_int32_t_float_float_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_mamba_gate_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_mamba_skip_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_rows_of_uint32_t_int32_t_uint32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_rows_take_bfloat16_t_uint32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_scale_cols_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_segsum_in_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_b_heads_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_c_f32_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_decay_float_bfloat16_t_int32_t_float_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_dtx_decay_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_state_carry_float_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/glue.metal	custom_kernel_tf_ssd_y_out_float_float_float_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_expert_offsets6	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_32	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_64	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_128	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_32	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_64	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax_128	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_attn256_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_mm_bf16_f32_t_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_parts_sum	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_qmm6_splitk_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_expert_offsets_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_32_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_64_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_part_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_sum_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_t_nax_bf16_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/scan.metal	custom_kernel_tf_scan_sum_strided_f32_float_int32_t_float	-	ok	ok	ok	ok			?	?	
-tf	prefill/sort.metal	custom_kernel_tf_sort_count_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/sort.metal	custom_kernel_tf_sort_inverse_uint32_t_int32_t_uint32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/sort.metal	custom_kernel_tf_sort_place_uint32_t_int32_t_int32_t_uint32_t_uint32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/sort.metal	custom_kernel_tf_sort_starts_int32_t_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/attn_merge.metal	custom_kernel_qwen35_attn_merge_float_float_float_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/attn_partial.metal	custom_kernel_qwen35_attn_partial_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_float_float_float	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/gdn_chain.metal	custom_kernel_qwen35_gdn_chain__bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_float_int32_tc_bfloat16_t_float	bfloat16_t	ok	ok	ok	ok			?	?	
-tf	qwen3_5/gdn_post.metal	custom_kernel_qwen35_gdn_post_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/gdn_pre.metal	custom_kernel_qwen35_gdn_pre_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/layout.metal	qwen35_attention_gate	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/layout.metal	qwen35_embed	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/layout.metal	qwen35_head_norm	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/layout.metal	qwen35_keys	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/layout.metal	qwen35_queries	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/mlp_act.metal	custom_kernel_qwen35_mlp_act_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/norm.metal	custom_kernel_qwen35_norm_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/norm_nores.metal	custom_kernel_qwen35_norm_nores_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_16_2048.metal	custom_kernel_qwen35_qmm_16_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_2048_2048.metal	custom_kernel_qwen35_qmm_2048_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_2048_6144.metal	custom_kernel_qwen35_qmm_2048_6144_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_248320_2048.metal	custom_kernel_qwen35_qmm_248320_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_4096_2048.metal	custom_kernel_qwen35_qmm_4096_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_512_2048.metal	custom_kernel_qwen35_qmm_512_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	qwen3_5/qmm_6144_2048.metal	custom_kernel_qwen35_qmm_6144_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	runtime_tests.metal	tf_affine	-	ok	ok	ok	ok			?	?	
-tf	runtime_tests.metal	tf_mix	-	ok	ok	ok	ok			?	?	
-tf	runtime_tests.metal	tf_round	-	ok	ok	ok	ok			?	?	
-tf	runtime_tests.metal	tf_step	-	ok	ok	ok	ok			?	?	
-tf	runtime_tests.metal	tf_vadd	-	ok	ok	ok	ok			?	?	
-uzu	activation/activation.metal	Activation_v0	half	ok	ok	ok	ok			?	?	
-uzu	activation/activation.metal	Activation_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	activation_transform/activation_transform.metal	ActivationTransform_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	ok	ok	ok	ok			?	?	
-uzu	activation_transform/trellis.metal	TrellisTransform_v0	4096	ok	ok	ok	ok			?	?	
-uzu	activation_transform/trellis.metal	TrellisTransform_v1	19968	ok	ok	ok	ok			?	?	
-uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	ok	ok			?	?	
-uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v0	float	ok	ok	ok	ok			?	?	
-uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v0	float	ok	ok	ok	ok			?	?	
-uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	attention/attention_gemm.metal	AttentionGemm_v0	bfloat, 32, 64, false	ok	ok	ok	ok			?	?	
-uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 64, true	ok	ok	ok	ok			?	?	
-uzu	attention/attention_prepare.metal	AttentionPrepare_v0	bfloat, float	ok	ok	ok	ok			?	?	
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	ok	ok			?	?	
-uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	ok	ok			?	?	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	ok	ok			?	?	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	ok	ok			?	?	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v0	float, 64	ok	ok	ok	ok			?	?	
-uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v1	bfloat, 512	ok	ok	ok	ok			?	?	
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v0	bfloat, 128	ok	ok	ok	ok			?	?	
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v1	bfloat, 256	ok	ok	ok	ok			?	?	
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v0	bfloat, 32, 128, 2	ok	ok	ok	ok			?	?	
-uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v1	bfloat, 32, 256, 4	ok	ok	ok	ok			?	?	
-uzu	attention/kv_cache_update.metal	KVCacheUpdate_v0	float	ok	ok	ok	ok			?	?	
-uzu	attention/kv_cache_update.metal	KVCacheUpdate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	attention/qkv_norm.metal	QKVNorm_v0	float, float, float, float	ok	ok	ok	ok			?	?	
-uzu	attention/qkv_norm.metal	QKVNorm_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			?	?	
-uzu	attention/sigmoid_gate.metal	SigmoidGate_v0	float	ok	ok	ok	ok			?	?	
-uzu	attention/sigmoid_gate.metal	SigmoidGate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	convolution/separable_causal_conv.metal	SeparableCausalConv_v0	bfloat	ok	ok	ok	ok			?	?	
-uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v0	float	ok	ok	ok	ok			?	?	
-uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v0	float	ok	ok	ok	ok			?	?	
-uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v0	32	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v1	64	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/causal_inv.metal	DeltaNetChunkedCausalInv_v0	32, 16	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/causal_inv.metal	DeltaNetChunkedCausalInv_v1	64, 32	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/cumsum.metal	DeltaNetChunkedCumsum_v0	32	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/cumsum.metal	DeltaNetChunkedCumsum_v1	64	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/gram.metal	DeltaNetChunkedGram_v0	128, 32	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/gram.metal	DeltaNetChunkedGram_v1	128, 64	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/output_and_state.metal	DeltaNetChunkedOutputAndState_v0	float, float, float, 128, 32, false	ok	ok	ok	ok			?	?	
-uzu	gdn/chunked/output_and_state.metal	DeltaNetChunkedOutputAndState_v1	bfloat, bfloat, bfloat, 128, 32, true	ok	ok	ok	ok			?	?	
-uzu	gdn/conv_scan.metal	DeltaNetConvScan_v0	float	ok	ok	ok	ok			?	?	
-uzu	gdn/conv_scan.metal	DeltaNetConvScan_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gdn/conv_update.metal	DeltaNetConvUpdate_v0	float	ok	ok	ok	ok			?	?	
-uzu	gdn/conv_update.metal	DeltaNetConvUpdate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gdn/norm_gate.metal	DeltaNetNormGate_v0	float	ok	ok	ok	ok			?	?	
-uzu	gdn/norm_gate.metal	DeltaNetNormGate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gdn/prefill.metal	DeltaNetPrefill_v0	float, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/prefill.metal	DeltaNetPrefill_v1	bfloat, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/prefill_prep.metal	DeltaNetPrefillPrep_v0	float, float, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/prefill_prep.metal	DeltaNetPrefillPrep_v1	bfloat, bfloat, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v0	float	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/out.metal	BuildTreeOut_v0	float, float, false, false	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/prefix.metal	BuildTreePrefix	-	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v0	float, false	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v0	float, 16	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v1	bfloat, 32	ok	ok	ok	ok			?	?	
-uzu	gdn/update.metal	DeltaNetUpdate_v0	float, 128	ok	ok	ok	ok			?	?	
-uzu	gdn/update.metal	DeltaNetUpdate_v1	bfloat, 128	ok	ok	ok	ok			?	?	
-uzu	logit_transform/logit_transform.metal	LogitTransform_v0	float	ok	ok	ok	ok			?	?	
-uzu	logit_transform/logit_transform.metal	LogitTransform_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm.metal	Gemm_v0	bfloat, bfloat, bfloat, GemmTiling::Tile8x32x32_Simdgroups1x	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm.metal	Gemm_v1	float, bfloat, float, GemmTiling::Tile128x128x256_Simdgroups	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	ok	ok	ok	ok			?	?	
-uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	ok	ok	ok	ok			?	?	
-uzu	matmul/gemv/gemv.metal	Gemv_v1	float, bfloat, float, GemmBPrologueKind::ScaleSymmetricDequa	ok	ok	ok	ok			?	?	
-uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok			?	?	
-uzu	normalization/normalization.metal	Normalization_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			?	?	
-uzu	pooling/pooling.metal	PoolingMean_v0	float	ok	ok	ok	ok			?	?	
-uzu	pooling/pooling.metal	PoolingMean_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	radix_top_k_small.metal	RadixTopKSmallCollect	-	ok	ok	ok	ok			?	?	
-uzu	radix_top_k_small.metal	RadixTopKSmallPass	-	ok	ok	ok	ok			?	?	
-uzu	sampling/context_ring_update.metal	ContextRingUpdate	-	ok	ok	ok	ok			?	?	
-uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v0	float	ok	ok	ok	ok			?	?	
-uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	sampling/unified_sampling.metal	UnifiedSampling_v0	float	ok	ok	ok	ok			?	?	
-uzu	sampling/unified_sampling.metal	UnifiedSampling_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvDecode_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvDecode_v1	bfloat, float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvPack_v0	float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvPack_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvPrefill_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvPrefill_v1	bfloat, float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvTrie_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	short_conv/short_conv.metal	ShortConvTrie_v1	bfloat, float	ok	ok	ok	ok			?	?	
-uzu	softmax/softmax.metal	Softmax_v0	float	ok	ok	ok	ok			?	?	
-uzu	softmax/softmax.metal	Softmax_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dDecode_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dDecode_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dPack_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dPack_v1	bfloat, bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dScan_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/conv1d.metal	Conv1dScan_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/split_inproj.metal	SplitInProj_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/split_inproj.metal	SplitInProj_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_prefill.metal	SSDPrefill64_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_prefill.metal	SSDPrefill64_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_prefill.metal	SSDPrefill_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_prefill.metal	SSDPrefill_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_update.metal	SSDUpdate_v0	float	ok	ok	ok	ok			?	?	
-uzu	ssm/ssd_update.metal	SSDUpdate_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	tensor_add_bias/tensor_add_bias.metal	TensorAddBias_v0	float, float	ok	ok	ok	ok			?	?	
-uzu	tensor_add_bias/tensor_add_bias.metal	TensorAddBias_v1	bfloat, bfloat	ok	ok	ok	ok			?	?	
-uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v0	float	ok	ok	ok	ok			?	?	
-uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v1	bfloat	ok	ok	ok	ok			?	?	
-uzu	weaver/weaver_frontier_insert_children.metal	WeaverFrontierInsertChildren	-	ok	ok	ok	ok			?	?	
-uzu	weaver/weaver_frontier_select.metal	WeaverFrontierSelect	-	ok	ok	ok	ok			?	?	
-uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	ok	ok			?	?	
+tf	core/affine_mm.metal	tf_affine_gather_32	-	ok	ok	ok	ok			ok	ok	
+tf	core/affine_mm.metal	tf_affine_gather_64	-	ok	ok	ok	ok			ok	ok	
+tf	core/affine_mm.metal	tf_affine_gather_scatter_32	-	ok	ok	ok	ok			ok	ok	
+tf	core/affine_mm.metal	tf_affine_gather_scatter_64	-	ok	ok	ok	ok			ok	ok	
+tf	core/affine_mm.metal	tf_affine_mm	-	ok	ok	ok	ok			ok	ok	
+tf	core/affine_mm.metal	tf_affine_row_sums	-	ok	ok	ok	ok			ok	ok	
+tf	core/hc_boundary.metal	tf_hc_expand_mix	true	ok	ok	ok	ok			ok	ok	
+tf	core/hc_boundary.metal	tf_hc_first_mix	false	ok	ok	ok	ok			ok	ok	
+tf	core/hc_boundary.metal	tf_hc_split	-	ok	ok	ok	ok			ok	ok	
+tf	core/moe_route.metal	tf_route_logits	-	ok	ok	ok	ok			ok	ok	
+tf	core/moe_route.metal	tf_route_select	-	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q2_bf16	4, 2, false, 2, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q2_f32	4, 2, false, 2, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q4_bf16	4, 2, false, 4, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q4_f32	4, 2, false, 4, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q6_bf16	4, 2, false, 6, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q6_f32	4, 2, false, 6, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q8_bf16	4, 2, false, 8, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_q8_f32	4, 2, false, 8, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_bf16	4, 2, true, 2, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q2_f32	4, 2, true, 2, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_bf16	4, 2, true, 4, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q4_f32	4, 2, true, 4, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_bf16	4, 2, true, 6, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q6_f32	4, 2, true, 6, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_bf16	4, 2, true, 8, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_indexed_relu2_q8_f32	4, 2, true, 8, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q2_bf16	4, 2, 2, false, 2, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q2_f32	4, 2, 2, false, 2, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q4_bf16	4, 2, 2, false, 4, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q4_f32	4, 2, 2, false, 4, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q6_bf16	4, 2, 2, false, 6, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q6_f32	4, 2, 2, false, 6, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q8_bf16	4, 2, 2, false, 8, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_q8_f32	4, 2, 2, false, 8, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q2_bf16	4, 2, 2, true, 2, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q2_f32	4, 2, 2, true, 2, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q4_bf16	4, 2, 2, true, 4, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q4_f32	4, 2, 2, true, 4, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q6_bf16	4, 2, 2, true, 6, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q6_f32	4, 2, 2, true, 6, false	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q8_bf16	4, 2, 2, true, 8, true	ok	ok	ok	ok			ok	ok	
+tf	core/row_projection.metal	tf_row_projection_relu2_q8_f32	4, 2, 2, true, 8, false	ok	ok	ok	ok			ok	ok	
+tf	decode/fn_gdn.metal	fz_gdn	-	ok	ok	ok	ok			ok	ok	
+tf	decode/fn_lane.metal	fz_lane	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_35e293dbee531073_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal	custom_kernel_lane_qmm_bytes_grouped_35e293dbee531073_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_68a0697c6f38c26d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal	custom_kernel_lane_qmm_bytes_grouped_68a0697c6f38c26d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_6dc76fc8a1f7fac9_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9.metal	custom_kernel_lane_qmm_bytes_grouped_6dc76fc8a1f7fac9_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_88c1bf5dd9357153_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_88c1bf5dd9357153.metal	custom_kernel_lane_qmm_bytes_grouped_88c1bf5dd9357153_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_98e87a6da79ccc48_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_98e87a6da79ccc48.metal	custom_kernel_lane_qmm_bytes_grouped_98e87a6da79ccc48_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_a803238811388b40-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_a803238811388b40_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_a803238811388b40.metal	custom_kernel_lane_qmm_bytes_grouped_a803238811388b40_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_ba76543b6f461aa8_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_bytes_grouped_ba76543b6f461aa8.metal	custom_kernel_lane_qmm_bytes_grouped_ba76543b6f461aa8_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_xsum_4b7f6628d328811b.metal	custom_kernel_lane_qmm_xsum_4b7f6628d328811b_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/lane_qmm_xsum_ae73f2ece35700de.metal	custom_kernel_lane_qmm_xsum_ae73f2ece35700de_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_attn_merge_gate_7070840cd3c22e98.metal	custom_kernel_q4_attn_merge_gate_7070840cd3c22e98_float_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_attn_parts_f6b4ffe8e2609998.metal	custom_kernel_q4_attn_parts_f6b4ffe8e2609998_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_float_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_attn_prep_63a42a6cd8e0434a.metal	custom_kernel_q4_attn_prep_63a42a6cd8e0434a_bfloat16_t_int32_t_float_float_float_floatc_floatc_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_gdn_pipe_bf57ffcc8e75e07f.metal	custom_kernel_q4_gdn_pipe_bf57ffcc8e75e07f_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_gdn_step_af87f500308a9afb.metal	custom_kernel_q4_gdn_step_af87f500308a9afb_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_hc_norm_grouped_07247b697e2950aa.metal	custom_kernel_q4_hc_norm_grouped_07247b697e2950aa_bfloat16_t_bfloat16_t_bfloat16_t_float_float_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_hc_norm_none_4e0640a899baccfe.metal	custom_kernel_q4_hc_norm_none_4e0640a899baccfe_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_hc_norm_plain_5c1ff86fb3418a23.metal	custom_kernel_q4_hc_norm_plain_5c1ff86fb3418a23_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_idx_pool_6d826f5ebecec197.metal	custom_kernel_q4_idx_pool_6d826f5ebecec197_bfloat16_t_int32_tc_float_floatc_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_idx_scores_44c714a153f460b5.metal	custom_kernel_q4_idx_scores_44c714a153f460b5_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_idx_select_4092b8bd389cc7ed.metal	custom_kernel_q4_idx_select_4092b8bd389cc7ed_float_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_ple_conv_f30f7bbf4be76b4e.metal	custom_kernel_q4_ple_conv_f30f7bbf4be76b4e_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_ple_gate_6b4b48a5b2338042.metal	custom_kernel_q4_ple_gate_6b4b48a5b2338042_bfloat16_t_bfloat16_t_float_float_float_floatc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_rms_rows_ccb0cf9f4c81c0be.metal	custom_kernel_q4_rms_rows_ccb0cf9f4c81c0be_bfloat16_t_float_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_rms_rows_d1bbe7db65370c4b.metal	custom_kernel_q4_rms_rows_d1bbe7db65370c4b_bfloat16_t_float_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/q4_router_float_68e59b1069c61a07.metal	custom_kernel_q4_router_float_68e59b1069c61a07_bfloat16_t_bfloat16_t_int32_tc_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_embed_rows_8e76338f159f9901.metal	custom_kernel_qa_embed_rows_8e76338f159f9901_uint32_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_embed_rows_ff07df15b2c8240b.metal	custom_kernel_qa_embed_rows_ff07df15b2c8240b_uint32_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_expert_down_y_346a3e7c6008e1ac.metal	custom_kernel_qa_expert_down_y_346a3e7c6008e1ac_bfloat16_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_tc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_expert_gateup_fd30a642315017a8.metal	custom_kernel_qa_expert_gateup_fd30a642315017a8_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_uint32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_down_mma_8109b1736382e7e0.metal	custom_kernel_qa_hc_down_mma_8109b1736382e7e0_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_down_mma_95e91baff920cd60.metal	custom_kernel_qa_hc_down_mma_95e91baff920cd60_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_down_row_85069d94acd4e9c1.metal	custom_kernel_qa_hc_down_row_85069d94acd4e9c1_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_down_row_c0844985c18debc0.metal	custom_kernel_qa_hc_down_row_c0844985c18debc0_bfloat16_t_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_mma_29397929facfdff7.metal	custom_kernel_qa_hc_up_mma_29397929facfdff7_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_mma_5dcbb2ccf20c6d91.metal	custom_kernel_qa_hc_up_mma_5dcbb2ccf20c6d91_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_mma_68e89dda67027c57.metal	custom_kernel_qa_hc_up_mma_68e89dda67027c57_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_mma_baf373fed50f01d7.metal	custom_kernel_qa_hc_up_mma_baf373fed50f01d7_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_row_1e87f3c82e93adaa.metal	custom_kernel_qa_hc_up_row_1e87f3c82e93adaa_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_hc_up_row_bc634afbd2016a85.metal	custom_kernel_qa_hc_up_row_bc634afbd2016a85_bfloat16_t_float_float_float_uint32_t_bfloat16_t_bfloat16_t_floatc_int32_tc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	flashnext/qa_ple_lookup_c9861329fad34fa4.metal	custom_kernel_qa_ple_lookup_c9861329fad34fa4_uint32_t_uint32_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	glm/gemv_scores.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_4_1_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 4, 1, 1, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/gemv_scores_le32.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/gemv_scores_lt4.metal	custom_kernel_tf_glm5_gemv_rows_49bf57fb01__bfloat16_t_1_8_1_32_1_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 8, 1, 32, 1, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/gemv_t_igate.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_2_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 2, 8, 4, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/gemv_t_values.metal	custom_kernel_tf_glm5_gemv_t_rows_c310753f1d__bfloat16_t_1_4_8_4_4_4_bfloat16_t_bfloat16_t_bfloat16_t	bfloat16_t, 1, 4, 8, 4, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/hc_expand_10.metal	custom_kernel_tf_glm5_fused_hc_expand_cc77af98f2__4096_1_0_0_0_bfloat16_t_bfloat16_t_float_float_floatc_bfloat16_t_float_float	4096, 1, 0, 0, 0	ok	ok	ok	ok			ok	ok	
+tf	glm/kda_rows.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__64_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/kda_rows_tp.metal	custom_kernel_tf_glm5_kda_rows_918a341e71__32_128_4_32_4_4_bfloat16_t_bfloat16_t_float_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float_float_float_float_floatc_floatc_bfloat16_t_float_bfloat16_t	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_combine.metal	custom_kernel_tf_glm5_fused_moe_combine_split_101a658555__4096_8_bfloat16_t_bfloat16_t_float_bfloat16_t	4096, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_down_1.metal	custom_kernel_tf_glm5_fused_moe_down_d50fa183fa__2048_4096_4_8_16_128_1_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_bfloat16_t	2048, 4096, 4, 8, 16, 128, 1, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_down_2.metal	custom_kernel_tf_glm5_fused_moe_down_d50fa183fa__2048_4096_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_bfloat16_t	2048, 4096, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_down_2h.metal	custom_kernel_tf_glm5_fused_moe_down_partial_53f9b53e4a__1024_4096_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_float	1024, 4096, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_gateup_1.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_2048_4_8_16_128_1_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 2048, 4, 8, 16, 128, 1, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_gateup_2.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_2048_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 2048, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_gateup_2h.metal	custom_kernel_tf_glm5_fused_moe_gateup_04bc93a358__4096_1024_4_8_16_128_2_4_16_8_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_int32_t_floatc_bfloat16_t	4096, 1024, 4, 8, 16, 128, 2, 4, 16, 8	ok	ok	ok	ok			ok	ok	
+tf	glm/moe_route.metal	custom_kernel_tf_glm5_fused_moe_route_f1ea09c9f4__288_8_16_512_float_float_floatc_int32_t_float_int32_t_int32_t_int32_t	288, 8, 16, 512	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_12288_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__12288_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	12288, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_1536_12288.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__1536_12288_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1536, 12288, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_1536_20480.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__1536_20480_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1536, 20480, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_16384_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__16384_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	16384, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_12288.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_12288_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 12288, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_12576.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_12576_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 12576, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_154880.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_154880_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 154880, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_2208.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_2208_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 2208, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_24576.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_24576_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 24576, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_24896.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_24896_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 24896, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_4096_77440.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__4096_77440_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	4096, 77440, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmv_8192_4096.metal	custom_kernel_tf_glm5_qmv_rows64_c8929b27db__8192_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	8192, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmvp_4096_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__4096_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	4096, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmvp_6144_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__6144_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	6144, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/qmvp_8192_4096.metal	custom_kernel_tf_glm5_qmv_rows64_partial_d2ceb8772a__8192_4096_4_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_float	8192, 4096, 4	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_10_4_1024_float_bfloat16_t_float	4096, 288, 10, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_11_4_1024_float_bfloat16_t_float	4096, 288, 11, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_12_4_1024_float_bfloat16_t_float	4096, 288, 12, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_13_4_1024_float_bfloat16_t_float	4096, 288, 13, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_14_4_1024_float_bfloat16_t_float	4096, 288, 14, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_15_4_1024_float_bfloat16_t_float	4096, 288, 15, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_16_4_1024_float_bfloat16_t_float	4096, 288, 16, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_1_8_1024_float_bfloat16_t_float	4096, 288, 1, 8, 1024	ok	ok	ok	FAIL			ok	FAIL	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_2_8_1024_float_bfloat16_t_float	4096, 288, 2, 8, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_3_8_1024_float_bfloat16_t_float	4096, 288, 3, 8, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_4_8_1024_float_bfloat16_t_float	4096, 288, 4, 8, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_5_4_1024_float_bfloat16_t_float	4096, 288, 5, 4, 1024	ok	ok	ok	FAIL			ok	FAIL	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_6_4_1024_float_bfloat16_t_float	4096, 288, 6, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_7_4_1024_float_bfloat16_t_float	4096, 288, 7, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_8_4_1024_float_bfloat16_t_float	4096, 288, 8, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_9_4_1024_float_bfloat16_t_float	4096, 288, 9, 4, 1024	ok	ok	ok	ok			ok	ok	
+tf	glm/sparse_attention.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9e57bce4__512_2051_64_bfloat16_t_bfloat16_t_int32_t_floatc_int32_tc_bfloat16_t	512, 2051, 64	ok	ok	ok	ok			ok	ok	
+tf	glm/sparse_attention_tp.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9e57bce4__512_2051_32_bfloat16_t_bfloat16_t_int32_t_floatc_int32_tc_bfloat16_t	512, 2051, 32	ok	ok	ok	ok			ok	ok	
+tf	glm_absorb_nax.metal	glm_absorb_nax	-	ok	ok	ok	ok			ok	ok	
+tf	glm_attn.metal	glm_latent_scores	-	ok	ok	ok	ok			ok	ok	
+tf	glm_attn.metal	glm_latent_values	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_amax_merge	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_amax_send	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_localize	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_pack	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_post	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_rcombine	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_rfinal	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_rsend	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_rsum	-	ok	ok	ok	ok			ok	ok	
+tf	glm_ep.metal	ep_unpack	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_absorb	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_act2	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_add	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_argmax	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_cast_f32	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_copy_u32	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_dense_indices	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_exp_f32	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_index_scores	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_index_select	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_layer_norm	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_pool	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_rms	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_route_rows	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_scale	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_stream_mean	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_streams	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_swiglu	-	ok	ok	ok	ok			ok	ok	
+tf	glm_glue.metal	glm_unabsorb	-	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_post	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_post_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_pre	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_pre_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_scan	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_kda_prompt.metal	glm_kda_scan_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			ok	ok	
+tf	glm_sparse_nax.metal	glm_sparse_nax	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_glu_r1	1	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_glu_r2	2	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_glu_r4	4	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_glu_r8	8	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_interleave	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_bf16_r1	bfloat, 1	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_bf16_r2	bfloat, 2	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_bf16_r4	bfloat, 4	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_bf16_r8	bfloat, 8	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_f32_r1	float, 1	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_f32_r2	float, 2	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_f32_r4	float, 4	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense.metal	k3_rows_f32_r8	float, 8	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense_mma.metal	k3_slice_mma	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense_mma.metal	k3_slice_out_bf16	bfloat	ok	ok	ok	ok			ok	ok	
+tf	kimi/dense_mma.metal	k3_slice_out_f32	float	ok	ok	ok	ok			ok	ok	
+tf	kimi/experts.metal	k3_route_plan	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/experts.metal	k3_xp_combine	bfloat	ok	ok	ok	ok			ok	ok	
+tf	kimi/experts.metal	k3_xp_combine_f32	float	ok	ok	ok	ok			ok	ok	
+tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/kda.metal	k3_kda	-	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL				ok		Invalid bitcast
+tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	kimi/norms.metal	k3_add2	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/norms.metal	k3_argmax	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/norms.metal	k3_embed	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/norms.metal	k3_res_norm	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/norms.metal	k3_rms_norm	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/norms.metal	k3_router	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/synth.metal	k3_fill_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/synth.metal	k3_fill_f32	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/synth.metal	k3_fill_u8	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/synth.metal	k3_fp4_dequant	-	ok	ok	ok	ok			ok	ok	
+tf	kimi/synth.metal	k3_mma_peak	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/add_norm_moe_xs.metal	custom_kernel_nemotron_add_norm_moe_xs_a50e79554f8d9c70__2688_896_6_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896, 6	ok	ok	ok	ok			ok	ok	
+tf	nemotron/add_norm_xs.metal	custom_kernel_nemotron_add_norm_xs_ff2bfad9575aba69__2688_896_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_merge.metal	custom_kernel_lane_attention_merge_da4fb5aad03402b1__16_128_float_float_float_int32_tc_bfloat16_t	16, 128	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_1.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_1_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 1, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_10.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_10_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 10, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_11.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_11_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 11, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_12.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_12_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 12, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_13.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_13_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 13, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_14.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_14_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 14, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_15.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_15_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 15, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_16.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_16_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 16, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_2.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_2_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 2, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_3.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_3_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 3, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_4.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_4_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 4, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_5.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_5_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 5, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_6.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_6_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 6, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_7.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_7_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 7, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_8.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_8_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 8, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/attn_partial_9.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_9_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 9, 512, 64	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_down_1_0.metal	custom_kernel_lane_qmm_coop_b8e6f3fa04e56ee6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_down_2_0.metal	custom_kernel_lane_qmm_coop_04da295c6d1530b5_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_down_2_1.metal	custom_kernel_lane_qmm_coop_0cd515214a35d1de_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_draft_1_0.metal	custom_kernel_lane_qmm_coop_4c35d74043a34ef6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_draft_2_0.metal	custom_kernel_lane_qmm_coop_aff8c89fa45bf1ae_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_draft_2_1.metal	custom_kernel_lane_qmm_coop_d7b813599db81398_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_1_0.metal	custom_kernel_lane_qmm_coop_9e4cbc62b5e688cb_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_3ae75679c96b1229_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_2_0.metal	custom_kernel_lane_qmm_coop_4f2bcc8a45894365_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_3860ffb5671693da_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_2_1.metal	custom_kernel_lane_qmm_coop_41ca06f3e97f3e2e_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_eh_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_5b5df4535cbd3657_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_head_1_0.metal	custom_kernel_lane_qmm_coop_c52fd89bfd6fb912_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_head_2_0.metal	custom_kernel_lane_qmm_coop_a95f15631c84cb0f_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_head_2_1.metal	custom_kernel_lane_qmm_coop_965c8dbe0a145820_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_1_0.metal	custom_kernel_lane_qmm_coop_be5ed53207180aa6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_0dfca98dc3af6502_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_2_0.metal	custom_kernel_lane_qmm_coop_abb1874db28ad0f1_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_ec966a77a9a6ad16_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_2_1.metal	custom_kernel_lane_qmm_coop_37b481c991921038_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_in_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_55cde4e5b95c0f45_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_1_0.metal	custom_kernel_lane_qmm_coop_f0841e0fb465f1e4_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_1_0_sk.metal	custom_kernel_lane_qmm_coop_sk_d521c7b2fd89610d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_2_0.metal	custom_kernel_lane_qmm_coop_65631edac897b114_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_2_0_sk.metal	custom_kernel_lane_qmm_coop_sk_96d7e870f60d4d07_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_2_1.metal	custom_kernel_lane_qmm_coop_ea55622ed45d5ac4_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_out_2_1_sk.metal	custom_kernel_lane_qmm_coop_sk_69dad70fc2413cfc_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_qkv_1_0.metal	custom_kernel_lane_qmm_coop_c85a2eb32f8b453e_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_qkv_2_0.metal	custom_kernel_lane_qmm_coop_260354f463500030_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_qkv_2_1.metal	custom_kernel_lane_qmm_coop_56605072e599c3fc_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_up_1_0.metal	custom_kernel_lane_qmm_coop_4227ce6bf430ddea_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_up_2_0.metal	custom_kernel_lane_qmm_coop_ed0d9930224491eb_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/coop_up_2_1.metal	custom_kernel_lane_qmm_coop_6a90b660f80b6a12_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/expert_down.metal	custom_kernel_nemotron_rows_expert_down_7cd919f2cf068abd__1856_2688_64_4_2_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1856, 2688, 64, 4, 2	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron/expert_up.metal	custom_kernel_nemotron_rows_expert_up_3c904b6b27dccc2b__2688_1856_64_4_2_6_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	2688, 1856, 64, 4, 2, 6	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron/group_norm_xs_112.metal	custom_kernel_nemotron_group_norm_xs_f1410833a53def6c_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_128.metal	custom_kernel_nemotron_group_norm_xs_6588f0366ec0aaeb_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_16.metal	custom_kernel_nemotron_group_norm_xs_d5ea27bb1dcaa1a5_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_32.metal	custom_kernel_nemotron_group_norm_xs_ecb62fc8bae57a0c_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_48.metal	custom_kernel_nemotron_group_norm_xs_2eaf152cbecc189f_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_64.metal	custom_kernel_nemotron_group_norm_xs_e6ad27e0e98b80d0_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_80.metal	custom_kernel_nemotron_group_norm_xs_990d36bef878e5ae_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/group_norm_xs_96.metal	custom_kernel_nemotron_group_norm_xs_a13cecd18562d797_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/mamba_conv.metal	custom_kernel_nemotron_mamba_conv_83552c1c128bdbca__4096_8_128_4_10304_4096_bfloat16_t_bfloat16_t_float_float_int32_t_int32_t_int32_t_int32_t_bfloat16_t_bfloat16_t	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			ok	ok	
+tf	nemotron/mamba_scan.metal	custom_kernel_nemotron_mamba_scan_52242b2ed609b53e__64_64_8_128_4096_10304_10240_524288_bfloat16_t_bfloat16_t_float_float_float_float_floatc_int32_tc_int32_t_int32_t_int32_t_bfloat16_t_float	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			ok	ok	
+tf	nemotron/route.metal	custom_kernel_nemotron_route_8776d7e9b3d3f6f3__128_6_bfloat16_t_float_floatc_uint32_t_float	128, 6	ok	ok	ok	ok			ok	ok	
+tf	nemotron/route_group.metal	custom_kernel_nemotron_rows_route_group_128_6_4fa7b8da8d929d0d_bfloat16_t_float_floatc_int32_tc_uint32_t_float_uint32_t_int32_t_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/router.metal	custom_kernel_nemotron_router_84d0c5e2f26dd05a__2688_128_8_16_bfloat16_t_bfloat16_t_int32_tc_bfloat16_t	2688, 128, 8, 16	ok	ok	ok	ok			ok	ok	
+tf	nemotron/sample.metal	custom_kernel_tf_gpu_sample_8c4c58e786a0306b_bfloat16_t_uint32_t_uint32_t_float_uint32_t_uint32_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/sample_ids.metal	custom_kernel_tf_gpu_sample_ids_73b577bd038b04ad_bfloat16_t_uint32_t_uint32_t_float_uint32_t_uint32_t_uint32_t	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/up_relu2_1_0.metal	custom_kernel_nemotron_lane_up_relu2_090709f730e8c237_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/up_relu2_2_0.metal	custom_kernel_nemotron_lane_up_relu2_6b2e65a73d7027d0_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/up_relu2_2_1.metal	custom_kernel_nemotron_lane_up_relu2_d68559363a899336_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/xsum_2688.metal	custom_kernel_lane_qmm_xsum_8e840c6f3ffb9838_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/xsum_3712.metal	custom_kernel_lane_qmm_xsum_b74f870c45676ff1_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/xsum_4096.metal	custom_kernel_lane_qmm_xsum_6902641c761b7636_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron/xsum_5376.metal	custom_kernel_lane_qmm_xsum_28dbe6341ee44cdb_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_expert_down.metal	custom_kernel_nemotron_rows_expert_down_7cd919f2cf068abd__1856_2688_64_4_2_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	1856, 2688, 64, 4, 2	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_expert_up.metal	custom_kernel_nemotron_rows_expert_up_3c904b6b27dccc2b__2688_1856_64_4_2_6_bfloat16_t_uint32_t_int32_t_int32_t_int32_t_int32_tc_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t	2688, 1856, 64, 4, 2, 6	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_experts.metal	tf_xdown_rows2	1856, 2688, 64, 4, 2, 6, 2, false	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_experts.metal	tf_xdown_rows4	1856, 2688, 64, 4, 2, 6, 4, false	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_experts.metal	tf_xup_rows2	2688, 1856, 64, 4, 2, 6, 2, true	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_experts.metal	tf_xup_rows4	2688, 1856, 64, 4, 2, 6, 4, true	ok	ok	FAIL				ok	ok	clspv pass gave up on a pointer rewrite; the module would be miscompiled (no SPIR-V kept)
+tf	nemotron_glue.metal	tf_argmax_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_attn_out	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_attn_q	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_coop_combine	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_copy_rows	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_copy_u32	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_embed_q4	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_kv_write	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_glue.metal	tf_rms_mlx	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_head.metal	tf_head_norm	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_head.metal	tf_head_prep	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_accept	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_args	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_attsel	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_copy	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_gather	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_root	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_sib	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_tail	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_round.metal	tf_round_top1	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_sample.metal	tf_sample_full	false	ok	ok	ok	ok			ok	ok	
+tf	nemotron_sample.metal	tf_sample_full_ids	true	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_gather_rows	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_kv_compact	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_lane_tokens	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_topk_probs	-	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_tree_conv	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_tree_merge	16, 128, 512	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_tree_scan	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			ok	ok	
+tf	nemotron_tree.metal	tf_tree_tail	16, 128, 512, 64, 64	ok	ok	ok	ok			ok	ok	
+tf	ops/argmax.metal	tf_argmax_merge	-	ok	ok	ok	ok			ok	ok	
+tf	ops/argmax.metal	tf_argmax_part_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_add_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_causal_mask_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_gather_u32	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_moe_combine	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_moe_combine_rows	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_relu2_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/elementwise.metal	tf_scale_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/embed_norm.metal	tf_embed_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/embed_norm.metal	tf_embed_b6_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/embed_norm.metal	tf_embed_b8_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/embed_norm.metal	tf_embed_rms_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/embed_norm.metal	tf_rms_norm_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/gemv.metal	tf_gemv_bf16_tm4	-	ok	ok	ok	ok			ok	ok	
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	ok	ok			ok	ok	
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	ok	ok			ok	ok	
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	ok	ok			ok	ok	
+tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_b6_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_fast_b4_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_fast_b6_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_fast_b8_g64	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v2	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v3	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v4	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b4_g64_v5	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v2	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v3	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v4	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b6_g64_v5	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v2	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v3	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v4	-	ok	ok	ok	ok			ok	ok	
+tf	ops/qmv.metal	tf_qmv_wide_b8_g64_v5	-	ok	ok	ok	ok			ok	ok	
+tf	ops/route.metal	tf_route_topk	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_2p1_d128	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_2p1_d128_cqt	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_2p1_gqa16_d128	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_2p2_d128	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_vec_d128	-	ok	ok	ok	ok			ok	ok	
+tf	ops/sdpa.metal	tf_sdpa_vec_d128_cqt	-	ok	ok	ok	ok			ok	ok	
+tf	ops/softmax.metal	tf_softmax_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	ops/softmax.metal	tf_softmax_looped_bf16	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_n_n_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_n_t_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_n_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_t_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/conv.metal	custom_kernel_tf_conv1d_depthwise_bf16_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_attn.metal	tf_idx_scores_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_attn.metal	tf_mma_peak	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_attn.metal	tf_sattn_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_act	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_copy	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gather_rows	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gdn_post	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gdn_pre	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gdn_scan	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gdn_scan4	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_gdn_scan8	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_hc_act	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_hc_mix	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_hc_normed	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_offsets	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_route	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_router	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_scatter_y	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_prompt.metal	pf_sort	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_select.metal	fz_idx_pool_abs	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/fn_select.metal	fz_sel_meta	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_n_n_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_n_t_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_t_n_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_bf16_n_t_t_t_n_64_128_256_2_4_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_n_n_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_t_n_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_n_n_t_n_t_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_t_t_t_t_n_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_nax_f32_t_t_t_t_t_64_128_256_2_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_nax_bf16_n_t_n_t_64_64_256_2_2_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_nax_bf16_n_t_t_t_64_64_256_2_2_bfloat16_t_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemm_nax.metal	custom_kernel_tf_gemm_splitk_sum_bf16_float_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/gemv.metal	custom_kernel_tf_gemv_rows_f32_4_4_4_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_conv_act_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_conv_keep_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_conv_pack_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_exp_f32_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_kv_put_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_mamba_a_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_mamba_dt_bfloat16_t_bfloat16_t_float_bfloat16_t_int32_t_float_float_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_mamba_gate_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_mamba_skip_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_rows_of_uint32_t_int32_t_uint32_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_rows_take_bfloat16_t_uint32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_scale_cols_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_segsum_in_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_b_heads_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_c_f32_bfloat16_t_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_decay_float_bfloat16_t_int32_t_float_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_dtx_decay_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_state_carry_float_float_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/glue.metal	custom_kernel_tf_ssd_y_out_float_float_float_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_expert_offsets6	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_32	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_64	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_128	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_32	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_64	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax_128	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax_b.metal	tf_attn256_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax_b.metal	tf_mm_bf16_f32_t_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax_b.metal	tf_parts_sum	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm6_nax_b.metal	tf_qmm6_splitk_nax	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_expert_offsets_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_32_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_64_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_part_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_sum_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_t_nax_bf16_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/scan.metal	custom_kernel_tf_scan_sum_strided_f32_float_int32_t_float	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/sort.metal	custom_kernel_tf_sort_count_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/sort.metal	custom_kernel_tf_sort_inverse_uint32_t_int32_t_uint32_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/sort.metal	custom_kernel_tf_sort_place_uint32_t_int32_t_int32_t_uint32_t_uint32_t	-	ok	ok	ok	ok			ok	ok	
+tf	prefill/sort.metal	custom_kernel_tf_sort_starts_int32_t_int32_t_int32_t_int32_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/attn_merge.metal	custom_kernel_qwen35_attn_merge_float_float_float_int32_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/attn_partial.metal	custom_kernel_qwen35_attn_partial_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_float_float_float	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/gdn_chain.metal	custom_kernel_qwen35_gdn_chain__bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_float_int32_tc_bfloat16_t_float	bfloat16_t	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/gdn_post.metal	custom_kernel_qwen35_gdn_post_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/gdn_pre.metal	custom_kernel_qwen35_gdn_pre_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/layout.metal	qwen35_attention_gate	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/layout.metal	qwen35_embed	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/layout.metal	qwen35_head_norm	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/layout.metal	qwen35_keys	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/layout.metal	qwen35_queries	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/mlp_act.metal	custom_kernel_qwen35_mlp_act_bfloat16_t_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/norm.metal	custom_kernel_qwen35_norm_bfloat16_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/norm_nores.metal	custom_kernel_qwen35_norm_nores_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_16_2048.metal	custom_kernel_qwen35_qmm_16_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_2048_2048.metal	custom_kernel_qwen35_qmm_2048_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_2048_6144.metal	custom_kernel_qwen35_qmm_2048_6144_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_248320_2048.metal	custom_kernel_qwen35_qmm_248320_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_4096_2048.metal	custom_kernel_qwen35_qmm_4096_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_512_2048.metal	custom_kernel_qwen35_qmm_512_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	qwen3_5/qmm_6144_2048.metal	custom_kernel_qwen35_qmm_6144_2048_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_floatc_bfloat16_t	-	ok	ok	ok	ok			ok	ok	
+tf	runtime_tests.metal	tf_affine	-	ok	ok	ok	ok			ok	ok	
+tf	runtime_tests.metal	tf_mix	-	ok	ok	ok	ok			ok	ok	
+tf	runtime_tests.metal	tf_round	-	ok	ok	ok	ok			ok	ok	
+tf	runtime_tests.metal	tf_step	-	ok	ok	ok	ok			ok	ok	
+tf	runtime_tests.metal	tf_vadd	-	ok	ok	ok	ok			ok	ok	
+uzu	activation/activation.metal	Activation_v0	half	ok	ok	ok	ok			ok	ok	
+uzu	activation/activation.metal	Activation_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	activation_transform/activation_transform.metal	ActivationTransform_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	activation_transform/activation_transform.metal	ActivationTransform_v1	bfloat, bfloat	ok	ok	ok	ok			ok	ok	
+uzu	activation_transform/trellis.metal	TrellisTransform_v0	4096	ok	ok	ok	ok			ok	ok	
+uzu	activation_transform/trellis.metal	TrellisTransform_v1	19968	ok	ok	ok	ok			ok	ok	
+uzu	attention/ancestor_attention.metal	AncestorAttention_v0	128	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_fallback.metal	AttentionFallbackScatterScores_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_fallback.metal	AttentionFallbackScatterValues_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_gemm.metal	AttentionGemm_v0	bfloat, 32, 64, false	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_gemm.metal	AttentionGemm_v1	bfloat, 32, 64, true	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_prepare.metal	AttentionPrepare_v0	bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v0	float, 64	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_single_pass.metal	AttentionSinglePass_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v0	float, 64	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass1_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v0	float, 64	ok	ok	ok	ok			ok	ok	
+uzu	attention/attention_two_pass.metal	AttentionTwoPass2_v1	bfloat, 512	ok	ok	ok	ok			ok	ok	
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v0	bfloat, 128	ok	ok	ok	ok			ok	ok	
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGroupedCombine_v1	bfloat, 256	ok	ok	ok	ok			ok	ok	
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v0	bfloat, 32, 128, 2	ok	ok	ok	ok			ok	ok	
+uzu	attention/gemm_grouped/attention_gemm_grouped.metal	AttentionGemmGrouped_v1	bfloat, 32, 256, 4	ok	ok	ok	ok			ok	ok	
+uzu	attention/kv_cache_update.metal	KVCacheUpdate_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	attention/kv_cache_update.metal	KVCacheUpdate_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	attention/qkv_norm.metal	QKVNorm_v0	float, float, float, float	ok	ok	ok	ok			ok	ok	
+uzu	attention/qkv_norm.metal	QKVNorm_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	attention/sigmoid_gate.metal	SigmoidGate_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	attention/sigmoid_gate.metal	SigmoidGate_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	convolution/separable_causal_conv.metal	SeparableCausalConv_v0	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	embedding/input_embedding_lookup.metal	InputEmbeddingLookup_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	gated_act_mul/gated_act_mul.metal	GatedActMul_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v0	32	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/a_diag_inv.metal	DeltaNetChunkedADiagInv_v1	64	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/causal_inv.metal	DeltaNetChunkedCausalInv_v0	32, 16	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/causal_inv.metal	DeltaNetChunkedCausalInv_v1	64, 32	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/cumsum.metal	DeltaNetChunkedCumsum_v0	32	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/cumsum.metal	DeltaNetChunkedCumsum_v1	64	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/gram.metal	DeltaNetChunkedGram_v0	128, 32	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/gram.metal	DeltaNetChunkedGram_v1	128, 64	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/output_and_state.metal	DeltaNetChunkedOutputAndState_v0	float, float, float, 128, 32, false	ok	ok	ok	ok			ok	ok	
+uzu	gdn/chunked/output_and_state.metal	DeltaNetChunkedOutputAndState_v1	bfloat, bfloat, bfloat, 128, 32, true	ok	ok	ok	ok			ok	ok	
+uzu	gdn/conv_scan.metal	DeltaNetConvScan_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	gdn/conv_scan.metal	DeltaNetConvScan_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gdn/conv_update.metal	DeltaNetConvUpdate_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	gdn/conv_update.metal	DeltaNetConvUpdate_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gdn/norm_gate.metal	DeltaNetNormGate_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	gdn/norm_gate.metal	DeltaNetNormGate_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gdn/prefill.metal	DeltaNetPrefill_v0	float, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/prefill.metal	DeltaNetPrefill_v1	bfloat, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/prefill_prep.metal	DeltaNetPrefillPrep_v0	float, float, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/prefill_prep.metal	DeltaNetPrefillPrep_v1	bfloat, bfloat, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/out.metal	BuildTreeOut_v0	float, float, false, false	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/prefix.metal	BuildTreePrefix	-	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v0	float, false	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v0	float, 16	ok	ok	ok	ok			ok	ok	
+uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v1	bfloat, 32	ok	ok	ok	ok			ok	ok	
+uzu	gdn/update.metal	DeltaNetUpdate_v0	float, 128	ok	ok	ok	ok			ok	ok	
+uzu	gdn/update.metal	DeltaNetUpdate_v1	bfloat, 128	ok	ok	ok	ok			ok	ok	
+uzu	logit_transform/logit_transform.metal	LogitTransform_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	logit_transform/logit_transform.metal	LogitTransform_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm.metal	Gemm_v0	bfloat, bfloat, bfloat, GemmTiling::Tile8x32x32_Simdgroups1x	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm.metal	Gemm_v1	float, bfloat, float, GemmTiling::Tile128x128x256_Simdgroups	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	ok	ok	ok	ok			ok	ok	
+uzu	matmul/gemv/gemv.metal	Gemv_v1	float, bfloat, float, GemmBPrologueKind::ScaleSymmetricDequa	ok	ok	ok	ok			ok	ok	
+uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok			ok	ok	
+uzu	normalization/normalization.metal	Normalization_v1	bfloat, bfloat, bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	pooling/pooling.metal	PoolingMean_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	pooling/pooling.metal	PoolingMean_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	radix_top_k_small.metal	RadixTopKSmallCollect	-	ok	ok	ok	ok			ok	ok	
+uzu	radix_top_k_small.metal	RadixTopKSmallPass	-	ok	ok	ok	ok			ok	ok	
+uzu	sampling/context_ring_update.metal	ContextRingUpdate	-	ok	ok	ok	ok			ok	ok	
+uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	sampling/repetition_penalty.metal	RepetitionPenalty_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	sampling/unified_sampling.metal	UnifiedSampling_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	sampling/unified_sampling.metal	UnifiedSampling_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvDecode_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvDecode_v1	bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvPack_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvPack_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvPrefill_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvPrefill_v1	bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvTrie_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	short_conv/short_conv.metal	ShortConvTrie_v1	bfloat, float	ok	ok	ok	ok			ok	ok	
+uzu	softmax/softmax.metal	Softmax_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	softmax/softmax.metal	Softmax_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dDecode_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dDecode_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dPack_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dPack_v1	bfloat, bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dScan_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/conv1d.metal	Conv1dScan_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/split_inproj.metal	SplitInProj_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/split_inproj.metal	SplitInProj_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_prefill.metal	SSDPrefill64_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_prefill.metal	SSDPrefill64_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_prefill.metal	SSDPrefill_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_prefill.metal	SSDPrefill_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_update.metal	SSDUpdate_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	ssm/ssd_update.metal	SSDUpdate_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	tensor_add_bias/tensor_add_bias.metal	TensorAddBias_v0	float, float	ok	ok	ok	ok			ok	ok	
+uzu	tensor_add_bias/tensor_add_bias.metal	TensorAddBias_v1	bfloat, bfloat	ok	ok	ok	ok			ok	ok	
+uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v0	float	ok	ok	ok	ok			ok	ok	
+uzu	tensor_add_scale/tensor_add_scale.metal	TensorAddScale_v1	bfloat	ok	ok	ok	ok			ok	ok	
+uzu	weaver/weaver_frontier_insert_children.metal	WeaverFrontierInsertChildren	-	ok	ok	ok	ok			ok	ok	
+uzu	weaver/weaver_frontier_select.metal	WeaverFrontierSelect	-	ok	ok	ok	ok			ok	ok	
+uzu	weaver/weaver_top_children.metal	WeaverTopChildren	-	ok	ok	ok	ok			ok	ok	
