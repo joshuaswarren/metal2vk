@@ -353,7 +353,7 @@ KERNELS = [
        ("scale", "f32", (1,), f"c:[{_fbits(0.0625)}]"),
        ("k_size", "i32", (1,), "c:[256]")],
       [("out", "bf16", (8192,))]),
-    K("qwen35_ragged_sdpa_2p1", "moe", (2, 2, 4), (32, 8, 1),
+    K("qwen35_ragged_sdpa_2p1", "moe", (2, 1, 4), (32, 8, 1),
       [("T", "bf16"), ("D_SIZE", 256), ("V_SIZE", 256), ("NUM_Q_HEADS", 16),
        ("NUM_KV_HEADS", 2), ("GQA_FACTOR", 8), ("BLOCKS", 4)],
       [("queries", "bf16", (8192,), "rand"), ("keys", "bf16", (262144,), "rand"),
@@ -363,7 +363,11 @@ KERNELS = [
       [("partials", "bf16", (32768,)), ("sums", "f32", (128,)),
        ("maxs", "f32", (128,))],
       launch_grid=(64, 8, 4),
-      note="launch grid recorded from the artifact (threads); grid / tg gives the workgroup counts"),
+      note="artifact launch (64, 8, 4) threads / (32, 8, 1) tg = (2, 1, 4) "
+           "workgroups: one batch workgroup, so batch_idx only takes 0 and "
+           "partials[16384:], sums[64:], maxs[64:] are never written by the "
+           "real call (the reference zeros that hole and comparisons flag "
+           "it); kv heads and blocks are fully covered"),
     K("qwen35_ragged_sdpa_2p2", "moe", (1024, 32, 1), (1024, 1, 1),
       [("T", "bf16"), ("D_SIZE", 256), ("BLOCKS", 4)],
       [("partials", "bf16", (32768,), "rand"), ("sums", "f32", (128,), "rand"),

@@ -96,7 +96,7 @@ sequential-sum `simd` reductions) and `refs_router.py` is the worked example.
 reference, checking names, shapes, dtypes and finiteness; it runs as part of
 `sweep/tests/run.py`.
 
-Two references settle the disagreements of the first G13G run:
+Three references settle the disagreements of the G13G runs:
 
 - Router top-k selects over the softmax probabilities ROUNDED TO BF16
   (`vals[s*4+i] = float(static_cast<T>(...))` in the MSL), with ties broken
@@ -111,8 +111,17 @@ Two references settle the disagreements of the first G13G run:
   final add). The op-for-op simulation is bit-identical to the metal2vk
   output; the earlier float64/one-rounding reference differed by up to 0.094
   purely from the per-op roundings.
+- `chain_attn_partial`'s kv head is fixed by the row build, not by a second
+  index map: the reference built per-query-head k/v blocks through the
+  kv-head row bases and then indexed them AGAIN with the head map, so the
+  head-1 query halves (qh 8..15) were scored against kv head 0's keys and
+  values in every split, including the tail. With the double map dropped the
+  reference matches the metal2vk output on all 20640 elements (max rel
+  2.9e-6). An independent op-for-op simulation written from the MSL before
+  looking at any dump reproduced the metal2vk output, which is what settled
+  reference-vs-kernel.
 
-Neither disagreement is a metal2vk translation defect.
+None of the three is a metal2vk translation defect.
 
 ## Compare-only mode
 
@@ -146,6 +155,18 @@ their outputs; that produced nondeterministic output blocks and the geometry
 "over-launch" findings recorded earlier, all of which were this mistake and not
 properties of the artifacts: for example the gate+up grid (32, 2306, 1) with
 threadgroup (32, 2, 1) is exactly 1153 workgroups).
+
+A launch can also UNDER-cover its template, and then the hole is a property of
+the real call, not a defect: `qwen35_ragged_sdpa_2p1`'s artifact launch is
+(64, 8, 4) threads over (32, 8, 1) threadgroups = (2, 1, 4) workgroups, so
+`batch_idx` only ever takes 0 and the kernel never writes
+`partials[16384:]`, `sums[64:]` or `maxs[64:]` (the batch-1 half the template
+could cover with a wider launch). The reference derives its workgroup counts
+from `launch_grid / tg`, simulates only the launched workgroups, zeros the
+never-written region (the `verify_step_states` convention) and its table row
+says exactly which outputs the real launch leaves unwritten. The harness
+buffers stay template-sized: the reference slices them to the launched
+prefix.
 
 ## Dry run (no GPU)
 

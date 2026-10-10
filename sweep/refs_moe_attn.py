@@ -154,21 +154,37 @@ def ref_qwen35_ragged_sdpa_2p1(kern, inputs):
     every BLOCKS-th row (i = pad + block, block+4, ...), gqa_idx selects the
     query head (q_head = 8*kv + gqa). Same online softmax as 1p but NO
     cross-block merge: partials keep the UNNORMALIZED o rounded to bf16,
-    sums/maxs keep this block's denominator and running max."""
+    sums/maxs keep this block's denominator and running max.
+
+    Geometry is the ARTIFACT LAUNCH, not the template's full extent:
+    launch_grid (threads) / threadgroup = the workgroup counts the real
+    oMLX call dispatches. For the pinned template that is (2, 1, 4): x
+    covers both kv heads, z all 4 blocks, but y is ONE batch workgroup, so
+    batch_idx only takes 0 and q_batch_head_idx stays below 16. The kernel
+    as shipped never writes partials[16384:], sums[64:] or maxs[64:] (the
+    batch-1 half of the declared outputs); the reference zeros that hole
+    (the verify_step_states convention) and the comparison flags it. The
+    template still supports a batch axis: a wider launch would compute it."""
     t = dict((n, v) for n, v in kern["tmpl"])
     qh_n, kvh, gqa = (int(t["NUM_Q_HEADS"]), int(t["NUM_KV_HEADS"]),
                       int(t["GQA_FACTOR"]))
-    blocks = int(kern["grid"][2])
+    launch = kern.get("launch_grid")
+    wg = (tuple(int(a) // int(b) for a, b in zip(launch, kern["tg"]))
+          if launch else kern["grid"])  # real workgroup counts
+    blocks = wg[2]
     k_size = int(np.asarray(inputs["k_size"]).reshape(-1)[0])
     pads = np.asarray(inputs["pads"], np.int32).reshape(-1)
     scale = np.float32(np.asarray(inputs["scale"], np.float32).reshape(-1)[0])
-    B = int(kern["grid"][1])
+    B = wg[1]
     lanes = int(kern["tg"][0])
     dpt = 256 // lanes
     qbh_n = B * qh_n
-    q = (BF(inputs["queries"]).reshape(qbh_n, lanes, dpt) * scale)
-    keys = BF(inputs["keys"]).reshape(B * kvh, k_size, 256)
-    vals = BF(inputs["values"]).reshape(B * kvh, k_size, 256)
+    # the harness buffers are sized for the template's full batch extent
+    # (here 32 q-heads); the launch reads only the first B batch heads, so
+    # slice that prefix and simulate the launched workgroups
+    q = (BF(inputs["queries"]).reshape(-1, lanes, dpt)[:qbh_n] * scale)
+    keys = BF(inputs["keys"]).reshape(-1, k_size, 256)[:B * kvh]
+    vals = BF(inputs["values"]).reshape(-1, k_size, 256)[:B * kvh]
     # axes (b, kv, block, gqa, lane, ...)
     qb = ((np.arange(B) * qh_n)[:, None, None]
           + (8 * np.arange(kvh))[None, :, None]
@@ -203,11 +219,19 @@ def ref_qwen35_ragged_sdpa_2p1(kern, inputs):
             sm = sm * factor + e * valid
             o = o * factor[..., None, None] \
                 + (e * valid)[..., None, None] * vt
-        # partials[qbh*4*256 + block*256 + lane*8 + j], qbh = b*16 + 8*kv + gqa
-        pt = bf(o.transpose(0, 1, 3, 2, 4, 5)) \
-            .reshape(B * qh_n * blocks * 256)
-        st = sm.transpose(0, 1, 3, 2).reshape(qbh_n * blocks)
-        mt = mx.transpose(0, 1, 3, 2).reshape(qbh_n * blocks)
+        # partials[qbh*4*256 + block*256 + lane*8 + j], qbh = b*16 + 8*kv + gqa.
+        # The declared outputs cover the template's full batch extent, but the
+        # launch only computes batches < B: everything at or beyond
+        # q_batch_head B*qh_n stays zero here (the kernel never writes it) and
+        # the comparison flags that hole against the poisoned dumps.
+        outs = dict((o[0], int(np.prod(o[2]))) for o in kern["outputs"])
+        pt = np.zeros(outs["partials"], np.uint16)
+        pt[:B * qh_n * blocks * 256] = \
+            bf(o.transpose(0, 1, 3, 2, 4, 5)).reshape(-1)
+        st = np.zeros(outs["sums"], np.float32)
+        st[:B * qh_n * blocks] = sm.transpose(0, 1, 3, 2).reshape(-1)
+        mt = np.zeros(outs["maxs"], np.float32)
+        mt[:B * qh_n * blocks] = mx.transpose(0, 1, 3, 2).reshape(-1)
     return {"partials": pt, "sums": st, "maxs": mt}
 
 
