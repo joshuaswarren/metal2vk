@@ -45,21 +45,191 @@ On status ok, DIR holds exactly two files:
 A kernel name longer than 200 bytes (mlx instantiation names can be) truncates the file stem to 140 bytes plus 12
 hex characters of the name's sha256; `name` in the JSON and the `--json` line always carry the full name.
 
-## Status and exit codes
+## Reflection schema
 
-| exit | status | meaning |
+Top-level fields of `<name>.json`:
+
+| field | type | meaning |
 | --- | --- | --- |
-| 0 | `ok` | DIR received `<name>.spv` and `<name>.json` |
-| 2 | `error` | usage: missing `--msl`, bad `--timeout`, no entry by that name, ambiguous selection, a file with zero or several entries and no `--name`, a template kernel without an instantiation |
-| 3 | `refused` | a Metal feature known untranslatable (Metal 4 tensor ops): stdout prints `refused: <construct> in kernel <name>` |
-| 4 | `error` | compile error or timeout: the first diagnostic goes to stderr, the full command log to `<cache>/logs/<key>.log` (path in the message) |
-| 5 | `error` | the module was produced but `spirv-val` rejects it |
+| `module` | string | the SPIR-V file this description came from, relative to the output directory |
+| `name` | string | the selected kernel's name (also the output file stem) |
+| `kernel` | object | the selected kernel; same object as `kernels[i]` |
+| `kernels` | array | every kernel in the module; one compile produces exactly one |
+| `capabilities` | string array | `OpCapability` names, e.g. `["Shader"]` |
+| `extensions` | string array | `OpExtension` strings, e.g. `SPV_KHR_non_semantic_info` |
+| `uses_cooperative_matrix` | bool | the `CooperativeMatrixKHR` capability is present |
+| `workgroup_size_spec_constant_ids` | int[3] or null | the three spec ids for the x, y, z workgroup size when the size is spec-constant driven |
+| `push_constant_regions` | object | clspv's own push-constant blocks, name to `{"offset", "size"}`; the pipeline's push-constant range must cover these plus every `pod_push_constant` argument |
+| `toolchain` | object | the cache fingerprint: `clang`, `opt`, `clspv` version strings; `clspv_sha256`, `include_sha256`, `clspv_patches_sha256`, `sources_sha256` (64 hex each) |
+
+`kernel`:
+
+| field | type | meaning |
+| --- | --- | --- |
+| `name` | string | the kernel name in the module |
+| `workgroup_size` | int[3] or null | the fixed `[x, y, z]` when the module declares one; null means the spec-constant path above, which is what MSL input produces (Metal has no `reqd_work_group_size`) |
+| `args` | array | the kernel's Vulkan arguments in kernel-argument order, `ordinal` ascending |
+
+Each element of `kernel.args` (fields outside an argument's kind are absent):
+
+| field | type | kinds | meaning |
+| --- | --- | --- | --- |
+| `ordinal` | int | all | position in the kernel's argument order |
+| `kind` | string | all | `storage_buffer`, `uniform_buffer`, `pod_push_constant`, `pod_buffer`, `workgroup_memory` |
+| `set`, `binding` | int | `storage_buffer`, `uniform_buffer`, `pod_buffer` | descriptor set and binding to bind the buffer at |
+| `offset`, `size` | int | `pod_push_constant` (`pod_buffer` too) | byte range inside the push-constant block (or the POD buffer) |
+| `spec_id`, `elem_size` | int | `workgroup_memory` | set the spec constant `spec_id` to the element count the host passes; elements are `elem_size` bytes |
+| `metal_name`, `metal_type`, `metal_dims` | string | when the ordinal maps to a declared Metal argument | the Metal-side declaration; clspv drops unused arguments, so an ordinal can lack them |
+
+## Worked example
+
+Input, an mlx-style kernel with storage buffers, a by-value scalar and threadgroup scratch (the 32 sibling
+kernels are all storage-buffer-only: TensorFold lowers Metal threadgroup declarations to in-body storage, so no
+sibling exercises all three kinds and this minimal kernel stands in; every JSON line below is a real run):
+
+```metal
+template <typename T>
+[[kernel]] void block_sum(device const T* values [[buffer(0)]],
+                          device T* partials [[buffer(1)]],
+                          const uint count,
+                          threadgroup T* scratch,
+                          uint gid [[thread_position_in_grid]],
+                          uint lid [[thread_position_in_threadgroup]],
+                          uint lsize [[threads_per_threadgroup]],
+                          uint2 tgid [[threadgroup_position_in_grid]]) { ... }
+template [[host_name("block_sum_f32")]] [[kernel]] decltype(block_sum<float>) block_sum<float>;
+```
+
+`m2v-compile --msl block_sum.metal --out DIR --json` exits 0 and writes `block_sum_f32.spv` and
+`block_sum_f32.json`:
+
+```json
+{
+ "module": "block_sum_f32.spv",
+ "capabilities": ["Shader"],
+ "extensions": ["SPV_KHR_non_semantic_info"],
+ "uses_cooperative_matrix": false,
+ "workgroup_size_spec_constant_ids": [0, 1, 2],
+ "push_constant_regions": {
+  "PushConstantRegionOffset": {"offset": 0, "size": 12},
+  "PushConstantRegionGroupOffset": {"offset": 16, "size": 12}
+ },
+ "kernels": [ { "...": "the one entry shown under kernel" } ],
+ "name": "block_sum_f32",
+ "kernel": {
+  "name": "block_sum_f32",
+  "args": [
+   {"ordinal": 0, "kind": "storage_buffer", "set": 0, "binding": 0,
+    "metal_name": "values", "metal_type": "device const float*"},
+   {"ordinal": 1, "kind": "storage_buffer", "set": 0, "binding": 1,
+    "metal_name": "partials", "metal_type": "device float*"},
+   {"ordinal": 2, "kind": "pod_push_constant", "offset": 32, "size": 4,
+    "metal_name": "count", "metal_type": "const uint"}
+  ],
+  "workgroup_size": null
+ },
+ "toolchain": {"clang": "clang version 23.1.1 (...)", "opt": "LLVM (http://llvm.org/):",
+  "clspv": "LLVM (http://llvm.org/):", "clspv_sha256": "00bc...65", "include_sha256": "465c...50",
+  "clspv_patches_sha256": "9557...5e", "sources_sha256": "36e3...38"}
+}
+```
+
+(the only elisions are the repeated `kernels` entry and the 64-hex hashes), and how an omarchy-mlx style
+dispatcher maps it:
+
+- `values`, `partials`: descriptor set 0, bindings 0 and 1, `VK_DESCRIPTOR_TYPE_STORAGE_BUFFER`.
+- `count`: push constant, uint at byte 32. The push-constant block must also cover clspv's own regions
+  (`PushConstantRegionOffset` at 0..12, `PushConstantRegionGroupOffset` at 16..28), so declare 36 bytes and write
+  the region words the m2v host writes (zeros for a dispatch at offset 0, else the element offsets).
+- workgroup size: `workgroup_size` is null, so set spec constants with ids 0, 1, 2 to the threadgroup x, y, z via
+  `VkSpecializationInfo` at pipeline creation. A module with a fixed size reports it in `workgroup_size` instead.
+- the `threadgroup T* scratch` parameter: lowered to a fixed module-scope Workgroup array (4096 elements of the
+  element type in this build). Nothing to bind, no spec id, and no `workgroup_memory` argument appears: attr-style
+  MSL kernels never produce one. `workgroup_memory` (set spec constant `spec_id` to the element count) comes only
+  from the uzu DSL route today.
+- grid and threadgroup counts: from the caller, as in Metal dispatch (ceil over the threadgroup dims).
+
+## Status and exit codes
 
 No SPIR-V or JSON is ever written to DIR for a non-ok status, and a refusal or error caches nothing.
 
+| exit | stdout (no `--json`) | stderr | the integrator should |
+| --- | --- | --- | --- |
+| 0 | nothing | nothing | load `DIR/<name>.spv` and `DIR/<name>.json` |
+| 2 | nothing | `error: <reason>` | fix the call; surface the line. Observed reasons, verbatim: `error: no such file: PATH`, `error: --timeout must be positive`, `error: CLANG=TOOL is not runnable; the toolchain is the sweep's (CLANG, OPT, CLSPV, SPIRV_VAL)` (likewise `OPT=`, `CLSPV=`, `SPIRV_VAL=`), `error: file does not hold exactly one entry; pass --name (N entries or instantiations)` (also what a template with no instantiation looks like without `--name`), and under `--name`: `error: no kernel entry named 'NAME'`, `error: name 'NAME' matches N entries or instantiations`, `error: template kernel without host_name instantiation` |
+| 3 | `refused: CONSTRUCT in kernel NAME` | nothing | do not retry: the kernel needs a Metal 4 tensor-op lowering that does not exist (CONSTRUCT is `dextents`, `tensor<` or `mpp::`) |
+| 4 | nothing | `error: FIRST-DIAGNOSTIC (log: PATH)` | surface the diagnostic and keep PATH: the full command log of the failed compile. A stage past `--timeout` has the shape `error: TOOL timed out after N s in kernel NAME (log: PATH)` |
+| 5 | nothing | `error: FIRST-VALIDATOR-LINE (log: PATH)` | same; the module is invalid. The line literally begins `error: error: line ...`: the tool's prefix plus spirv-val's own |
+
 With `--json`, stdout carries exactly one line: `status` (`ok`, `refused`, `error`), `cache` (`hit` or `miss`),
-and for ok also `name`, `key` (the cache key, short), `spv`, `json` and `seconds`; for errors `exit`, `seconds`,
-`detail` and, where one exists, `log`.
+and for ok also `name`, `key` (the cache key, short), `spv`, `json` and `seconds`; for `refused` also `refused`
+(the construct) and `kernel`; for errors `exit`, `seconds`, `detail` and, where one exists, `log`. The exit code
+and `status` are the machine contract; stderr is for humans.
+
+## Calling it from C++
+
+fork/exec with the arguments in argv, capture both pipes, switch on the exit code; the one `--json` stdout line is
+the machine-readable result and stderr is the diagnostic. The tool enforces `--timeout` per stage itself, so the
+caller only needs a generous wall-clock cap to guard a wedged child, and killing the child's process group takes
+the whole compiler tree down. This exact program compiles and runs (g++ 12, against the tool in this repo):
+
+```cpp
+struct M2vRun { int exit_code = -1; std::string json_line, diagnostics; };
+
+static M2vRun m2v_compile(const std::string& tool, const std::string& msl, const std::string& out_dir,
+                          const std::string& cache_dir, const std::string& name,
+                          int stage_timeout = 120, int wall_cap_s = 600) {
+  int out_pipe[2], err_pipe[2];
+  if (pipe(out_pipe) || pipe(err_pipe)) return {};
+  std::vector<std::string> args = {tool, "--msl", msl, "--out", out_dir, "--cache", cache_dir,
+                                   "--timeout", std::to_string(stage_timeout), "--json"};
+  if (!name.empty()) { args.push_back("--name"); args.push_back(name); }
+  std::vector<char*> argv;
+  for (auto& a : args) argv.push_back(a.data());
+  argv.push_back(nullptr);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    dup2(out_pipe[1], STDOUT_FILENO);
+    dup2(err_pipe[1], STDERR_FILENO);
+    close(out_pipe[0]); close(out_pipe[1]); close(err_pipe[0]); close(err_pipe[1]);
+    setpgid(0, 0); // own process group, so the cap below can kill compiler and children together
+    execvp(tool.c_str(), argv.data());
+    _exit(127);
+  }
+  close(out_pipe[1]); close(err_pipe[1]);
+
+  M2vRun run;
+  char buf[4096];
+  ssize_t n;
+  while ((n = read(out_pipe[0], buf, sizeof buf)) > 0) run.json_line.append(buf, n);
+  while ((n = read(err_pipe[0], buf, sizeof buf)) > 0) run.diagnostics.append(buf, n);
+  close(out_pipe[0]); close(err_pipe[0]);
+
+  int status = 0;
+  for (int waited = 0;;) {
+    pid_t r = waitpid(pid, &status, WNOHANG);
+    if (r == pid) break;
+    if (++waited > wall_cap_s) { // kill the whole group: the tool is past its own deadline
+      kill(-pid, SIGKILL);
+      waitpid(pid, &status, 0);
+      run.exit_code = 4;
+      return run;
+    }
+    sleep(1);
+  }
+  run.exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 4;
+  return run;
+}
+```
+
+`tool` is the path to the installed `m2v-compile` script (it needs only python3 at runtime); exit 127 from the
+child means that path did not execute. On 0, load the two paths from the JSON line. On 3, blacklist the kernel
+until a Metal 4 lowering lands. On 4 or 5, log `diagnostics` and the `log` path, and treat the cache key as
+burned for this toolchain (the failure is cached nowhere, so a retry after a fix simply misses). The toolchain
+environment the child inherits is the sweep's: `CLANG`, `OPT`, `CLSPV`, `SPIRV_VAL` (paths or PATH names),
+`M2V_INCLUDE`, `M2V_OPT`, `M2V_DEFS`; give the child an explicit `M2V_CACHE_DIR` (or `--cache`) so the shared
+cache lands where the host wants it. `M2V_CLSPV_TIMEOUT` is ignored: `--timeout` governs every stage.
 
 ## Cache
 
