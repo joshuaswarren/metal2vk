@@ -29,8 +29,30 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pass_cpp.read_text()
-if "M2vFoldOk" in s.split("bool clspv::SimplifyPointerBitcastPass::runOnImplicitCasts")[-1]:
+if "M2V-GIVEUP: implicit-casts-skip" in s:
     print("already patched")
+    sys.exit(0)
+
+# v2 upgrade: a tree carrying the v1 skip (without the marker) is upgraded in
+# place - only the marker line is inserted.
+v1_skip = (
+    "    if (!M2vFoldOk) {\n"
+    "      // metal2vk: leave the entry alone; it is valid IR and the pass must not\n"
+    "      // report progress on a fold it did not perform.\n"
+    "      continue;\n"
+    "    }\n"
+)
+if "M2vFoldOk" in s and v1_skip in s:
+    s = s.replace(
+        v1_skip,
+        v1_skip.replace(
+            "      continue;",
+            '      errs() << "M2V-GIVEUP: implicit-casts-skip\\n";\n      continue;',
+        ),
+        1,
+    )
+    pass_cpp.write_text(s)
+    print(f"patched (clspv HEAD {sha[:8]})")
     sys.exit(0)
 
 # 1. declare the flag inside the fold loop (after the builder, before the branches)
@@ -81,6 +103,7 @@ new = (
     "    if (!M2vFoldOk) {\n"
     "      // metal2vk: leave the entry alone; it is valid IR and the pass must not\n"
     "      // report progress on a fold it did not perform.\n"
+    '      errs() << "M2V-GIVEUP: implicit-casts-skip\\n";\n'
     "      continue;\n"
     "    }\n"
     "    auto new_gep = GetElementPtrInst::Create(src_ty, src, Idxs, \"\",\n"

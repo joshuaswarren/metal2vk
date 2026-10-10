@@ -27,7 +27,8 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pass_cpp.read_text()
-if "did not converge after 200 iterations" in s:
+marker = 'errs() << "M2V-GIVEUP: spb-200iter\\n";'
+if marker in s:
     print("already patched")
     sys.exit(0)
 
@@ -40,6 +41,7 @@ old = (
     "      exit(3);\n"
 )
 new = (
+    '      errs() << "M2V-GIVEUP: spb-200iter\\n";\n'
     '      errs() << "M2V: SimplifyPointerBitcast did not converge after 200 iterations;'
     ' continuing with the current IR\\n";\n'
     "      // metal2vk: the module at this point is valid IR; aborting (exit 3) turned\n"
@@ -47,7 +49,18 @@ new = (
     "      break;\n"
 )
 if old not in s:
-    raise SystemExit("anchor missing: exit(3) block in SimplifyPointerBitcastPass::run")
+    # v1 upgrade: a tree carrying the v1 text (cap break without the marker)
+    # is upgraded in place.
+    old1 = (
+        '      errs() << "M2V: SimplifyPointerBitcast did not converge after 200 iterations;'
+        ' continuing with the current IR\\n";\n'
+    )
+    if old1 not in s:
+        raise SystemExit("anchor missing: exit(3) block in SimplifyPointerBitcastPass::run")
+    s = s.replace(old1, '      errs() << "M2V-GIVEUP: spb-200iter\\n";\n' + old1, 1)
+    pass_cpp.write_text(s)
+    print(f"patched (clspv HEAD {sha[:8]})")
+    sys.exit(0)
 s = s.replace(old, new, 1)
 pass_cpp.write_text(s)
 print(f"patched (clspv HEAD {sha[:8]})")

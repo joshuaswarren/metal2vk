@@ -27,8 +27,30 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pass_cpp.read_text()
-if "M2vCastHash" in s:
+if "M2V-GIVEUP: implicit-casts-hash" in s:
     print("already patched")
+    sys.exit(0)
+
+# v1 upgrade: a tree carrying the v1 guard (hash state without the marker) is
+# upgraded in place - only the marker line is inserted.
+v1_guard = (
+    "      if (M2vCastHashValid && M2vH == M2vCastHash) {\n"
+    "        c[5] = false;\n"
+    "      }\n"
+)
+if "M2vCastHash" in s:
+    if v1_guard not in s:
+        raise SystemExit("anchor missing: v1 cast-hash guard")
+    s = s.replace(
+        v1_guard,
+        "      if (M2vCastHashValid && M2vH == M2vCastHash) {\n"
+        '        errs() << "M2V-GIVEUP: implicit-casts-hash\\n";\n'
+        "        c[5] = false;\n"
+        "      }\n",
+        1,
+    )
+    pass_cpp.write_text(s)
+    print(f"patched (clspv HEAD {sha[:8]})")
     sys.exit(0)
 
 # 1. includes
@@ -77,6 +99,7 @@ s = s.replace(
     "      M.print(M2vStream, nullptr);\n"
     "      size_t M2vH = std::hash<std::string>{}(M2vStream.str());\n"
     "      if (M2vCastHashValid && M2vH == M2vCastHash) {\n"
+    '        errs() << "M2V-GIVEUP: implicit-casts-hash\\n";\n'
     "        c[5] = false;\n"
     "      }\n"
     "      M2vCastHash = M2vH;\n"
