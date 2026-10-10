@@ -2,14 +2,14 @@
 
 The first message of every failing entry, grouped by stage and normalized message, largest first.
 
-## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (74)
+## spirv-val: spirv-val:error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc (32)
 
 ```
-error: line 11311: Header block '9081[%9081]' is contained in the loop construct headed by '992[%992]', but its merge block '12516[%12516]' is not
-  %9081 = OpLabel
+error: line 11317: Header block '9087[%9087]' is contained in the loop construct headed by '992[%992]', but its merge block '12524[%12524]' is not
+  %9087 = OpLabel
 ```
 
-Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `gdn/tree_verify/out.metal:BuildTreeOut_v1`, `gdn/tree_verify/tree_gram.metal:BuildTreeGram_v1`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v0`, `matmul/gemm/gemm_trellis.metal:GemmTrellis_v1`, `decode/fn_lane.metal:fz_lane`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g` and 66 more
+Entries: `gdn/chunked/output_and_state.metal:DeltaNetChunkedOutputAndState_`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_35e293dbee531073.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d-lanes.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_68a0697c6f38c26d.metal:custom_kernel_lane_qmm_bytes_g`, `flashnext/lane_qmm_bytes_grouped_6dc76fc8a1f7fac9-lanes.metal:custom_kernel_lane_qmm_bytes_g` and 24 more
 
 ## clspv: clspv:Invalid bitcast (6)
 
@@ -42,6 +42,14 @@ attention_attention_gemm_metal__AttentionGemm_v0_637ac307.cl:1502:20: error: no 
 
 Entries: `attention/attention_gemm.metal:AttentionGemm_v0`, `attention/attention_gemm.metal:AttentionGemm_v1`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v0`, `attention/gemm_grouped/attention_gemm_grouped.metal:AttentionGemmGrouped_v1`
 
+## clspv: clspv:MNV: SimplifyPointerBitcast does not converge; changing sub-passes: N N (3)
+
+```
+M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+```
+
+Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g64`, `ops/qmv.metal:tf_gather_qmv_b8_g64`
+
 ## front end: other: from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size (3)
 
 ```
@@ -51,15 +59,6 @@ ion_transform_activation_transform_metal__ActivationTransform_v1_669cf469.cl:274
 ```
 
 Entries: `activation_transform/activation_transform.metal:ActivationTransform_v1`, `gated_act_mul/gated_act_mul.metal:GatedActMul_v1`, `matmul/gemm/gemm_split_k_reduce.metal:GemmSplitKReduce_v1`
-
-## spirv-val: spirv-val:error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f (3)
-
-```
-error: line 392: OpAccessChain result type <id> '164[%uchar]' (OpTypeInt) does not match the type that results from indexing into the base <id> '1[%uint]' (OpTypeInt). (The types must be the exact same Id, so the two types referenced are slighlty different)
-  %166 = OpAccessChain %_ptr_StorageBuffer_uchar %163
-```
-
-Entries: `ops/qmv.metal:tf_gather_qmv_b4_g64`, `ops/qmv.metal:tf_gather_qmv_b6_g64`, `ops/qmv.metal:tf_gather_qmv_b8_g64`
 
 ## spirv-val: spirv-val:error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast (2)
 

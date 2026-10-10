@@ -43,7 +43,7 @@ tf	core/row_projection.metal	tf_row_projection_relu2_q6_f32	4, 2, 2, true, 6, fa
 tf	core/row_projection.metal	tf_row_projection_relu2_q8_bf16	4, 2, 2, true, 8, true	ok	ok	ok	ok			?	?	
 tf	core/row_projection.metal	tf_row_projection_relu2_q8_f32	4, 2, 2, true, 8, false	ok	ok	ok	ok			?	?	
 tf	decode/fn_gdn.metal	fz_gdn	-	ok	ok	ok	ok			?	?	
-tf	decode/fn_lane.metal	fz_lane	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	decode/fn_lane.metal	fz_lane	-	ok	ok	ok	ok			?	?	
 tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
 tf	flashnext/lane_qmm_bytes_grouped_1134f4f64c06078d.metal	custom_kernel_lane_qmm_bytes_grouped_1134f4f64c06078d_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
 tf	flashnext/lane_qmm_bytes_grouped_35e293dbee531073-lanes.metal	custom_kernel_lane_qmm_bytes_grouped_35e293dbee531073_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
@@ -144,7 +144,7 @@ tf	glm/sparse_attention.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9
 tf	glm/sparse_attention_tp.metal	custom_kernel_tf_glm5_indexed_sparse_attention_ad9e57bce4__512_2051_32_bfloat16_t_bfloat16_t_int32_t_floatc_int32_tc_bfloat16_t	512, 2051, 32	ok	ok	ok	ok			?	?	
 tf	glm_absorb_nax.metal	glm_absorb_nax	-	ok	ok	ok	ok			?	?	
 tf	glm_attn.metal	glm_latent_scores	-	ok	ok	ok	ok			?	?	
-tf	glm_attn.metal	glm_latent_values	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	glm_attn.metal	glm_latent_values	-	ok	ok	ok	ok			?	?	
 tf	glm_ep.metal	ep_amax_merge	-	ok	ok	ok	ok			?	?	
 tf	glm_ep.metal	ep_amax_send	-	ok	ok	ok	ok			?	?	
 tf	glm_ep.metal	ep_localize	-	ok	ok	ok	ok			?	?	
@@ -180,7 +180,7 @@ tf	glm_kda_prompt.metal	glm_kda_pre	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?
 tf	glm_kda_prompt.metal	glm_kda_pre_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
 tf	glm_kda_prompt.metal	glm_kda_scan	64, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
 tf	glm_kda_prompt.metal	glm_kda_scan_tp	32, 128, 4, 32, 4, 4	ok	ok	ok	ok			?	?	
-tf	glm_sparse_nax.metal	glm_sparse_nax	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	glm_sparse_nax.metal	glm_sparse_nax	-	ok	ok	ok	ok			?	?	
 tf	kimi/dense.metal	k3_glu_r1	1	ok	ok	ok	ok			?	?	
 tf	kimi/dense.metal	k3_glu_r2	2	ok	ok	ok	ok			?	?	
 tf	kimi/dense.metal	k3_glu_r4	4	ok	ok	ok	ok			?	?	
@@ -194,7 +194,7 @@ tf	kimi/dense.metal	k3_rows_f32_r1	float, 1	ok	ok	ok	ok			?	?
 tf	kimi/dense.metal	k3_rows_f32_r2	float, 2	ok	ok	ok	ok			?	?	
 tf	kimi/dense.metal	k3_rows_f32_r4	float, 4	ok	ok	ok	ok			?	?	
 tf	kimi/dense.metal	k3_rows_f32_r8	float, 8	ok	ok	ok	ok			?	?	
-tf	kimi/dense_mma.metal	k3_slice_mma	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	kimi/dense_mma.metal	k3_slice_mma	-	ok	ok	ok	ok			?	?	
 tf	kimi/dense_mma.metal	k3_slice_out_bf16	bfloat	ok	ok	ok	ok			?	?	
 tf	kimi/dense_mma.metal	k3_slice_out_f32	float	ok	ok	ok	ok			?	?	
 tf	kimi/experts.metal	k3_route_plan	-	ok	ok	ok	ok			?	?	
@@ -224,22 +224,22 @@ tf	kimi/synth.metal	k3_mma_peak	-	ok	ok	ok	ok			?	?
 tf	nemotron/add_norm_moe_xs.metal	custom_kernel_nemotron_add_norm_moe_xs_a50e79554f8d9c70__2688_896_6_bfloat16_t_bfloat16_t_float_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896, 6	ok	ok	ok	ok			?	?	
 tf	nemotron/add_norm_xs.metal	custom_kernel_nemotron_add_norm_xs_ff2bfad9575aba69__2688_896_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_t_bfloat16_t_bfloat16_t_float	2688, 896	ok	ok	ok	ok			?	?	
 tf	nemotron/attn_merge.metal	custom_kernel_lane_attention_merge_da4fb5aad03402b1__16_128_float_float_float_int32_tc_bfloat16_t	16, 128	ok	ok	ok	ok			?	?	
-tf	nemotron/attn_partial_1.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_1_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 1, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_10.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_10_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 10, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_11.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_11_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 11, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_12.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_12_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 12, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_13.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_13_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 13, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_14.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_14_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 14, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_15.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_15_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 15, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_16.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_16_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 16, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_2.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_2_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 2, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_3.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_3_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 3, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_4.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_4_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 4, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_5.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_5_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 5, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_6.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_6_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 6, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_7.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_7_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 7, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_8.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_8_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 8, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	nemotron/attn_partial_9.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_9_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 9, 512, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	nemotron/attn_partial_1.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_1_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 1, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_10.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_10_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 10, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_11.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_11_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 11, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_12.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_12_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 12, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_13.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_13_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 13, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_14.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_14_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 14, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_15.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_15_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 15, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_16.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_16_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 16, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_2.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_2_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 2, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_3.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_3_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 3, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_4.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_4_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 4, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_5.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_5_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 5, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_6.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_6_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 6, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_7.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_7_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 7, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_8.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_8_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 8, 512, 64	ok	ok	ok	ok			?	?	
+tf	nemotron/attn_partial_9.metal	custom_kernel_lane_attention_partial_direct_128_6cccc478a7f93fb5__16_128_9_512_64_bfloat16_t_bfloat16_t_bfloat16_t_floatc_int32_tc_float_float_float	16, 128, 9, 512, 64	ok	ok	ok	ok			?	?	
 tf	nemotron/coop_down_1_0.metal	custom_kernel_lane_qmm_coop_b8e6f3fa04e56ee6_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	nemotron/coop_down_2_0.metal	custom_kernel_lane_qmm_coop_04da295c6d1530b5_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	nemotron/coop_down_2_1.metal	custom_kernel_lane_qmm_coop_0cd515214a35d1de_bfloat16_t_float_uint32_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
@@ -331,7 +331,7 @@ tf	nemotron_tree.metal	tf_topk_probs	-	ok	ok	ok	ok			?	?
 tf	nemotron_tree.metal	tf_tree_conv	4096, 8, 128, 4, 10304, 4096	ok	ok	ok	ok			?	?	
 tf	nemotron_tree.metal	tf_tree_merge	16, 128, 512	ok	ok	ok	ok			?	?	
 tf	nemotron_tree.metal	tf_tree_scan	64, 64, 8, 128, 4096, 10304, 10240, 524288	ok	ok	ok	ok			?	?	
-tf	nemotron_tree.metal	tf_tree_tail	16, 128, 512, 64, 64	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	nemotron_tree.metal	tf_tree_tail	16, 128, 512, 64, 64	ok	ok	ok	ok			?	?	
 tf	ops/argmax.metal	tf_argmax_merge	-	ok	ok	ok	ok			?	?	
 tf	ops/argmax.metal	tf_argmax_part_bf16	-	ok	ok	ok	ok			?	?	
 tf	ops/elementwise.metal	tf_add_bf16	-	ok	ok	ok	ok			?	?	
@@ -348,12 +348,12 @@ tf	ops/embed_norm.metal	tf_embed_rms_b4_g64	-	ok	ok	ok	ok			?	?
 tf	ops/embed_norm.metal	tf_rms_norm_bf16	-	ok	ok	ok	ok			?	?	
 tf	ops/gemv.metal	tf_gemv_bf16_tm4	-	ok	ok	ok	ok			?	?	
 tf	ops/gemv.metal	tf_gemv_wide_bf16_v3_kl32	-	ok	ok	ok	ok			?	?	
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
-tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
-tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	ok	FAIL			?	?	error: line N: OpAccessChain result type <id> 'X' (OpTypeInt) does not match the type that results f
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v4_kl32	-	ok	ok	ok	ok			?	?	
+tf	ops/gemv.metal	tf_gemv_wide_bf16_v5_kl32	-	ok	ok	ok	ok			?	?	
+tf	ops/nax_gemm.metal	tf_nax_gemm_nn_bf16	-	ok	ok	ok	ok			?	?	
+tf	ops/qmv.metal	tf_gather_qmv_b4_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+tf	ops/qmv.metal	tf_gather_qmv_b6_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
+tf	ops/qmv.metal	tf_gather_qmv_b8_g64	-	ok	ok	FAIL				?	?	M2V: SimplifyPointerBitcast does not converge; changing sub-passes: 5 7
 tf	ops/qmv.metal	tf_qmv_b4_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_b6_g64	-	ok	ok	ok	ok			?	?	
 tf	ops/qmv.metal	tf_qmv_b8_g64	-	ok	ok	ok	ok			?	?	
@@ -387,8 +387,8 @@ tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_n_t_bfloat1
 tf	prefill/attention_nax.metal	custom_kernel_tf_attention_nax_bf16_t_t_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_float_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
 tf	prefill/conv.metal	custom_kernel_tf_conv1d_depthwise_bf16_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/fn_attn.metal	tf_idx_scores_nax	-	ok	ok	ok	ok			?	?	
-tf	prefill/fn_attn.metal	tf_mma_peak	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/fn_attn.metal	tf_sattn_nax	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/fn_attn.metal	tf_mma_peak	-	ok	ok	ok	ok			?	?	
+tf	prefill/fn_attn.metal	tf_sattn_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/fn_prompt.metal	pf_act	-	ok	ok	ok	ok			?	?	
 tf	prefill/fn_prompt.metal	pf_copy	-	ok	ok	ok	ok			?	?	
 tf	prefill/fn_prompt.metal	pf_gather_rows	-	ok	ok	ok	ok			?	?	
@@ -440,23 +440,23 @@ tf	prefill/glue.metal	custom_kernel_tf_ssd_dtx_decay_float_float_int32_t_float	-
 tf	prefill/glue.metal	custom_kernel_tf_ssd_state_carry_float_float_float_int32_t_float	-	ok	ok	ok	ok			?	?	
 tf	prefill/glue.metal	custom_kernel_tf_ssd_y_out_float_float_float_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax.metal	tf_expert_offsets6	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_64	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_128	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_32	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_64	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax_128	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_32	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_gather_gu6_nax_64	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_128	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_32	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_gather_qmm6_nax_64	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm6_nax.metal	tf_qmm6_t_nax_128	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax_b.metal	tf_attn256_nax	-	FAIL						?	?	no matching function for call to 'X'
-tf	prefill/qmm6_nax_b.metal	tf_mm_bf16_f32_t_nax	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/qmm6_nax_b.metal	tf_mm_bf16_f32_t_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm6_nax_b.metal	tf_parts_sum	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm6_nax_b.metal	tf_qmm6_splitk_nax	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/qmm6_nax_b.metal	tf_qmm6_splitk_nax	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm_nax.metal	custom_kernel_tf_expert_offsets_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_32_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_64_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_32_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
+tf	prefill/qmm_nax.metal	custom_kernel_tf_gather_qmm_rhs_nax_bf16_64_bfloat16_t_uint32_t_bfloat16_t_bfloat16_t_int32_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_part_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_splitk_sum_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
-tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_t_nax_bf16_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+tf	prefill/qmm_nax.metal	custom_kernel_tf_qmm_t_nax_bf16_uint32_t_bfloat16_t_bfloat16_t_bfloat16_t_int32_t_bfloat16_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/scan.metal	custom_kernel_tf_scan_sum_strided_f32_float_int32_t_float	-	ok	ok	ok	ok			?	?	
 tf	prefill/sort.metal	custom_kernel_tf_sort_count_uint32_t_int32_t_int32_t	-	ok	ok	ok	ok			?	?	
 tf	prefill/sort.metal	custom_kernel_tf_sort_inverse_uint32_t_int32_t_uint32_t	-	ok	ok	ok	ok			?	?	
@@ -545,12 +545,12 @@ uzu	gdn/prefill_prep.metal	DeltaNetPrefillPrep_v1	bfloat, bfloat, 128	ok	ok	ok	o
 uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v0	float	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/conv_scan.metal	ConvTreeScan_v1	bfloat	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/out.metal	BuildTreeOut_v0	float, float, false, false	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+uzu	gdn/tree_verify/out.metal	BuildTreeOut_v1	bfloat, bfloat, true, true	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/prefix.metal	BuildTreePrefix	-	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v0	float, 128	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/state_advance.metal	StateAdvance_v1	bfloat, 128	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v0	float, false	ok	ok	ok	ok			?	?	
-uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+uzu	gdn/tree_verify/tree_gram.metal	BuildTreeGram_v1	bfloat, true	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v0	float, 16	ok	ok	ok	ok			?	?	
 uzu	gdn/tree_verify/tree_update_solve.metal	TreeUpdateSolve_v1	bfloat, 32	ok	ok	ok	ok			?	?	
 uzu	gdn/update.metal	DeltaNetUpdate_v0	float, 128	ok	ok	ok	ok			?	?	
@@ -562,8 +562,8 @@ uzu	matmul/gemm/gemm.metal	Gemm_v1	float, bfloat, float, GemmTiling::Tile128x128
 uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v0	float	ok	ok	ok	ok			?	?	
 uzu	matmul/gemm/gemm_split_k_reduce.metal	GemmSplitKReduce_v1	bfloat	FAIL						?	?	 from vector 'X' (vector of N 'X' values) to vector 'X' (vector of N 'X' values) of different size
 uzu	matmul/gemm/gemm_trellis.metal	GemmTrellisReduce	-	ok	ok	ok	ok			?	?	
-uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
-uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	ok	ok	ok	FAIL			?	?	error: line N: Header block 'X' is contained in the loop construct headed by 'X', but its merge bloc
+uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v0	GemmTiling::Tile16x32x256_Simdgroups1x1	ok	ok	ok	ok			?	?	
+uzu	matmul/gemm/gemm_trellis.metal	GemmTrellis_v1	GemmTiling::Tile128x128x256_Simdgroups4x4	ok	ok	ok	ok			?	?	
 uzu	matmul/gemv/gemv.metal	Gemv_v0	bfloat, bfloat, bfloat, GemmBPrologueKind::FullPrecision, 0,	FAIL						?	?	static_cast from 'X' (aka 'X') to 'X' (vector of N 'X' values) is not allowed
 uzu	matmul/gemv/gemv.metal	Gemv_v1	float, bfloat, float, GemmBPrologueKind::ScaleSymmetricDequa	ok	ok	ok	ok			?	?	
 uzu	normalization/normalization.metal	Normalization_v0	float, float, float, float	ok	ok	ok	ok			?	?	
