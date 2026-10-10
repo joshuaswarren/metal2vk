@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""m2v-compile: one Metal kernel file in, Vulkan SPIR-V plus reflection out, through a content-addressed cache.
+
+    m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--timeout SEC] [--json]
+
+FILE.metal is the complete assembled MSL exactly as mlx generates it: header text, one or more [[kernel]] functions
+or template kernels with `template [[host_name("...")]] [[kernel]] decltype(...)` instantiations. --name selects the
+instantiation/entry; without it the file must hold exactly one entry. The pipeline is sweep/m2v_sweep.py's
+(compile_entry), the reflection comes from m2v-reflect.py: set 0 binding = argument order, POD arguments in push
+constants, workgroup size in spec constants 0..2 or the module's SpecConstantWorkgroupSize ids.
+
+Outputs in DIR on success only: <name>.spv (Vulkan 1.3, spirv-val clean) and <name>.json (m2v-reflect.py's module
+view plus the selected kernel under "kernel", its arguments enriched with the Metal-side signature, and the
+toolchain fingerprint). DIR never receives a file for a non-ok status.
+
+The cache is content-addressed: the key is sha256 over the MSL text, the requested entry name, the toolchain
+fingerprint (clang/opt/clspv versions, clspv binary hash, include/ and clspv-patches/ tree hashes, source-adjacent
+include tree hashes) and the compile flags. A hit copies the cached artifacts with no compiler run; a miss compiles
+under a per-key lock into a temporary entry that lands with one rename. Compiler logs of failures are kept under
+<cache>/logs/<key>.log, never in DIR.
+
+Exit codes: 0 ok, 2 usage, 3 refused (a Metal feature known untranslatable, e.g. Metal 4 tensor ops), 4 compile
+error, 5 spirv-val failure. --json prints one JSON object on stdout with status (ok, refused, error), cache hit or
+miss, paths and seconds.
+
+env: CLANG, OPT, CLSPV, SPIRV_VAL, M2V_OPT, M2V_DEFS, M2V_INCLUDE (pipeline, as in sweep/m2v_sweep.py);
+     M2V_CLSPV_TIMEOUT is ignored (--timeout governs every stage); M2V_CACHE_DIR (default cache directory).
+"""
+import argparse
+import fcntl
+import hashlib
+import json
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import time
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parent
+sys.path.insert(0, str(REPO / "sweep"))
+import m2v_sweep  # noqa: E402
+
+SCHEMA = 1
+LOG = []  # every pipeline command with its rc and full output (failure logs)
+TIMEOUT = 120.0  # per-stage cap, set from --timeout
+
+
+def fail(args, code, status, msg, detail=None, log_path=None):
+    """Report a non-ok result: diagnostic on stderr, one JSON line when --json, exit code."""
+    if args.as_json:
+        line = {"status": status, "cache": args.cache_state, "exit": code, "seconds": round(time.time() - args.t0, 3)}
+        if log_path:
+            line["log"] = str(log_path)
+        if detail:
+            line["detail"] = detail
+        print(json.dumps(line))
+    if msg:
+        print(msg, file=sys.stderr)
+    sys.exit(code)
+
+
+def first_line(cmd):
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    txt = (r.stdout + r.stderr).strip()
+    return txt.splitlines()[0] if txt else "?"
+
+
+TREE_WALK = 100000  # entries walked per tree; past this the hash degrades to "big tree seen from here"
+TREE_FILES = 4096
+TREE_BYTES = 32 << 20
+
+
+def tree_hash(root, skip=()):
+    """sha256 over a tree walk in stable order, bounded at TREE_WALK entries, TREE_FILES files and TREE_BYTES of
+    content. Past a bound the hash folds in entry count and newest mtime instead of content, which still
+    invalidates on any add, remove or edit that moves an mtime (documented ceiling for oversized trees). skip
+    prunes runtime directories (the out and cache trees) that may sit inside a hashed tree."""
+    h = hashlib.sha256(str(root).encode())
+    seen = hashed = total = 0
+    newest = 0.0
+    skip = {pathlib.Path(s).resolve() for s in skip}
+    stack = [pathlib.Path(root)]
+    while stack and seen < TREE_WALK:
+        try:
+            ents = sorted(stack.pop().iterdir(), key=lambda p: p.name)
+        except OSError:
+            continue
+        for p in ents:
+            if seen >= TREE_WALK:
+                break
+            if p.is_symlink():
+                continue
+            try:
+                if p.is_dir():
+                    if p.resolve() in skip:
+                        seen += 1
+                        continue
+                    stack.append(p)
+                    seen += 1
+                    continue
+                st = p.stat()
+            except OSError:
+                continue
+            seen += 1
+            newest = max(newest, st.st_mtime)
+            if hashed < TREE_FILES and total <= TREE_BYTES:
+                try:
+                    b = p.read_bytes()
+                except OSError:
+                    continue
+                hashed += 1
+                total += len(b)
+                h.update(str(p.relative_to(root)).encode())
+                h.update(hashlib.sha256(b).digest())
+    if seen >= TREE_WALK or hashed >= TREE_FILES or total > TREE_BYTES:
+        h.update(("\x00%d\x00%d\x00%.6f" % (seen, hashed, newest)).encode())
+    return h.hexdigest()
+
+
+def fingerprint(include_dirs, skip=()):
+    """Toolchain identity: one hash over the versions, the clspv binary and every tree the build reads."""
+    h = hashlib.sha256()
+    for d in include_dirs:
+        h.update(tree_hash(d, skip).encode())
+    # ponytail: every neighbour file of the MSL is hashed on each call; fine for kernel-sized trees, move the file
+    # to its own directory if the include tree ever grows past tens of megabytes
+    return {"clang": first_line([m2v_sweep.CLANG, "--version"]),
+            "opt": first_line([m2v_sweep.OPT, "--version"]),
+            "clspv": first_line([m2v_sweep.CLSPV, "--version"]),
+            "clspv_sha256": hashlib.sha256(pathlib.Path(m2v_sweep.CLSPV).read_bytes()).hexdigest(),
+            "include_sha256": tree_hash(m2v_sweep.INC),
+            "clspv_patches_sha256": tree_hash(REPO / "clspv-patches"),
+            "sources_sha256": h.hexdigest()}
+
+
+def cache_key(msl, name, fp, include_dirs, flags):
+    h = hashlib.sha256()
+    h.update(b"m2v-compile\x00%d\x00" % SCHEMA)
+    for part in (hashlib.sha256(msl).digest(), (name or "").encode(),
+                 json.dumps(fp, sort_keys=True).encode(),
+                 json.dumps([str(p) for p in include_dirs]).encode(),
+                 json.dumps(flags, sort_keys=True).encode()):
+        h.update(b"\x00" + hashlib.sha256(part).digest())
+    return h.hexdigest()
+
+
+def fs_name(name):
+    """Output file stem for a kernel name. mlx instantiation names can run past the filesystem's 255-byte limit:
+    long ones keep a 140-byte prefix plus 12 hex of their sha256, so the mapping stays deterministic."""
+    if len(name.encode()) <= 200:
+        return name
+    return name[:140] + "-" + hashlib.sha256(name.encode()).hexdigest()[:12]
+
+
+def copy_into(src, dst):
+    """Atomic copy: temp file next to dst, then rename."""
+    tmp = dst.with_name(dst.name + ".tmp-%d" % os.getpid())
+    shutil.copyfile(src, tmp)
+    os.replace(tmp, dst)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="m2v-compile", description="Metal kernel file -> Vulkan SPIR-V + reflection, cached")
+    ap.add_argument("--msl", required=True, metavar="FILE.metal")
+    ap.add_argument("--out", required=True, metavar="DIR")
+    ap.add_argument("--name", metavar="KERNEL_NAME", help="kernel or host_name to select (default: the file's only entry)")
+    ap.add_argument("--cache", metavar="DIR", default=os.environ.get("M2V_CACHE_DIR"),
+                    help="cache directory (default $M2V_CACHE_DIR, else $XDG_CACHE_HOME/m2v-compile)")
+    ap.add_argument("--timeout", type=float, default=120.0, metavar="SEC", help="per-stage timeout, default 120")
+    ap.add_argument("--json", action="store_true", dest="as_json", help="one JSON result line on stdout")
+    args = ap.parse_args(argv)
+    args.t0 = time.time()
+    args.cache_state = None
+    global TIMEOUT
+    TIMEOUT = args.timeout
+
+    orig_sh = m2v_sweep.sh
+
+    def sh_logged(cmd, timeout=300.0):
+        """The pipeline's sh with full-output logging and every stage capped at --timeout."""
+        rc, out, dt = orig_sh(cmd, min(timeout, TIMEOUT))
+        LOG.append({"cmd": [str(c) for c in cmd], "rc": rc, "seconds": round(dt, 3), "output": out})
+        return rc, out, dt
+
+    msl = pathlib.Path(args.msl)
+    if not msl.is_file():
+        fail(args, 2, "error", f"error: no such file: {msl}")
+    if args.timeout <= 0:
+        fail(args, 2, "error", "error: --timeout must be positive")
+    for label, tool in (("CLANG", m2v_sweep.CLANG), ("OPT", m2v_sweep.OPT), ("CLSPV", m2v_sweep.CLSPV),
+                        ("SPIRV_VAL", m2v_sweep.SPIRV_VAL)):
+        if not ((os.path.isabs(str(tool)) and pathlib.Path(tool).exists()) or shutil.which(str(tool))):
+            fail(args, 2, "error", f"error: {label}={tool} is not runnable; the toolchain is the sweep's (CLANG, OPT, CLSPV, SPIRV_VAL)")
+    out = pathlib.Path(args.out)
+    out.mkdir(parents=True, exist_ok=True)
+    cache = pathlib.Path(args.cache or os.path.join(os.environ.get("XDG_CACHE_HOME") or pathlib.Path.home() / ".cache", "m2v-compile"))
+
+    # the pipeline runs with this invocation's stage timeout; its commands land in LOG
+    m2v_sweep.sh = sh_logged
+    m2v_sweep.CLSPV_TIMEOUT = args.timeout
+    include_dirs = [msl.parent, msl.parent.parent]
+    fp = fingerprint(include_dirs, skip=[out, cache])
+    key = cache_key(msl.read_bytes(), args.name, fp, include_dirs, {"fe": m2v_sweep.FE_OPT, "defs": m2v_sweep.M2V_DEFS})
+    entry = cache / "keys" / key
+
+    def copy_out(name):
+        stem = fs_name(name)
+        copy_into(entry / "kernel.spv", out / (stem + ".spv"))
+        copy_into(entry / "kernel.json", out / (stem + ".json"))
+        if args.as_json:
+            print(json.dumps({"status": "ok", "cache": args.cache_state, "name": name, "key": key[:16],
+                              "spv": str(out / (stem + ".spv")), "json": str(out / (stem + ".json")),
+                              "seconds": round(time.time() - args.t0, 3)}))
+
+    if entry.is_dir() and (entry / "kernel.spv").is_file():  # hit: no compiler run
+        args.cache_state = "hit"
+        copy_out(json.loads((entry / "meta.json").read_text())["name"])
+        return
+
+    # miss: one compiler of a key at a time; the winner's rename is this loser's next-lookup hit
+    lock_path = cache / "locks" / (key + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock = open(lock_path, "a+")
+    staging = None
+    wait_end = time.time() + args.timeout
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            break
+        except OSError:
+            if time.time() >= wait_end:
+                fail(args, 4, "error", f"error: another m2v-compile holds key {key[:16]} past {args.timeout:.0f} s")
+            time.sleep(0.05)
+    try:
+        if entry.is_dir() and (entry / "kernel.spv").is_file():  # the other compiler finished while we waited
+            args.cache_state = "hit"
+            copy_out(json.loads((entry / "meta.json").read_text())["name"])
+            return
+        args.cache_state = "miss"
+        staging = cache / "tmp" / ("%s-%d" % (key[:16], os.getpid()))
+        shutil.rmtree(staging, ignore_errors=True)
+        (cache / "logs").mkdir(parents=True, exist_ok=True)
+        staging.mkdir(parents=True)
+        row, paths = m2v_sweep.compile_entry(msl, name=args.name, outdir=staging, include_dirs=include_dirs)
+        kname = row.get("kernel") or args.name or row.get("entry") or "(unknown)"
+
+        def log_failure(code, status):
+            log_path = cache / "logs" / (key + ".log")
+            body = "".join("\n$ %s\nrc=%s\n%s" % (" ".join(e["cmd"]), e["rc"], e["output"].strip()) for e in LOG)
+            log_path.write_text("row: %s\ncommands:%s\n" % (json.dumps(row, default=str), body))
+            if any(e["rc"] == 124 for e in LOG):
+                stage = pathlib.Path(next(e["cmd"][0] for e in reversed(LOG) if e["rc"] == 124)).name
+                msg = f"error: {stage} timed out after {TIMEOUT:.0f} s in kernel {kname} (log: {log_path})"
+            else:
+                first = (row.get("detail") or "").strip().splitlines()
+                msg = "error: " + (first[0] if first else row.get("error") or status) + f" (log: {log_path})"
+            fail(args, code, status, msg, detail=(row.get("detail") or row.get("error") or "")[:400], log_path=log_path)
+
+        if row["parse"] == "FAIL" and row["features"][0].startswith("select:"):
+            fail(args, 2, "error", "error: " + row["error"])
+        if row["parse"] == "refused":
+            construct = row["features"][0].split(":", 1)[1]
+            if args.as_json:
+                print(json.dumps({"status": "refused", "cache": "miss", "refused": construct, "kernel": kname,
+                                  "key": key[:16], "seconds": round(time.time() - args.t0, 3)}))
+            else:
+                print(f"refused: {construct} in kernel {kname}")
+            sys.exit(3)
+        if row["val"] == "FAIL":
+            log_failure(5, "spirv-val failed")
+        if "FAIL" in (row["parse"], row["ir"], row["spv"]) or row["val"] != "ok":
+            log_failure(4, "compile error")
+
+        spv = paths["spv"]
+        try:
+            r = subprocess.run([sys.executable, str(REPO / "m2v-reflect.py"), str(spv)], capture_output=True,
+                               text=True, timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            row["detail"] = f"m2v-reflect.py timed out after {TIMEOUT:.0f} s"
+            log_failure(4, "reflection failed")
+        if r.returncode != 0:
+            LOG.append({"cmd": [sys.executable, "m2v-reflect.py", str(spv)], "rc": r.returncode, "seconds": 0.0,
+                        "output": r.stdout + r.stderr})
+            row["detail"] = (r.stderr or r.stdout).strip()
+            log_failure(4, "reflection failed")
+        try:
+            refl = json.loads(r.stdout)
+        except json.JSONDecodeError:
+            row["detail"] = "m2v-reflect.py printed no JSON"
+            log_failure(4, "reflection failed")
+        kern = next((k for k in refl["kernels"] if k["name"] == kname), refl["kernels"][0])
+        for a in kern["args"]:  # the Metal-side declaration of each ordinal (clspv may have dropped unused ones)
+            if a["ordinal"] < len(row["args"]):
+                m = row["args"][a["ordinal"]]
+                a["metal_name"], a["metal_type"] = m["name"], m["type"]
+                if m.get("dims"):
+                    a["metal_dims"] = m["dims"]
+        name = kern["name"]
+        doc = dict(refl)
+        doc["module"] = name + ".spv"
+        doc["name"] = name
+        doc["kernel"] = kern
+        doc["toolchain"] = fp
+        (staging / "kernel.spv").write_bytes(spv.read_bytes())
+        (staging / "kernel.json").write_text(json.dumps(doc, indent=1) + "\n")
+        (staging / "meta.json").write_text(json.dumps({"schema": SCHEMA, "key": key, "name": name,
+                                                       "compile_seconds": round(time.time() - args.t0, 3),
+                                                       "created": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}) + "\n")
+        entry.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(staging, entry)  # atomic: the key is complete or absent
+        staging = None
+        copy_out(name)
+    finally:
+        fcntl.flock(lock, fcntl.LOCK_UN)
+        lock.close()
+        if staging is not None:
+            shutil.rmtree(staging, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    main()

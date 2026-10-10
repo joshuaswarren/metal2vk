@@ -115,6 +115,13 @@ jobs:
           CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
         run: python3 sweep/tests/run.py
 
+      - name: m2v-compile CLI self-checks
+        env:
+          CLANG: clang-23
+          OPT: opt-23
+          CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
+        run: python3 tools/tests/run.py
+
       - name: Sweep
         env:
           UZU_ROOT: ${{ github.workspace }}/uzu
