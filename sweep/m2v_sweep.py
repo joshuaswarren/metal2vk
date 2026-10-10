@@ -1626,6 +1626,18 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
         row["features"] = ["flat:" + norm_msg(row["error"])]
         row["primary"] = row["features"][0]
         return row, {}, [], m4
+    # SimplifyPointerBitcast cycles on loops that carry pointers in phis, and the patched pass then
+    # continues with mid-drift GEPs that read the loop-exit tail one block too far (gate_up, PR #47);
+    # rewrite strided pointer-phi loops to integer induction plus byte-indexed GEPs first (a module
+    # without the shape is a no-op; M2V_KEEP_PTR_PHI=1 skips the pass)
+    if not os.environ.get("M2V_KEEP_PTR_PHI"):
+        rc, out, _ = sh([sys.executable, str(HERE / "pointer_phi_to_index.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["pointer_phi_to_index failed"])[-1][:140]
+            row["features"] = ["pphi:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}, [], m4
     txt = ll.read_text()
     # a memcpy between distinct address spaces (private alloca <- global buffer, left by SROA) aborts
     # clspv's intrinsics pass; expand those to byte load/stores first (no-op otherwise)
