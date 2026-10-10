@@ -47,6 +47,16 @@ generators keep every access in bounds: floats uniform in [-1, 1), packed
 4-bit weights as random uint32 words, expert indices inside a 4-expert weight
 pool (the pool is small so parity buffers stay small; the addressing math is
 identical), scalars/strides/params as exact constants matching the geometry.
+A `c:[...]` constant carries its literal as the VALUE of the buffer dtype:
+f32 constants are the float the MSL reads (the ragged sdpa scale 0.0625, the
+gdn eps 1e-6), bf16 constants round their value to bf16, integers stay
+integers; only the u32 params buffers are bit-packed, because their kernels
+reinterpret the float member with `as_type<float>`. An early version passed
+the packed bits as the f32 value of the ragged sdpa scale, so both sides saw
+a scale of 1031798784.0 - consistent, so the parity verdicts stood, but the
+rows tested a degenerate softmax (every non-max score underflowed). The
+bytes of every non-integer constant buffer are pinned by
+`parity_common.check_constant_bytes`, run as part of the reference check.
 
 `parity_mlx.py --check-assemblers --artifacts DIR` validates the table against
 the artifacts with no mlx import: the three assemblers re-run into a temp dir
