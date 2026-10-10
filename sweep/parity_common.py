@@ -479,6 +479,17 @@ def compare(code, got_bits, want_bits):
     rdiff = adiff / np.where(fin, 1.0 + np.abs(want), 1.0)
     tol = TOL[code]
     bad = fin & (rdiff > tol)
+    if code == "bf16":
+        # The MSL reduces with simd_sum, whose lane order is defined by the
+        # hardware, not the source: a reference can pin the op sequence but
+        # not the reduction tree, and the bf16 store then quantizes. Judge
+        # such outputs by resolution: up to 2 bf16 ulps of the value's own
+        # binade is the floor of the comparison, not a semantic difference.
+        mag = np.maximum(np.abs(got), np.abs(want))
+        spacing = np.where(fin & (mag > 0),
+                           np.exp2(np.floor(np.log2(np.where(mag > 0, mag, 1.0)))) * 2.0 ** -7,
+                           0.0)
+        bad = fin & (rdiff > tol) & (adiff > 2.0 * spacing)
     # a NaN on one side only, or unequal infinities, is a difference
     bad |= ~both_nan & ~fin & ~(got == want)
     idx = np.flatnonzero(bad)

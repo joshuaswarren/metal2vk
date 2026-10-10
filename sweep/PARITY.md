@@ -70,7 +70,11 @@ Integers compare exactly; floats by relative tolerance `|a-b| / (1+|b|)`:
 The bfloat16 tolerance covers the references' one freedom: cross-lane `simd`
 reductions are simulated as sequential float32 sums, so summation-order ulps
 differ from the GPU; everything else in a reference is op-for-op identical to
-the assembled MSL, including every explicit bf16 rounding. The table reports
+the assembled MSL, including every explicit bf16 rounding. Because the
+reduction lane order is defined by the hardware and not the source, a bf16
+output is only judged a mismatch when it differs by more than 2 bf16 ulps of
+its own binade in addition to the relative tolerance - the resolution floor
+of the comparison, not a widened relative tolerance. The table reports
 max abs error, max rel error, first differing index and the difference count.
 Positions where both sides are NaN are skipped and counted.
 
