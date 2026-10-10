@@ -195,17 +195,21 @@ their outputs; that produced nondeterministic output blocks and the geometry
 properties of the artifacts: for example the gate+up grid (32, 2306, 1) with
 threadgroup (32, 2, 1) is exactly 1153 workgroups).
 
-A launch can also UNDER-cover its template, and then the hole is a property of
-the real call, not a defect: `qwen35_ragged_sdpa_2p1`'s artifact launch is
-(64, 8, 4) threads over (32, 8, 1) threadgroups = (2, 1, 4) workgroups, so
-`batch_idx` only ever takes 0 and the kernel never writes
-`partials[16384:]`, `sums[64:]` or `maxs[64:]` (the batch-1 half the template
-could cover with a wider launch). The reference derives its workgroup counts
-from `launch_grid / tg`, simulates only the launched workgroups, zeros the
-never-written region (the `verify_step_states` convention) and its table row
-says exactly which outputs the real launch leaves unwritten. The harness
-buffers stay template-sized: the reference slices them to the launched
-prefix.
+A launch geometry must come from the REAL call site formula evaluated at the
+table's dims, not from the assembler's recorded `.launch` alone: a recorded
+launch can hold the assembler's own batch dims while serving runs wider.
+`qwen35_ragged_sdpa_2p1` is the worked case: the real call is
+`grid=(32*kv_heads, (q_heads//kv_heads)*batch, blocks)` threads over
+threadgroup `(32, q_heads//kv_heads, 1)`, so with the table's B=2 dims the
+launch is (64, 16, 4) threads = (2, 2, 4) workgroups - both batches covered,
+no unwritten region. The assembler's `.launch` said (64, 8, 4) = (2, 1, 4)
+workgroups (its own B=1 run): trusting it under-simulated the reference by a
+batch and the reference zeroed `partials[16384:]`, `sums[64:]`,
+`maxs[64:]` as a "hole" that serving never has. The reference derives its
+workgroup counts from `launch_grid / tg`, simulates the launched workgroups,
+slices the template-sized buffers to the launched prefix and zeros whatever
+range a launch genuinely under-covers (the `verify_step_states`
+convention).
 
 ## Dry run (no GPU)
 

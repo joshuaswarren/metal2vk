@@ -168,9 +168,12 @@ def check_table(kernels, records, rebuilt, artifacts):
         got_out = [(DTYPE_TO_MSL.get(p[0], p[0]), p[1]) for p in rec["params"] if p[2]]
         if want_out != got_out:
             raise SystemExit(f"{k['name']}: outputs {got_out} != table {want_out}")
-        want_grid = tuple(k["launch_grid"] or k["grid"])
-        if tuple(rec["grid"]) != want_grid:
-            raise SystemExit(f"{k['name']}: grid {rec['grid']} != table {want_grid}")
+        # the artifact records the assembler's own dims; the table's
+        # artifact_launch (or launch_grid) is what it must match, while the
+        # runs launch launch_grid (the real call's grid for the table's dims)
+        art_grid = tuple(k.get("artifact_launch") or k["launch_grid"] or k["grid"])
+        if tuple(rec["grid"]) != art_grid:
+            raise SystemExit(f"{k['name']}: grid {rec['grid']} != table {art_grid}")
         if tuple(rec["threads"]) != tuple(k["tg"]):
             raise SystemExit(f"{k['name']}: threads {rec['threads']} != table {k['tg']}")
         metal = f"{k['name']}.metal"
@@ -180,7 +183,7 @@ def check_table(kernels, records, rebuilt, artifacts):
             raise SystemExit(f"{k['name']}: rebuilt {metal} differs from the artifact")
         launch = art.with_suffix(".launch")
         g = launch.read_text().split()
-        want = [str(x) for x in want_grid] + [str(x) for x in k["tg"]] + \
+        want = [str(x) for x in art_grid] + [str(x) for x in k["tg"]] + \
                [str(len(k["outputs"]))]
         if g != want:
             raise SystemExit(f"{k['name']}: .launch {g} != table {want}")
@@ -273,7 +276,7 @@ def run_real(kernels, records, outdir, seed):
             outs = kernel(
                 inputs=args,
                 template=mx_template(kern["tmpl"]),
-                grid=kern["grid"],
+                grid=kern["launch_grid"] or kern["grid"],
                 threadgroup=kern["tg"],
                 output_shapes=[list(o[2]) for o in kern["outputs"]],
                 output_dtypes=[mx_dtype(o[1]) for o in kern["outputs"]])
