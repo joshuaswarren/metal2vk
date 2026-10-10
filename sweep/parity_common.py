@@ -486,7 +486,8 @@ def compare(code, got_bits, want_bits):
     want = bits_to_float(code, want_bits).astype(np.float64)
     both_nan = np.isnan(got) & np.isnan(want)
     fin = np.isfinite(got) & np.isfinite(want)
-    diff = np.where(fin, got - want, 0.0)
+    with np.errstate(invalid="ignore"):
+        diff = np.where(fin, got - want, 0.0)
     adiff = np.abs(diff)
     rdiff = adiff / np.where(fin, 1.0 + np.abs(want), 1.0)
     tol = TOL[code]

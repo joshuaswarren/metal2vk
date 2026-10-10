@@ -15,15 +15,27 @@ sibling-scan/msl/omlx_verify_attn_wide_partial.metal; the composed
 chain-attention partial in qwen35_verify_sdpa_split.py is the semantic
 ground truth for what the kernel must compute.
 
-Open freedoms (fixed by the MSL: the block walk, the mask, the block max,
-the bf16 P store, the per-block rescale, the tile order; left open by the
-MSL: the 8-term simdgroup matmul dot order and the 4-slab sum order).
-Against the g13g-wp dump: ml_part matches at 2.7e-7 max rel (the l sum has
-no cancellation); o_part differs by at most 0.19% relative on 0.38% of
-slots - cancellation-amplified reassociation of ~2048-term dots, which a
-1e-5 f32 tolerance cannot absorb. Proposed for this kernel class: f32
-attention-partial outputs judged at 2e-3 relative, named here rather than
-widened silently in the table.
+Open freedoms. Fixed by the MSL: the block walk, the mask, the block max,
+the bf16 P store, the per-block rescale, the tile order. Primary open
+freedom: exp() precision - Metal's exp is not correctly rounded and differs
+from numpy's by about 1 f32 ulp; the resulting bf16 flips of the P tile
+propagate into o_part as sparse 1e-3-scale errors (perturbing exp by 1 ulp
+on half the entries reproduces the GPU error scale; pure f32 dot
+reassociation would move every slot at ~1e-6, which the dump does not
+show). Secondary: the 8-term simdgroup matmul dot order and the 4-slab sum
+order.
+
+Judgment (exp-flip freedom, scale-relative): o_part passes when
+|got - want| <= 5e-4 * max|want| over the same 128-wide output row
+(about 2x the observed max err / row max of 2.2e-4; a single bf16 flip of
+the row scale is far below the criterion's 3.9e-3 bf16-ulp bound).
+ml_part stays at the 1e-5 table tolerance. Negative controls in
+self_check(): skipping one 32-key block, or shifting the causal mask by
+one row, must both fail the criterion.
+
+Against the g13g-wp dump: ml_part matches at 2.7e-7 max rel; o_part max
+abs 3.65e-3, max err / row max 2.2e-4 - inside the judgment, sparse slots
+only (0.38%), consistent with the exp-flip freedom.
 """
 import numpy as np
 
@@ -44,7 +56,11 @@ def _xor_butterfly_sum(vals):
     return v
 
 
-def ref_omlx_verify_attn_wide_partial(kern, inputs):
+def ref_omlx_verify_attn_wide_partial(kern, inputs, skip_block_at=None,
+                                      mask_row_shift=0):
+    """skip_block_at / mask_row_shift exist only for the negative controls
+    in self_check: drop one 32-key block from the walk, or shift the causal
+    bound by one row. The registered reference uses the defaults."""
     grid = kern["grid"]
     n_splits = grid[1]
     p = inputs["params"].reshape(-1).view(np.uint32)
@@ -77,6 +93,8 @@ def ref_omlx_verify_attn_wide_partial(kern, inputs):
             acc_l = np.zeros(rows, np.float32)
             o = np.zeros((rows, dim), np.float32)
             for t0 in range(t_begin, t_end, 32):
+                if skip_block_at is not None and t0 == skip_block_at:
+                    continue
                 # four 8-key tiles; the tile start clamps to T-8 and the
                 # mask kills the duplicated keys
                 cols = np.arange(32)
@@ -88,7 +106,8 @@ def ref_omlx_verify_attn_wide_partial(kern, inputs):
                 ok = ((np.arange(rows)[:, None] < left)
                       & (keys[None, :] >= base[None, :])
                       & (keys[None, :] < t_end)
-                      & (keys[None, :] <= big_t - left + np.arange(rows)[:, None]))
+                      & (keys[None, :] <= big_t - left + np.arange(rows)[:, None]
+                         + mask_row_shift))
                 sv = np.where(ok, (val * scale).astype(np.float32),
                               np.float32(-np.inf))
                 rmax = sv.max(axis=1)
@@ -123,3 +142,46 @@ def ref_omlx_verify_attn_wide_partial(kern, inputs):
 
 
 REFS["omlx_verify_attn_wide_partial"] = ref_omlx_verify_attn_wide_partial
+
+
+def judge_o_part(got, want):
+    """The exp-flip judgment: per 128-wide output row, pass when every slot
+    is within 5e-4 of that row's max |want|."""
+    got = np.asarray(got, np.float64)
+    want = np.asarray(want, np.float64)
+    scale = np.abs(want.reshape(-1, 128)).max(axis=1)
+    err = np.abs(got.reshape(-1, 128) - want.reshape(-1, 128)).max(axis=1)
+    return bool((err <= 5e-4 * scale).all())
+
+
+def self_check(dump_dir, mlx_dir):
+    """Negative controls: the judgment must FAIL for a one-32-key-block skip
+    and for a one-row causal shift, and PASS for the faithful reference."""
+    import pathlib
+    import parity_common as pc
+
+    name = "omlx_verify_attn_wide_partial"
+    kern = pc.BY_NAME[name]
+    inputs = {s[0]: np.load(pathlib.Path(mlx_dir) / f"{s[0]}.npy")
+              for s in kern["inputs"]}
+    dump = pathlib.Path(dump_dir)
+    got_o = np.load(dump / "out_o_part.npy").reshape(-1)
+    got_ml = np.load(dump / "out_ml_part.npy").reshape(-1)
+    ref = ref_omlx_verify_attn_wide_partial(kern, inputs)
+    ref_skip = ref_omlx_verify_attn_wide_partial(kern, inputs,
+                                                 skip_block_at=t_begin_of(0, inputs))
+    ref_shift = ref_omlx_verify_attn_wide_partial(kern, inputs,
+                                                  mask_row_shift=1)
+    pass_real = judge_o_part(got_o, ref["o_part"])
+    fail_skip = not judge_o_part(got_o, ref_skip["o_part"])
+    fail_shift = not judge_o_part(got_o, ref_shift["o_part"])
+    ml_ok = pc.compare("f32", got_ml.astype(np.float32),
+                       ref["ml_part"].astype(np.float32))["status"] == "match"
+    return {"pass_real": pass_real and ml_ok,
+            "controls_fail": fail_skip and fail_shift,
+            "ml_match": ml_ok}
+
+
+def t_begin_of(split, inputs):
+    p = inputs["params"].reshape(-1).view(np.uint32)
+    return int(p[2]) * split
