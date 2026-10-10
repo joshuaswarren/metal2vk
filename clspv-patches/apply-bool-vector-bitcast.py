@@ -14,22 +14,21 @@ rounds the i4 result to i8 while the <4 x i1> operand cannot round, so the
 plain cast mapping emits OpBitcast %uchar from %v4bool and the module is
 rejected.
 
-Fix (SPIRVProducerPassImpl, cast visitor): a BitCast whose operand is an
-integer vector of i1 and whose result is a wider integer (or the mirror image)
-is lowered instead of mapped:
+Fix (SPIRVProducerPassImpl, cast visitor): a BitCast whose operand is a vector
+of i1 and whose result is a scalar integer is lowered instead of mapped:
 
-  bool vector -> int:  OpSelect widens every lane to i32, the lanes are
-                       shift-ored into a scalar (lane i at bit i, exactly the
-                       little-endian packing of LLVM's bitcast) and the scalar
-                       is converted to the result's canonical type.
-  int -> bool vector:  the scalar is widened to i32, each lane is extracted
-                       with shift-right/and-1/OpINotEqual and the vector is
-                       built with OpCompositeConstruct.
+  bool vector -> int:  OpSelect widens every lane to i32 (i64 above 32 lanes),
+                       the lanes are shift-ored into a scalar (lane i at bit i,
+                       exactly the little-endian packing of LLVM's bitcast)
+                       and the scalar is converted to the result's canonical
+                       type.
 
 Every emitted opcode is legal for bool and integer types in Vulkan SPIR-V, so
 the fold survives type canonicalisation instead of reaching the producer as an
-unrepresentable bitcast. Vectors longer than 64 lanes are left untouched (no
-such module exists in the corpus).
+unrepresentable bitcast. Bool vectors of more than 64 lanes and vector results
+are left on the old path (the plain OpBitcast, which spirv-val rejects loudly);
+the reverse direction (scalar integer to bool vector) is not lowered either:
+LoopVectorize does not produce it and no module of the corpus needs it.
 
 Usage: python3 apply-bool-vector-bitcast.py /path/to/clspv   (idempotent)
 """
@@ -73,14 +72,15 @@ step(
         RID = addSPIRVInst(spv::OpINotEqual, Ops);
       } else if (I.getOpcode() == Instruction::BitCast &&
                  OpTy->isIntOrIntVectorTy(1) && OpTy->isVectorTy() &&
-                 Ty->isIntOrIntVectorTy() && !Ty->isIntOrIntVectorTy(1)) {
+                 cast<FixedVectorType>(OpTy)->getNumElements() <= 64 &&
+                 Ty->isIntegerTy() && !Ty->isIntegerTy(1)) {
         // metal2vk: LLVM's LoopVectorize writes the early-exit test of a
         // vectorized loop as a bitcast of a bool vector to a small integer
         // (icmp <4 x i32> ... -> bitcast <4 x i1> to i4 -> icmp eq i4 0).
         // SPIR-V has no OpBitcast from a bool vector, and the canonical type
         // of i4 is i8 while the bool vector cannot round, so the plain cast
         // mapping would emit OpBitcast %uchar from %v4bool. Lower the pack
-        // (and its mirror-image unpack) instead.
+        // to shifts and ors instead.
         RID = GenerateBoolVectorBitcast(I);
       } else {
 """,
@@ -108,57 +108,31 @@ step(
   SPIRVID result;
   SPIRVOperandVec Ops;
 
-  if (auto *DstVec = dyn_cast<FixedVectorType>(I.getType())) {
-    // scalar integer -> bool vector: widen, then peel one bit per lane
-    Ops << WideTy << I.getOperand(0);
-    auto widened = addSPIRVInst(spv::OpUConvert, Ops);
-    SmallVector<SPIRVID, 8> bits;
-    for (unsigned i = 0; i < DstVec->getNumElements(); i++) {
-      Ops.clear();
-      Ops << WideTy << widened << getSPIRVConstant(ConstantInt::get(WideTy, i));
-      auto shifted = addSPIRVInst(spv::OpShiftRightLogical, Ops);
-      Ops.clear();
-      Ops << WideTy << shifted << getSPIRVConstant(ConstantInt::get(WideTy, 1));
-      auto masked = addSPIRVInst(spv::OpBitwiseAnd, Ops);
-      Ops.clear();
-      Ops << WideTy << masked
-          << getSPIRVConstant(ConstantInt::get(WideTy, 0));
-      bits.push_back(addSPIRVInst(spv::OpINotEqual, Ops));
-    }
+  // widen every lane with OpSelect, then shift-or them into the scalar
+  // exactly as LLVM packs them (lane i at bit i)
+  auto *SelTy = FixedVectorType::get(WideTy, lanes);
+  Ops << SelTy << I.getOperand(0)
+      << ConstantVector::getSplat(VecTy->getElementCount(),
+                                  ConstantInt::get(WideTy, 1))
+      << Constant::getNullValue(SelTy);
+  auto widened = addSPIRVInst(spv::OpSelect, Ops);
+  for (unsigned i = 0; i < lanes; i++) {
     Ops.clear();
-    Ops << I.getType();
-    for (auto b : bits) {
-      Ops << b;
-    }
-    result = addSPIRVInst(spv::OpCompositeConstruct, Ops);
+    Ops << WideTy << widened << i;
+    auto lane = addSPIRVInst(spv::OpCompositeExtract, Ops);
+    Ops.clear();
+    Ops << WideTy << lane << getSPIRVConstant(ConstantInt::get(WideTy, i));
+    auto shifted = addSPIRVInst(spv::OpShiftLeftLogical, Ops);
+    Ops.clear();
+    Ops << WideTy << pack << shifted;
+    pack = addSPIRVInst(spv::OpBitwiseOr, Ops);
+  }
+  if (I.getType() == WideTy) {
+    result = pack;
   } else {
-    // bool vector -> scalar integer: widen every lane with OpSelect, then
-    // shift-or them into the scalar exactly as LLVM packs them (lane i at
-    // bit i)
-    auto *SelTy = FixedVectorType::get(WideTy, lanes);
-    Ops << SelTy << I.getOperand(0)
-        << ConstantVector::getSplat(VecTy->getElementCount(),
-                                    ConstantInt::get(WideTy, 1))
-        << Constant::getNullValue(SelTy);
-    auto widened = addSPIRVInst(spv::OpSelect, Ops);
-    for (unsigned i = 0; i < lanes; i++) {
-      Ops.clear();
-      Ops << WideTy << widened << i;
-      auto lane = addSPIRVInst(spv::OpCompositeExtract, Ops);
-      Ops.clear();
-      Ops << WideTy << lane << getSPIRVConstant(ConstantInt::get(WideTy, i));
-      auto shifted = addSPIRVInst(spv::OpShiftLeftLogical, Ops);
-      Ops.clear();
-      Ops << WideTy << pack << shifted;
-      pack = addSPIRVInst(spv::OpBitwiseOr, Ops);
-    }
-    if (I.getType() == WideTy) {
-      result = pack;
-    } else {
-      Ops.clear();
-      Ops << I.getType() << pack;
-      result = addSPIRVInst(spv::OpUConvert, Ops);
-    }
+    Ops.clear();
+    Ops << I.getType() << pack;
+    result = addSPIRVInst(spv::OpUConvert, Ops);
   }
   return result;
 }

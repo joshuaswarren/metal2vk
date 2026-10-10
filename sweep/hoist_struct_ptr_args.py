@@ -198,7 +198,7 @@ def main():
             repl[loadname] = newname
         # argument texts and metadata entries; metadata only for the first
         # function that carries each id
-        new_meta = {} if meta_ids.keys() & seen_meta else meta_adds
+        new_meta = {} if set(meta_ids.values()) & seen_meta else meta_adds
         seen_meta |= set(meta_ids.values())
         new_args = []
         for loadname, (arg, member, st) in sorted(
@@ -220,7 +220,7 @@ def main():
                 meta_adds.setdefault(meta_ids["kernel_arg_type"], []).append(f'!"{pointee}*"')
                 meta_adds.setdefault(meta_ids["kernel_arg_base_type"], []).append(f'!"{pointee}*"')
                 meta_adds.setdefault(meta_ids["kernel_arg_type_qual"], []).append('!""')
-            if "kernel_arg_name" in meta_ids:
+            if new_meta is meta_adds and "kernel_arg_name" in meta_ids:
                 meta_adds.setdefault(meta_ids["kernel_arg_name"], []).append(
                     f'!"m2v_h{member}_of_{arg.lstrip("%")}"')
 
