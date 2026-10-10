@@ -132,30 +132,20 @@ ICD whose subgroup is smaller (lavapipe/llvmpipe reports 8) executes but
 produces wrong cross-lane results; software-ICC runs are valid only for
 kernels without cross-lane ops.
 
-## Geometry deviations (recorded per kernel in the table)
+## Launch geometry
 
-The artifacts pin launch grids that were never GPU-validated; several of them
-index out of the kernel's own buffers. Parity runs the kernel-consistent grid
-and the artifact grid stays in `launch_grid` for the check:
-
-- `omlx_qwen35_moe_router_gemv`: s = tg.y*NSG covers 2048 experts against 512
-  weight rows; parity runs tg.y = 128.
-- `omlx_qwen35_moe_gate_up_decode/window/topk`: the artifact grid launches 2x
-  the kernel-consistent block count (the plan launcher multiplies NSG in a
-  second time). Blocks past the consistent count read `rhs` past its entries
-  and their y writes land on the shared-expert region (slot >= TOPK), racing
-  the blocks that own it - the first G13G run's shared-region mismatches were
-  this race, not an arithmetic difference. Parity runs 1153 (decode/topk) and
-  4612 (window).
-- `omlx_qwen35_moe_down_combine_decode/window`: grid y writes y rows up to
-  18432 against a 2048-row (4x2048-row) output; parity runs the covering 1024
-  (2048).
-- `omlx_verify_attn_gqa_partial`: grid x = 512 drives 512 kv heads against a
-  2-kv-head template; parity runs x = 2.
-- `omlx_chain_attn_partial`: grid x = heads*256 indexes q[qh*D] out of bounds
-  for 16 heads; parity runs x = heads.
-- `qwen35_ragged_sdpa_2p1`: grid (64,8,4) drives 64 kv heads x 8 batches; the
-  template pins 2 kv heads; parity runs (2, 2, 4).
+`mx.fast.metal_kernel` takes its grid in THREADS: `grid=(gx, gy, gz)` with
+`threadgroup=(tx, ty, tz)` launches ceil(g / t) workgroups per axis. The
+artifact `.launch` files record those thread grids, and the table keeps them in
+`launch_grid` where they differ from the shape the references were written
+against. Both sides launch the same thread grid; `parity_compare.py` divides it
+by the threadgroup size before calling `m2v-run`, which dispatches workgroup
+counts (the first G13G runs passed the thread grid as counts: 256x too many
+workgroups for the kernels with a 256 wide threadgroup, writing far outside
+their outputs; that produced nondeterministic output blocks and the geometry
+"over-launch" findings recorded earlier, all of which were this mistake and not
+properties of the artifacts: for example the gate+up grid (32, 2306, 1) with
+threadgroup (32, 2, 1) is exactly 1153 workgroups).
 
 ## Dry run (no GPU)
 
