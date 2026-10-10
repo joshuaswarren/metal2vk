@@ -63,13 +63,22 @@ if not sha.startswith("f2b01dd"):
           file=sys.stderr)
 
 s = pp.read_text()
-if "spb-converge" in s:
+# Completion guard: only a tree that already carries BOTH refinements (the per-edge reachability helper and the phi cast-site check) is
+# done. A tree patched by the first version of this script (it carries the marker comments but no M2vReach) is upgraded in place by the
+# refinement steps only: the first-version steps are not re-run on it, because later first-version steps rewrite text that earlier
+# first-version steps inserted, so their completion checks cannot see their own output. (The word "spb-converge" appears in the old
+# comments too and says nothing about the version.)
+if "M2vReach" in s and "M2vPU" in s:
     print("already patched")
     sys.exit(0)
+skip_v1 = "apply-spb-converge" in s and "M2vReach" not in s
+in_v1 = True
 
 
 def step(label, old, new):
     global s
+    if in_v1 and skip_v1:
+        return
     if new in s:
         return
     if old not in s:
@@ -269,6 +278,8 @@ step(
     "    auto new_gep = GetElementPtrInst::Create(Ty, gep->getPointerOperand(), Idxs,\n"
     "                                             \"\", gep->getIterator());\n",
 )
+
+in_v1 = False
 
 # --- Fix A refined: the cross-block guard becomes a per-edge reachability
 # predicate; the coarse different-block guard also blocked exact folds (the
