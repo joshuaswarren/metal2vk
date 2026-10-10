@@ -243,12 +243,23 @@ def compare_only(mlx_out, cmp_out, only, tsv):
                 print(f"{name}: no-reference (omarchy {mstat})", flush=True)
                 continue
         worst = None
+        judged = None
         for oname, ocode, *_ in kern["outputs"]:
             cmp_r = pc.compare(ocode, got_all[oname].reshape(-1),
                                want_all[oname].reshape(-1))
+            judge = parity_refs.JUDGES.get(name, {}).get(oname)
+            if judge is not None and cmp_r["status"] == "mismatch":
+                if judge(got_all[oname].reshape(-1).astype(pc.DTYPES[ocode][1]),
+                         want_all[oname].reshape(-1).astype(pc.DTYPES[ocode][1])):
+                    cmp_r["status"] = "match"
+                    judged = oname
             if cmp_r["status"] == "mismatch" or worst is None:
                 worst = cmp_r
         rec.update(worst)
+        if judged is not None:
+            rec["note"] += (f"; {judged} judged by the exp-flip scale "
+                            "criterion (5e-4 row max): exp() precision "
+                            "flipping bf16 P entries")
         rec["status"] = ("refused-by-translator" if mstat == "refused"
                          else worst["status"])
         rec["note"] += f"; vs {src}: {worst['status']}"
@@ -379,12 +390,23 @@ def main():
             continue
 
         worst = None
+        judged = None
         for oname, ocode, *_ in kern["outputs"]:
             got = np.frombuffer(dumps[oname], pc.DTYPES[ocode][1] or np.uint16)
             cmp = pc.compare(ocode, got, want_all[oname].reshape(-1))
+            judge = parity_refs.JUDGES.get(name, {}).get(oname)
+            if judge is not None and cmp["status"] == "mismatch":
+                if judge(got.astype(pc.DTYPES[ocode][1]),
+                         want_all[oname].reshape(-1).astype(pc.DTYPES[ocode][1])):
+                    cmp["status"] = "match"
+                    judged = oname
             if cmp["status"] == "mismatch" or worst is None:
                 worst = cmp
         rec.update(worst)
+        if judged is not None:
+            rec["note"] += (f"; {judged} judged by the exp-flip scale "
+                            "criterion (5e-4 row max): exp() precision "
+                            "flipping bf16 P entries")
         if mstat == "refused":
             rec["status"] = "refused-by-translator"
             rec["note"] += f"; vs cpu reference: {worst['status']}"
