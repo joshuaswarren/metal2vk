@@ -257,7 +257,14 @@ def ref_omlx_chain_attn_partial(kern, inputs):
     chunks plus the kt/vt tail (split == n_splits), one threadgroup per
     (query head, split), 8 simdgroups striding tokens by SGN = 8, then the
     threadgroup merge the MSL writes (w_j = 0 for tm[j] == -inf). simd_sum
-    is the sequential f32 lane sum; every other op is f32."""
+    is the sequential f32 lane sum and no fma contraction is applied (both
+    are compiler freedoms the MSL leaves open); every other op is f32.
+    kblk/vblk rows are built per query head through the kv-head row bases
+    (h*stride/d and h*Tn for the tail), so they are indexed by qh directly;
+    the earlier kblk[h_of] / vblk[h_of, pos] re-index was a second head map
+    that scored the head-1 query heads (qh 8..15) against kv head 0's
+    keys/values in every split (G13G g7 finding; the kernel output was
+    right)."""
     t = _tmpl(kern)
     g_n, h_n = int(t["G"]), int(t["H"])
     d, sgn = 256, 8
@@ -296,7 +303,7 @@ def ref_omlx_chain_attn_partial(kern, inputs):
                 h_n, toks.size, 32, 8)
             vblk = vb[vrow[:, None] + toks[None, :]].reshape(
                 h_n, toks.size, 32, 8)
-            s = _seqsum(_seqsum(qv[:, None, :, :] * kblk[h_of], -1), -1)
+            s = _seqsum(_seqsum(qv[:, None, :, :] * kblk, -1), -1)
             for j in range(sgn):
                 if j >= toks.size:
                     continue
@@ -310,7 +317,7 @@ def ref_omlx_chain_attn_partial(kern, inputs):
                     p = np.exp(s_tok - m_new)
                     l = l * alpha + p
                     acc = (acc * alpha[:, None, None]
-                           + p[:, None, None] * vblk[h_of, pos])
+                           + p[:, None, None] * vblk[:, pos])
                     m = m_new
                 m_sg[j], l_sg[j], ta[j] = m, l, acc
         # threadgroup merge; w_j = 0 where the simdgroup saw no tokens
