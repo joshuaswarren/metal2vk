@@ -50,8 +50,10 @@ for c in $CASES; do
   grep -q '@llvm.memcpy' "$OUT/$c.ll" && python3 "$H/sweep/memcpy_mixed_as.py" "$OUT/$c.ll" || true
   # a private array of pointers (buffer-select table) is not representable by clspv; promote it (no-op otherwise)
   grep -qE 'alloca \[[0-9]+ x ptr addrspace\([0-9]+\)\]' "$OUT/$c.ll" && python3 "$H/sweep/promote_ptr_arrays.py" "$OUT/$c.ll" || true
-  "$CLSPV" -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 --long-vector "$OUT/$c.ll" -o "$OUT/$c.spv" 2>&1 \
-    | grep -v "^warning: \(overriding the module target\|Linking two modules\)" | grep -v "^$" | head -"${LINES_MAX:-20}"
+  "$CLSPV" -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 --long-vector "$OUT/$c.ll" -o "$OUT/$c.spv" > "$OUT/$c.clspv.log" 2>&1
+  grep -v "^warning: \(overriding the module target\|Linking two modules\)" "$OUT/$c.clspv.log" | grep -v "^$" | head -"${LINES_MAX:-20}"
+  # a pointer pass that gave up leaves a half rewritten module that clspv still compiles into wrong code: keep no SPIR-V
+  if grep -q "did not converge" "$OUT/$c.clspv.log"; then echo "clspv pass did not converge for $c: the module would be miscompiled, no SPIR-V kept"; rm -f "$OUT/$c.spv"; fi
   [ -s "$OUT/$c.spv" ] && spirv-val --target-env vulkan1.3 "$OUT/$c.spv" 2>&1 | head -5 && echo "spirv-val rc=$? size=$(stat -c %s "$OUT/$c.spv")"
   # clspv drops unused arguments, so bindings and push offsets differ per module: write the reflection next to the module
   [ -s "$OUT/$c.spv" ] && python3 "$H/m2v-reflect.py" "$OUT/$c.spv" > "$OUT/$c.json" 2> /dev/null
