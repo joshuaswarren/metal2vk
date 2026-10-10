@@ -168,6 +168,78 @@ step(
     "              auto user_ty = clspv::InferType(value, context, &type_cache);\n",
 )
 
+# --- Fix B'': runOnUpgradeableConstantCasts push-side phi-incoming guard ---
+# The rewrite loop's replaceAllUsesWith rewrites a phi's incoming through the
+# back door when the old gep's only user is a pointer phi (I is a load or
+# store, so the phi-source guard never sees it); blocking the push is
+# per-gep and independent of worklist order.
+step(
+    "upgradeable casts push-side phi-incoming guard",
+    "          if (isa<PHINode>(&I)) {\n"
+    "            continue;\n"
+    "          }\n"
+    "          if (dest_ty != source_ty) {\n\n"
+    "            Worklist.push_back(\n"
+    "                {&I, cstVal, dynVal, smallerBitWidths, dest_ty, gep});\n"
+    "          }\n",
+    "          if (isa<PHINode>(&I)) {\n"
+    "            continue;\n"
+    "          }\n"
+    "          // metal2vk (apply-spb-converge): the same rule for the rewrite\n"
+    "          // side. When the source gep IS a phi's incoming, the rewrite\n"
+    "          // loop's replaceAllUsesWith rewrites the phi's incoming operand\n"
+    "          // through the back door even though I is a load or store, and\n"
+    "          // each pass clones the gep instead of converging. Refuse the\n"
+    "          // push here, where the check is per gep and independent of\n"
+    "          // worklist order.\n"
+    "          bool M2vPhiIncomingSrc = false;\n"
+    "          for (auto *U : gep->users()) {\n"
+    "            if (isa<PHINode>(U)) {\n"
+    "              M2vPhiIncomingSrc = true;\n"
+    "              break;\n"
+    "            }\n"
+    "          }\n"
+    "          if (M2vPhiIncomingSrc) {\n"
+    "            continue;\n"
+    "          }\n"
+    "          if (dest_ty != source_ty) {\n\n"
+    "            Worklist.push_back(\n"
+    "                {&I, cstVal, dynVal, smallerBitWidths, dest_ty, gep});\n"
+    "          }\n",
+)
+
+# --- Fix B''': runOnImplicitCasts push-side phi-incoming guard ---
+# Same back door through the implicit-casts fold: replacing inst_gep
+# rewrites the phi's incoming when inst_gep feeds a pointer phi.
+step(
+    "implicit casts push-side phi-incoming guard",
+    "            if (!(VecSrcTy && VecDstTy &&\n"
+    "                  (VecSrcTy->getNumElements() == 3 ||\n"
+    "                   VecDstTy->getNumElements() == 3))) {\n"
+    "              Worklist.emplace_back(inst_gep);\n"
+    "            }\n",
+    "            if (!(VecSrcTy && VecDstTy &&\n"
+    "                  (VecSrcTy->getNumElements() == 3 ||\n"
+    "                   VecDstTy->getNumElements() == 3))) {\n"
+    "              // metal2vk (apply-spb-converge): a gep that is a pointer\n"
+    "              // phi's incoming is owned by runOnPHIFromGEP. Folding it\n"
+    "              // here re-types the phi's incoming through the back door\n"
+    "              // (the fold replaces inst_gep everywhere, including the\n"
+    "              // phi's operand), and the c[5]/c[7] flip on that incoming\n"
+    "              // starts again. Refuse the push.\n"
+    "              bool M2vPhiIncoming = false;\n"
+    "              for (auto *U : inst_gep->users()) {\n"
+    "                if (isa<PHINode>(U)) {\n"
+    "                  M2vPhiIncoming = true;\n"
+    "                  break;\n"
+    "                }\n"
+    "              }\n"
+    "              if (!M2vPhiIncoming) {\n"
+    "                Worklist.emplace_back(inst_gep);\n"
+    "              }\n"
+    "            }\n",
+)
+
 # --- Fix C: runOnPHIFromGEP Worklist representability ---
 step(
     "phi-from-gep Ok flag and giveup",
