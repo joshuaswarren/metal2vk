@@ -131,11 +131,11 @@ tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_1
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_14_4_1024_float_bfloat16_t_float	4096, 288, 14, 4, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_15_4_1024_float_bfloat16_t_float	4096, 288, 15, 4, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_16_4_1024_float_bfloat16_t_float	4096, 288, 16, 4, 1024	ok	ok	ok	ok			ok	ok	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_1_8_1024_float_bfloat16_t_float	4096, 288, 1, 8, 1024	ok	ok	ok	FAIL			ok	FAIL	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_1_8_1024_float_bfloat16_t_float	4096, 288, 1, 8, 1024	ok	ok	ok	ok			ok	FAIL	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_2_8_1024_float_bfloat16_t_float	4096, 288, 2, 8, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_3_8_1024_float_bfloat16_t_float	4096, 288, 3, 8, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_4_8_1024_float_bfloat16_t_float	4096, 288, 4, 8, 1024	ok	ok	ok	ok			ok	ok	
-tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_5_4_1024_float_bfloat16_t_float	4096, 288, 5, 4, 1024	ok	ok	ok	FAIL			ok	FAIL	error: line N: Expected input to be a pointer or int or float vector or scalar: Bitcast
+tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_5_4_1024_float_bfloat16_t_float	4096, 288, 5, 4, 1024	ok	ok	ok	ok			ok	FAIL	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_6_4_1024_float_bfloat16_t_float	4096, 288, 6, 4, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_7_4_1024_float_bfloat16_t_float	4096, 288, 7, 4, 1024	ok	ok	ok	ok			ok	ok	
 tf	glm/router.metal	custom_kernel_tf_glm5_fused_router_tg_331f012361__4096_288_8_4_1024_float_bfloat16_t_float	4096, 288, 8, 4, 1024	ok	ok	ok	ok			ok	ok	
@@ -204,12 +204,12 @@ tf	kimi/experts.metal	k3_xp_down_r1	1	ok	ok	FAIL				ok		Invalid bitcast
 tf	kimi/experts.metal	k3_xp_down_r4	4	ok	ok	FAIL				ok		Invalid bitcast
 tf	kimi/experts.metal	k3_xp_up_r1	1	ok	ok	FAIL				ok		Invalid bitcast
 tf	kimi/experts.metal	k3_xp_up_r4	4	ok	ok	FAIL				ok		Invalid bitcast
-tf	kimi/kda.metal	k3_kda	-	ok	ok	FAIL				ok		Invalid bitcast
-tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	FAIL				ok		Invalid bitcast
-tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	FAIL				ok		ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	FAIL				ok		ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	FAIL				ok		ptr addrspace(1)
-tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	FAIL				ok		ptr addrspace(1)
+tf	kimi/kda.metal	k3_kda	-	ok	ok	ok	ok			ok		
+tf	kimi/mla.metal	k3_mla_attend	-	ok	ok	ok	ok			ok		
+tf	kimi/mla.metal	k3_mla_cache	-	ok	ok	ok	ok			ok		
+tf	kimi/mla.metal	k3_mla_merge	-	ok	ok	ok	ok			ok		
+tf	kimi/mla.metal	k3_mla_qlat	-	ok	ok	ok	ok			ok		
+tf	kimi/mla.metal	k3_mla_uv	16	ok	ok	ok	ok			ok		
 tf	kimi/norms.metal	k3_add2	-	ok	ok	ok	ok			ok	ok	
 tf	kimi/norms.metal	k3_argmax	-	ok	ok	ok	ok			ok	ok	
 tf	kimi/norms.metal	k3_embed	-	ok	ok	ok	ok			ok	ok	
