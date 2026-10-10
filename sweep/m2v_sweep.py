@@ -1662,6 +1662,19 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
             row["primary"] = row["features"][0]
             return row, {}, [], m4
         txt = ll.read_text()
+    # a pointer member of a kernel argument struct is inexpressible in a 32-bit
+    # Vulkan module (clspv's producer dies with a bare 'ptr addrspace(1)'):
+    # hoist loaded members to their own buffer arguments and retype the dead
+    # ones to integers, keeping every field offset (no-op otherwise)
+    if re.search(r"^%[\w.]+ = type \{[^}]*ptr addrspace", txt, re.M):
+        rc, out, _ = sh([sys.executable, str(HERE / "hoist_struct_ptr_args.py"), str(ll)])
+        if rc != 0:
+            row["ir"] = "FAIL"
+            row["error"] = (out.strip().splitlines() or ["hoist_struct_ptr_args failed"])[-1][:140]
+            row["features"] = ["hsp:" + norm_msg(row["error"])]
+            row["primary"] = row["features"][0]
+            return row, {}, [], m4
+        txt = ll.read_text()
     spv = d / "spv" / (tag + ".spv")
     spv.parent.mkdir(parents=True, exist_ok=True)
     rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", str(ll), "-o", str(spv)], CLSPV_TIMEOUT)

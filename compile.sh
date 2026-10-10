@@ -50,6 +50,9 @@ for c in $CASES; do
   grep -q '@llvm.memcpy' "$OUT/$c.ll" && python3 "$H/sweep/memcpy_mixed_as.py" "$OUT/$c.ll" || true
   # a private array of pointers (buffer-select table) is not representable by clspv; promote it (no-op otherwise)
   grep -qE 'alloca \[[0-9]+ x ptr addrspace\([0-9]+\)\]' "$OUT/$c.ll" && python3 "$H/sweep/promote_ptr_arrays.py" "$OUT/$c.ll" || true
+  # pointer members of kernel argument structs are inexpressible on 32-bit Vulkan; hoist the
+  # loaded ones to buffer arguments and retype the dead ones (no-op otherwise)
+  grep -qE '^%[A-Za-z0-9_.]+ = type \{.*ptr addrspace' "$OUT/$c.ll" && python3 "$H/sweep/hoist_struct_ptr_args.py" "$OUT/$c.ll" || true
   "$CLSPV" -x ir --cl-std=CLC++2021 --fp16 --inline-entry-points --spv-version=1.5 --long-vector "$OUT/$c.ll" -o "$OUT/$c.spv" > "$OUT/$c.clspv.log" 2>&1
   grep -v "^warning: \(overriding the module target\|Linking two modules\)" "$OUT/$c.clspv.log" | grep -v "^$" | head -"${LINES_MAX:-20}"
   # a pointer pass that gave up leaves a half rewritten module that clspv still compiles into wrong code: keep no SPIR-V.
