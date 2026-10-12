@@ -4,6 +4,8 @@ Run Metal GPU kernels on Linux: metal2vk translates Apple's Metal compute code t
 
 [![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-pink)](https://github.com/sponsors/joshuaswarren)
 
+Sponsor this work or help stock the lab: [joshuawarren.com/sponsors](https://joshuawarren.com/sponsors)
+
 The fast local AI software for Apple Silicon gets its speed from GPU kernels. That software includes oMLX, mlx-lm, mlx-vlm and the uzu and TensorFold engines. The kernels are written in Metal, Apple's GPU language. Metal only exists on Apple's operating systems. This project reads those kernels as they are. It translates them to Vulkan with clang, clspv and SPIRV-Tools, with no Apple software. They can then run on Apple Silicon under Linux through an open source Vulkan driver.
 
 ## What works today
