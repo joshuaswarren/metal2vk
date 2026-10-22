@@ -9,7 +9,19 @@ pull request directly.
 Follow the Quick start in the [README](README.md): a patched clspv, clang 23 with C++ for OpenCL, SPIRV-Tools, and the kernel
 sources you want to test (`uzu` and `TensorFold` are the two the CI uses).
 
-## The one check that matters
+## CPU-only checks
+
+The coverage gate tests need only Python 3. No compiler, GPU, kernel sources or extra packages are needed:
+
+```bash
+python3 -m unittest discover -s sweep/tests -p test_coverage.py -v
+```
+
+CI runs these tests in a separate job, without waiting for the compiler build.
+They check floor regressions, timeouts, variant identity and floor updates. They do not check generated SPIR-V.
+Only clspv timeouts get a warning. An error that merely names `timeout` still fails the gate.
+
+## Compiler checks
 
 `sweep/m2v_sweep.py` runs every uzu and TensorFold kernel through the whole chain and `sweep/check_coverage.py` compares the result
 with `sweep/coverage-floor.txt`, the list of kernels that already produce valid SPIR-V:

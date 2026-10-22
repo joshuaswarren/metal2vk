@@ -1,6 +1,6 @@
 name: sweep
 
-# Three jobs. `clspv` builds the patched clspv once and saves it in the cache; `gate` compiles the four reference cases and fails on any missing
+# Three compiler jobs. `clspv` builds the patched clspv once and saves it in the cache; `gate` compiles the four reference cases and fails on any missing
 # or invalid SPIR-V (a shim change that breaks the real pipeline fails here, in minutes); `sweep` runs every uzu and TensorFold Zig kernel
 # (compile only, clang 23) and fails if an entry that had valid Vulkan SPIR-V loses it.
 # The floor is sweep/coverage-floor.txt; raise it with `sweep/check_coverage.py RESULT.json --update` in the PR that gains entries.
@@ -20,6 +20,16 @@ env:
   TF_SHA: f8fe17d24629aedabf90bbf78279dd776e6d62e7
 
 jobs:
+  coverage-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Coverage gate CPU-only tests
+        run: python3 -m unittest discover -s sweep/tests -p test_coverage.py -v
+
   clspv:
     runs-on: ubuntu-24.04
     timeout-minutes: 120

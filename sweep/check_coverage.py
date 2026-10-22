@@ -9,6 +9,7 @@ warning, not a failure: a slow runner must not block a PR. New valid entries are
 """
 import argparse
 import json
+import re
 import sys
 
 
@@ -32,7 +33,9 @@ def main():
     floor = {line.strip() for line in open(a.floor) if line.strip()}
     by_key = {key(r): r for r in rows}
     lost = sorted(floor - valid)
-    slow = [k for k in lost if k in by_key and "timeout" in (by_key[k].get("error") or "")]
+    slow = [k for k in lost if k in by_key and by_key[k].get("spv") == "FAIL"
+            and re.fullmatch(r"timeout(?: after [0-9]+ s \(clspv does not finish\))?",
+                             by_key[k].get("error") or "")]
     broken = [k for k in lost if k not in slow]
     for k in slow:
         print(f"warning: {k}: clspv did not finish in time (not counted as a regression)")
