@@ -16,7 +16,7 @@ m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--tim
 | argument | meaning |
 | --- | --- |
 | `--msl FILE.metal` | the complete assembled MSL, exactly as mlx generates it: header text, then one or more `[[kernel]]` functions, or a template kernel with `template [[host_name("...")]] [[kernel]] decltype(f<A, B>) f<A, B>;` instantiations |
-| `--out DIR` | receives `<name>.spv` and `<name>.json` on success; created if missing; never touched otherwise |
+| `--out DIR` | receives the SPIR-V and reflection files on success; created before compilation; previous outputs remain after a failed invocation |
 | `--name KERNEL_NAME` | the instantiation (host name) or kernel entry to select. Without it the file must hold exactly one entry |
 | `--cache DIR` | cache directory; default `$M2V_CACHE_DIR`, else `$XDG_CACHE_HOME/m2v-compile` |
 | `--timeout SEC` | per-stage cap (clang, opt, clspv, spirv-val, reflection), default 120; a stage past the cap is killed and the run exits 4 |
@@ -26,12 +26,15 @@ The tool is a Python 3 script with no dependencies beyond the toolchain the swee
 the patched `clspv`, `spirv-tools`). Binaries come from the same environment as the sweep: `CLANG`, `OPT`,
 `CLSPV`, `SPIRV_VAL`, `M2V_OPT`, `M2V_DEFS`, `M2V_INCLUDE`.
 
+Set `CLSPV` to an absolute executable path. The current fingerprint code opens that path to hash the binary.
+A bare PATH name passes tool validation but fails fingerprinting when no matching file exists in the working directory.
+
 ## Outputs
 
-On status ok, DIR holds exactly two files:
+A successful invocation writes two files. It does not clear previous outputs or unrelated files from DIR:
 
-- `<name>.spv`: the SPIR-V module (SPIR-V 1.5, valid for Vulkan 1.3, `spirv-val --target-env vulkan1.3` clean).
-- `<name>.json`: the reflection. `m2v-reflect.py`'s module view verbatim (capabilities, extensions,
+- `<stem>.spv`: the SPIR-V module (SPIR-V 1.5, valid for Vulkan 1.3, `spirv-val --target-env vulkan1.3` clean).
+- `<stem>.json`: the reflection. `m2v-reflect.py`'s module view verbatim (capabilities, extensions,
   `uses_cooperative_matrix`, `workgroup_size_spec_constant_ids`, `push_constant_regions`, `kernels`), plus:
   - `name` and `kernel`: the selected kernel; `kernel.args` is the argument list in kernel-argument order, each
     with `ordinal`, `kind` (`storage_buffer`, `uniform_buffer`, `pod_push_constant`, `workgroup_memory`), `set`
@@ -45,14 +48,18 @@ On status ok, DIR holds exactly two files:
 A kernel name longer than 200 bytes (mlx instantiation names can be) truncates the file stem to 140 bytes plus 12
 hex characters of the name's sha256; `name` in the JSON and the `--json` line always carry the full name.
 
+Use the `spv` and `json` paths from a successful `--json` status object.
+The reflection's `module` field currently keeps the full name even when the output stem is shortened.
+Do not construct a filename from `name` or `module` for long names.
+
 ## Reflection schema
 
-Top-level fields of `<name>.json`:
+Top-level fields of `<stem>.json`:
 
 | field | type | meaning |
 | --- | --- | --- |
-| `module` | string | the SPIR-V file this description came from, relative to the output directory |
-| `name` | string | the selected kernel's name (also the output file stem) |
+| `module` | string | the logical kernel name plus `.spv`; differs from the actual output filename for long names |
+| `name` | string | the selected kernel's full logical name |
 | `kernel` | object | the selected kernel; same object as `kernels[i]` |
 | `kernels` | array | every kernel in the module; one compile produces exactly one |
 | `capabilities` | string array | `OpCapability` names, e.g. `["Shader"]` |
@@ -151,7 +158,9 @@ dispatcher maps it:
 
 ## Status and exit codes
 
-No SPIR-V or JSON is ever written to DIR for a non-ok status, and a refusal or error caches nothing.
+A non-ok result writes no new compiled artifacts to DIR and caches no failed compilation.
+DIR can still exist and contain artifacts from an earlier successful invocation.
+Check the exit status before using output files; file existence alone does not establish success.
 
 | exit | stdout (no `--json`) | stderr | the integrator should |
 | --- | --- | --- | --- |
@@ -168,75 +177,33 @@ and `status` are the machine contract; stderr is for humans.
 
 ## Calling it from C++
 
-fork/exec with the arguments in argv, capture both pipes, switch on the exit code; the one `--json` stdout line is
-the machine-readable result and stderr is the diagnostic. The tool enforces `--timeout` per stage itself, so the
-caller only needs a generous wall-clock cap to guard a wedged child, and killing the child's process group takes
-the whole compiler tree down. This exact program compiles and runs (g++ 12, against the tool in this repo):
+Use `fork`/`exec` or a subprocess library with separate argv entries.
+Do not build a shell command from kernel names or paths.
+The compiler uses per-stage timeouts.
+The caller also needs an end-to-end deadline for startup, fingerprinting and pipe I/O.
 
-```cpp
-struct M2vRun { int exit_code = -1; std::string json_line, diagnostics; };
+1. Start the compiler in its own process group with `--json` and an explicit `--cache` directory.
+2. Drain stdout and stderr concurrently.
+   Use nonblocking I/O with `poll`/`select`, or a subprocess library that handles both pipes.
+3. Enforce the deadline while reading, not only after EOF. On expiry, terminate the process group and reap the child.
+4. Check the exit status and JSON `status` before loading the returned `spv` and `json` paths.
+5. On failure, retain stderr and any reported `log` path. Do not reuse files left in the output directory.
 
-static M2vRun m2v_compile(const std::string& tool, const std::string& msl, const std::string& out_dir,
-                          const std::string& cache_dir, const std::string& name,
-                          int stage_timeout = 120, int wall_cap_s = 600) {
-  int out_pipe[2], err_pipe[2];
-  if (pipe(out_pipe) || pipe(err_pipe)) return {};
-  std::vector<std::string> args = {tool, "--msl", msl, "--out", out_dir, "--cache", cache_dir,
-                                   "--timeout", std::to_string(stage_timeout), "--json"};
-  if (!name.empty()) { args.push_back("--name"); args.push_back(name); }
-  std::vector<char*> argv;
-  for (auto& a : args) argv.push_back(a.data());
-  argv.push_back(nullptr);
+Reading stdout to EOF before reading stderr can deadlock when the child's stderr pipe fills.
+Blocking pipe reads before the deadline check also leave a wedged child outside the caller's timeout.
+No C++ subprocess implementation is provided here.
 
-  pid_t pid = fork();
-  if (pid == 0) {
-    dup2(out_pipe[1], STDOUT_FILENO);
-    dup2(err_pipe[1], STDERR_FILENO);
-    close(out_pipe[0]); close(out_pipe[1]); close(err_pipe[0]); close(err_pipe[1]);
-    setpgid(0, 0); // own process group, so the cap below can kill compiler and children together
-    execvp(tool.c_str(), argv.data());
-    _exit(127);
-  }
-  close(out_pipe[1]); close(err_pipe[1]);
-
-  M2vRun run;
-  char buf[4096];
-  ssize_t n;
-  while ((n = read(out_pipe[0], buf, sizeof buf)) > 0) run.json_line.append(buf, n);
-  while ((n = read(err_pipe[0], buf, sizeof buf)) > 0) run.diagnostics.append(buf, n);
-  close(out_pipe[0]); close(err_pipe[0]);
-
-  int status = 0;
-  for (int waited = 0;;) {
-    pid_t r = waitpid(pid, &status, WNOHANG);
-    if (r == pid) break;
-    if (++waited > wall_cap_s) { // kill the whole group: the tool is past its own deadline
-      kill(-pid, SIGKILL);
-      waitpid(pid, &status, 0);
-      run.exit_code = 4;
-      return run;
-    }
-    sleep(1);
-  }
-  run.exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 4;
-  return run;
-}
-```
-
-`tool` is the path to the installed `m2v-compile` script (it needs only python3 at runtime); exit 127 from the
-child means that path did not execute. On 0, load the two paths from the JSON line. On 3, blacklist the kernel
-until a Metal 4 lowering lands. On 4 or 5, log `diagnostics` and the `log` path, and treat the cache key as
-burned for this toolchain (the failure is cached nowhere, so a retry after a fix simply misses). The toolchain
-environment the child inherits is the sweep's: `CLANG`, `OPT`, `CLSPV`, `SPIRV_VAL` (paths or PATH names),
-`M2V_INCLUDE`, `M2V_OPT`, `M2V_DEFS`; give the child an explicit `M2V_CACHE_DIR` (or `--cache`) so the shared
-cache lands where the host wants it. `M2V_CLSPV_TIMEOUT` is ignored: `--timeout` governs every stage.
+The child inherits `CLANG`, `OPT`, `CLSPV`, `SPIRV_VAL`, `M2V_INCLUDE`, `M2V_OPT` and `M2V_DEFS`.
+Use an absolute `CLSPV` path as described above.
+`M2V_CLSPV_TIMEOUT` is ignored: `--timeout` controls the pipeline stages.
 
 ## Cache
 
 The key is `sha256` over: the MSL text, the requested `--name` (empty when absent), the toolchain fingerprint
 (clang, opt and clspv versions, the clspv binary hash, sha256 of the `include/` tree, sha256 of `clspv-patches/`,
-and one hash over every file of the MSL's own directory and its parent, which is where its project includes
-resolve from), the include directory paths, and the compile flags (`M2V_OPT`, `M2V_DEFS`).
+and one hash over regular files in the MSL's own directory and its parent).
+The source-tree hash excludes symlinks and the output/cache trees.
+The key also includes the include directory paths and compile flags (`M2V_OPT`, `M2V_DEFS`).
 
 Layout under the cache directory:
 
@@ -255,6 +222,11 @@ sees a partial entry. Changed toolchain, headers or source simply produce a new 
 delete the cache directory. Two ceilings, by design: trees over 100k entries, 4096 files or 32 MiB of content are
 hashed by count and newest mtime instead of content, and clocks that move file mtimes backwards invalidate
 nothing (an edit that keeps every mtime on an oversized tree can go unnoticed).
+
+The fingerprint does not follow header symlinks.
+A compiler can read an external header through a symlink without hashing its contents.
+Changing that target can therefore leave a stale cache hit.
+Keep headers as regular files within the hashed roots, or use a fresh cache after external header changes.
 
 ## Tests
 

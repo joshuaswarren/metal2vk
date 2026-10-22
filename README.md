@@ -77,7 +77,21 @@ cc -O2 m2v-run.c -lvulkan -o m2v-run
 python3 m2v-test.py results ./m2v-run out activation softmax     # writes results/results.json
 ```
 
-To translate one Metal file of your own, run `tools/m2v-compile --msl kernel.metal --out DIR`. It does the same with a cache. See [docs/m2v-compile.md](docs/m2v-compile.md).
+### Translate one Metal file
+
+After the toolchain setup above, compile your own assembled `kernel.metal` from the repository root:
+
+```bash
+tools/m2v-compile --msl kernel.metal --out out/single --cache .cache/m2v-compile --json
+```
+
+The file must contain one kernel entry. For multiple entries, add `--name` with the entry's Metal host name.
+Keep `CLSPV` set to an absolute executable path, as in the setup above.
+Compilation and SPIR-V validation need no GPU; running the result does.
+
+Integrators must check the exit status and use the returned `spv` and `json` paths.
+A failed invocation does not remove outputs from an earlier success.
+See [the CLI reference](docs/m2v-compile.md) for reflection, cache limits and subprocess deadlines.
 
 ## How it works
 
