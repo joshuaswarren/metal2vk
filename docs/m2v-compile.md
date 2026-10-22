@@ -202,7 +202,7 @@ Use an absolute `CLSPV` path as described above.
 The key is `sha256` over: the MSL text, the requested `--name` (empty when absent), the toolchain fingerprint
 (clang, opt and clspv versions, the clspv binary hash, sha256 of the `include/` tree, sha256 of `clspv-patches/`,
 and one hash over regular files in the MSL's own directory and its parent).
-The source-tree hash excludes symlinks and the output/cache trees.
+The source-tree hash skips symlinks. It also skips the output and cache directories, but only when they are subdirectories below a hashed root (the MSL's directory or its parent). If `--out` or `--cache` is one of those two roots itself, its files are hashed, so the generated `.spv` and `.json` files change the next key. Keep the output and cache directories different from both roots.
 The key also includes the include directory paths and compile flags (`M2V_OPT`, `M2V_DEFS`).
 
 Layout under the cache directory:
