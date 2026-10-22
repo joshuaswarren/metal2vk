@@ -18,7 +18,7 @@ m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--tim
 | `--msl FILE.metal` | the complete assembled MSL, exactly as mlx generates it: header text, then one or more `[[kernel]]` functions, or a template kernel with `template [[host_name("...")]] [[kernel]] decltype(f<A, B>) f<A, B>;` instantiations |
 | `--out DIR` | receives the SPIR-V and reflection files on success; created before compilation; previous outputs remain after a failed invocation |
 | `--name KERNEL_NAME` | the instantiation (host name) or kernel entry to select. Without it the file must hold exactly one entry |
-| `--cache DIR` | cache directory; default `$M2V_CACHE_DIR`, else `$XDG_CACHE_HOME/m2v-compile` |
+| `--cache DIR` | cache directory; default `$M2V_CACHE_DIR`, else `$XDG_CACHE_HOME/m2v-compile`, else `~/.cache/m2v-compile` when `XDG_CACHE_HOME` is unset or empty |
 | `--timeout SEC` | per-stage cap (clang, opt, clspv, spirv-val, reflection), default 120; a stage past the cap is killed and the run exits 4 |
 | `--json` | one JSON object on stdout describing the result |
 
@@ -45,8 +45,8 @@ A successful invocation writes two files. It does not clear previous outputs or 
     null and `workgroup_size_spec_constant_ids` holds the three spec ids to set at pipeline creation.
   - `toolchain`: the fingerprint that went into the cache key (see below).
 
-A kernel name longer than 200 bytes (mlx instantiation names can be) truncates the file stem to 140 bytes plus 12
-hex characters of the name's sha256; `name` in the JSON and the `--json` line always carry the full name.
+A kernel name longer than 200 bytes (mlx instantiation names can be) truncates the file stem to the first 140 characters of
+the name, a `-`, and 12 hex characters of the name's sha256; `name` in the JSON and the `--json` line always carry the full name.
 
 Use the `spv` and `json` paths from a successful `--json` status object.
 The reflection's `module` field currently keeps the full name even when the output stem is shortened.
@@ -167,13 +167,14 @@ Check the exit status before using output files; file existence alone does not e
 | 0 | nothing | nothing | load `DIR/<name>.spv` and `DIR/<name>.json` |
 | 2 | nothing | `error: <reason>` | fix the call; surface the line. Observed reasons, verbatim: `error: no such file: PATH`, `error: --timeout must be positive`, `error: CLANG=TOOL is not runnable; the toolchain is the sweep's (CLANG, OPT, CLSPV, SPIRV_VAL)` (likewise `OPT=`, `CLSPV=`, `SPIRV_VAL=`), `error: file does not hold exactly one entry; pass --name (N entries or instantiations)` (also what a template with no instantiation looks like without `--name`), and under `--name`: `error: no kernel entry named 'NAME'`, `error: name 'NAME' matches N entries or instantiations`, `error: template kernel without host_name instantiation` |
 | 3 | `refused: CONSTRUCT in kernel NAME` | nothing | do not retry: the kernel needs a Metal 4 tensor-op lowering that does not exist (CONSTRUCT is `dextents`, `tensor<` or `mpp::`) |
-| 4 | nothing | `error: FIRST-DIAGNOSTIC (log: PATH)` | surface the diagnostic and keep PATH: the full command log of the failed compile. A stage past `--timeout` has the shape `error: TOOL timed out after N s in kernel NAME (log: PATH)` |
+| 4 | nothing | `error: FIRST-DIAGNOSTIC (log: PATH)` | surface the diagnostic and keep PATH: the full command log of the failed compile. A stage past `--timeout` has the shape `error: TOOL timed out after N s in kernel NAME (log: PATH)`. A wait on another process that holds the same cache key past `--timeout` prints `error: another m2v-compile holds key KEY past N s` with no log path |
 | 5 | nothing | `error: FIRST-VALIDATOR-LINE (log: PATH)` | same; the module is invalid. The line literally begins `error: error: line ...`: the tool's prefix plus spirv-val's own |
 
-With `--json`, stdout carries exactly one line: `status` (`ok`, `refused`, `error`), `cache` (`hit` or `miss`),
+With `--json`, stdout carries exactly one line: `status`, `cache` (`hit` or `miss`),
 and for ok also `name`, `key` (the cache key, short), `spv`, `json` and `seconds`; for `refused` also `refused`
-(the construct) and `kernel`; for errors `exit`, `seconds`, `detail` and, where one exists, `log`. The exit code
-and `status` are the machine contract; stderr is for humans.
+(the construct) and `kernel`; for errors `exit`, `seconds`, `detail` and, where one exists, `log`. `status` is a label:
+`ok`, `refused`, `error` (exit 2, and exit 4 for a lock wait), `compile error` or `reflection failed` (exit 4), `spirv-val failed` (exit 5).
+Branch on the exit code (0, 2, 3, 4, 5), not on the `status` text. The exit code is the machine contract; stderr is for humans.
 
 ## Calling it from C++
 
@@ -186,7 +187,7 @@ The caller also needs an end-to-end deadline for startup, fingerprinting and pip
 2. Drain stdout and stderr concurrently.
    Use nonblocking I/O with `poll`/`select`, or a subprocess library that handles both pipes.
 3. Enforce the deadline while reading, not only after EOF. On expiry, terminate the process group and reap the child.
-4. Check the exit status and JSON `status` before loading the returned `spv` and `json` paths.
+4. Check the exit status before loading the returned `spv` and `json` paths; use the JSON `status` only as a label.
 5. On failure, retain stderr and any reported `log` path. Do not reuse files left in the output directory.
 
 Reading stdout to EOF before reading stderr can deadlock when the child's stderr pipe fills.
@@ -201,7 +202,7 @@ Use an absolute `CLSPV` path as described above.
 
 The key is `sha256` over: the MSL text, the requested `--name` (empty when absent), the toolchain fingerprint
 (clang, opt and clspv versions, the clspv binary hash, sha256 of the `include/` tree, sha256 of `clspv-patches/`,
-and one hash over regular files in the MSL's own directory and its parent).
+and one hash over every regular file below the MSL's own directory and below its parent).
 The source-tree hash skips symlinks. It also skips the output and cache directories, but only when they are subdirectories below a hashed root (the MSL's directory or its parent). If `--out` or `--cache` is one of those two roots itself, its files are hashed, so the generated `.spv` and `.json` files change the next key. Keep the output and cache directories different from both roots.
 The key also includes the include directory paths and compile flags (`M2V_OPT`, `M2V_DEFS`).
 
