@@ -32,7 +32,8 @@ def main():
     floor = {line.strip() for line in open(a.floor) if line.strip()}
     by_key = {key(r): r for r in rows}
     lost = sorted(floor - valid)
-    slow = [k for k in lost if k in by_key and "timeout" in (by_key[k].get("error") or "")]
+    slow = [k for k in lost if k in by_key and by_key[k].get("spv") == "FAIL"
+            and (by_key[k].get("error") or "").startswith("timeout")]
     broken = [k for k in lost if k not in slow]
     for k in slow:
         print(f"warning: {k}: clspv did not finish in time (not counted as a regression)")
