@@ -276,6 +276,14 @@ template <typename T> METAL_FUNC bool isinf(T x) { return ::isinf(x); }
 // The OpenCL builtins are overloaded per float type; a real bfloat argument matches several of them.
 METAL_FUNC bool isnan(bfloat x) { return ::isnan((float)x); }
 METAL_FUNC bool isinf(bfloat x) { return ::isinf((float)x); }
+// Metal's math on bfloat returns bfloat. Compute in float and narrow round-to-nearest-even; the OpenCL
+// builtins under the templates above have no bfloat overload, so ::N(bfloat) is ambiguous.
+#define M2V_MATH1_BF(N) METAL_FUNC bfloat N(bfloat x) { return (bfloat)::N((float)x); }
+M2V_MATH1_BF(exp) M2V_MATH1_BF(exp2) M2V_MATH1_BF(log) M2V_MATH1_BF(log2) M2V_MATH1_BF(sqrt) M2V_MATH1_BF(rsqrt)
+M2V_MATH1_BF(tanh) M2V_MATH1_BF(sin) M2V_MATH1_BF(cos) M2V_MATH1_BF(floor) M2V_MATH1_BF(ceil) M2V_MATH1_BF(round)
+M2V_MATH1_BF(trunc) M2V_MATH1_BF(fabs)
+#undef M2V_MATH1_BF
+METAL_FUNC bfloat pow(bfloat x, bfloat y) { return (bfloat)::pow((float)x, (float)y); }
 
 namespace fast {
 METAL_FUNC float exp(float x) { return native_exp(x); }
