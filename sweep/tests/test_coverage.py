@@ -58,12 +58,12 @@ class CoverageGateTests(unittest.TestCase):
 
     def test_clspv_timeout_warns_without_lowering_floor(self):
         floor = ["uzu/kernel.metal::slow[-]"]
-        result = self.run_gate([
-            row("slow", spv="FAIL", val="", error="timeout after 300 s (clspv does not finish)"),
-        ], floor)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(floor[0], result.stdout)
-        self.assertEqual(self.floor.read_text().splitlines(), floor)
+        for error in ("timeout", "timeout after 300 s (clspv does not finish)"):
+            with self.subTest(error=error):
+                result = self.run_gate([row("slow", spv="FAIL", val="", error=error)], floor)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(floor[0], result.stdout)
+                self.assertEqual(self.floor.read_text().splitlines(), floor)
 
     def test_timeout_does_not_hide_a_separate_regression(self):
         floor = ["uzu/kernel.metal::slow[-]", "uzu/kernel.metal::broken[-]"]
@@ -82,10 +82,10 @@ class CoverageGateTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(floor[0], result.stdout)
 
-    def test_clspv_error_mentioning_timeout_is_a_regression(self):
+    def test_clspv_error_starting_with_timeout_is_a_regression(self):
         floor = ["uzu/kernel.metal::broken[-]"]
         result = self.run_gate([
-            row("broken", spv="FAIL", val="", error="unsupported instruction: timeout"),
+            row("broken", spv="FAIL", val="", error="timeout option is invalid"),
         ], floor)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn(floor[0], result.stdout)
