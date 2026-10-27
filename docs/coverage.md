@@ -92,3 +92,6 @@ Unknown cases must exit 2 before dispatch; runner errors or failed comparisons m
 ## Explicit native-FMA selection
 
 The opt-in compiler recipe is included in cache/reflection identity. The retained default-recipe comparison produced byte-identical SPIR-V for 540/540 sweep modules; this adds no compile-coverage claim. `tools/tests/run.py` checks option precedence, invalid values and cache separation. Native arithmetic must be qualified for each operand domain and device.
+## Lossless-merge offset correctness
+
+The aggregate-selection fixture produces valid but numerically wrong SPIR-V with the old merge patch. The corrected compiler preserves `(g << 4) | k` byte offsets instead of doubling the element contribution to `(g << 5) | k`. `sweep/tests/run.py` checks all four offsets in `lossless_merge_guard.ll`. A retained 540-module comparison found 535 byte-identical modules and five changed candidates; those five were not run on hardware. The standalone selection fixture passed on Apple M1 / Honeykrisp Mesa 26.2.5 with validation enabled. This is a correctness fix, not a compile-coverage increase.

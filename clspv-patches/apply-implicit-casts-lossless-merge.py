@@ -16,6 +16,15 @@ resulting byte-granular chain is the shape ReplacePointerBitcastPass lowers
 into typed word loads. Aggregate and unsized element types keep the old
 regenerated-index path.
 
+Guard (v2): the merge runs only while `src` is still the inner GEP. When the
+outer offset is a constant that does not land on a field of the inner element
+(a byte copy at k % 4 != 0 out of `gep [8 x Conf], 0, %g`), the branch above
+has already folded the inner offset into DynVal and moved `src` to the base;
+merging again counted `%g * 16` twice and read bytes at `(%g << 5) | k`: a
+valid module with a wrong result (cases/aggregate_select.metal). A tree
+patched by v1 is upgraded in place. The marker string lets
+sweep/tests/run.py (lossless_merge_guard) recognise a binary built with v2.
+
 Tested against clspv f2b01dd6 plus apply-coopmat-lowering.py,
 apply-coopmat-f16.py, apply-undef-pointer-type.py,
 apply-simplify-ptr-bitcast-converge.py, apply-untyped-gep-predicate.py,
@@ -99,10 +108,33 @@ new = (
     "      }\n"
     "    }\n"
 )
-if new in s:
+# v2: the merge must not run when the constant-offset branch above already moved src to the base
+guard_old = "      if (DynVal != nullptr && SizeInBits(DL, src_ty) != 0 &&\n"
+guard_new = (
+    "      if (DynVal != nullptr && src == src_gep &&\n"
+    "          SizeInBits(DL, src_ty) != 0 &&\n"
+)
+mark_at = "        // offsets up to the finer unit is a multiply, which is lossless.\n"
+mark = (
+    "        // metal2vk: only while src is still src_gep. Otherwise the branch\n"
+    "        // above already added src_gep's offset to DynVal; adding it again\n"
+    "        // doubles the element offset (cases/aggregate_select.metal).\n"
+    "        static const char *const volatile M2vLosslessMergeGuard =\n"
+    "            \"metal2vk:apply-implicit-casts-lossless-merge:v2\";\n"
+    "        (void)M2vLosslessMergeGuard;\n"
+)
+if "metal2vk:apply-implicit-casts-lossless-merge:v2" in s:
     print("already patched")
     sys.exit(0)
-if s.count(old) != 1:
-    raise SystemExit(f"anchor count mismatch: {s.count(old)} (want 1)")
-p.write_text(s.replace(old, new, 1))
-print(f"patched (clspv HEAD {sha[:8]})")
+if new not in s:
+    if s.count(old) != 1:
+        raise SystemExit(f"anchor count mismatch: {s.count(old)} (want 1)")
+    s = s.replace(old, new, 1)
+    action = "patched"
+else:
+    action = "upgraded v1 to v2"
+if s.count(guard_old) != 1 or s.count(mark_at) != 1:
+    raise SystemExit(f"v2 anchor count mismatch: {s.count(guard_old)}, {s.count(mark_at)} (want 1, 1)")
+s = s.replace(guard_old, guard_new, 1).replace(mark_at, mark_at + mark, 1)
+p.write_text(s)
+print(f"{action} (clspv HEAD {sha[:8]})")
