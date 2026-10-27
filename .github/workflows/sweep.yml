@@ -134,6 +134,11 @@ jobs:
       - name: Test-driver failure exits (no GPU)
         run: python3 -m unittest discover -s tools/tests -p test_driver_exit.py -v
 
+      - name: Precise-rsqrt corpus and status guards (no GPU)
+        run: |
+          python3 m2v_rsqrt_corpus.py check cases/precise_rsqrt
+          python3 m2v_rsqrt_scoped_status_check.py
+
       - name: Sweep
         env:
           UZU_ROOT: ${{ github.workspace }}/uzu

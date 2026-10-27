@@ -15,8 +15,9 @@ CHIP=$(system_profiler -detailLevel mini SPHardwareDataType 2>/dev/null | awk -F
 CHIP=${CHIP:-$(sysctl -n hw.model 2>/dev/null || printf 'unknown')}
 printf 'Native Metal timing harness\nChip: %s\nmacOS: %s\nLoad average: %s\n' "$CHIP" "$MACOS" "$LOAD"
 
-BIN="$DIR/.native-bench"
+BIN=${NATIVE_BENCH_BIN:-"$DIR/.native-bench"}
 if ! swiftc -O -framework Metal -framework Foundation "$DIR/native-bench.swift" -o "$BIN"; then
   fail "swiftc could not build the harness. Check the Xcode Command Line Tools installation."
 fi
+if [ "${1:-}" = "--rsqrt" ]; then exec "$BIN" "$@"; fi  # precise-rsqrt capture: KERNEL.metal INPUT.u32le.bin OUTPREFIX
 "$BIN" "$OUT"

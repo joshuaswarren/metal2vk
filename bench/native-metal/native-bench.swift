@@ -39,6 +39,41 @@ struct Row {
 
 let device: MTLDevice = { guard let value = MTLCreateSystemDefaultDevice() else { fputs("FAIL: Metal device unavailable\n", stderr); exit(1) }; return value }()
 let queue: MTLCommandQueue = { guard let value = device.makeCommandQueue() else { fputs("FAIL: Metal command queue unavailable\n", stderr); exit(1) }; return value }()
+// Precise-rsqrt capture (docs/precise-rsqrt.md). One kernel over raw binary32 bits from a file; the output buffer is
+// written back byte for byte, with no float conversion on the host. The kernel is compiled twice: with the frozen
+// engine options (Metal 3.0, safe math) and with nil options, which is how every other row of this harness compiles.
+// usage: native-bench --rsqrt KERNEL.metal INPUT.u32le.bin OUTPREFIX
+func rsqrtCapture(_ args: [String]) throws {
+    let source = try String(contentsOfFile: args[0], encoding: .utf8)
+    let input = try Data(contentsOf: URL(fileURLWithPath: args[1]))
+    let words = input.count / 4, group = 64, sentinel: UInt32 = 0xA5A5A5A5
+    guard input.count % 4 == 0, words % group == 0 else { throw NSError(domain: "rsqrt", code: 1, userInfo: [NSLocalizedDescriptionKey: "FAIL: input must be whole 64-word groups"]) }
+    let safe = MTLCompileOptions(); safe.languageVersion = .version3_0; safe.mathMode = .safe
+    let probe = MTLCompileOptions()
+    for (tag, options) in [("safe_msl30", Optional(safe)), ("bench_default", nil)] {
+        let shown = options ?? probe
+        let lib = try device.makeLibrary(source: source, options: options)
+        let ps = try pipeline(lib, "rsqrt_precise")
+        let inBuf = device.makeBuffer(bytes: (input as NSData).bytes, length: input.count, options: .storageModeShared)!
+        let outBuf = device.makeBuffer(length: input.count, options: .storageModeShared)!
+        outBuf.contents().bindMemory(to: UInt32.self, capacity: words).update(repeating: sentinel, count: words)
+        _ = try dispatch(ps, [inBuf, outBuf], MTLSize(width: words / group, height: 1, depth: 1), MTLSize(width: group, height: 1, depth: 1))
+        let got = output(outBuf, as: UInt32.self, count: words)
+        let inputKept = Data(bytes: inBuf.contents(), count: input.count) == input
+        try Data(bytes: outBuf.contents(), count: input.count).write(to: URL(fileURLWithPath: args[2] + ".\(tag).out.u32le.bin"))
+        let report: [String: Any] = ["tag": tag, "device": device.name, "macos": ProcessInfo.processInfo.operatingSystemVersionString,
+            "options_given": options == nil ? "nil" : "explicit", "languageVersion_raw": shown.languageVersion.rawValue, "mathMode_raw": shown.mathMode.rawValue,
+            "mathFloatingPointFunctions_raw": shown.mathFloatingPointFunctions.rawValue,
+            "words": words, "input_buffer_unchanged": inputKept, "unwritten_lanes": got.filter { $0 == sentinel }.count,
+            "maxTotalThreadsPerThreadgroup": ps.maxTotalThreadsPerThreadgroup, "threadExecutionWidth": ps.threadExecutionWidth]
+        print(String(data: try JSONSerialization.data(withJSONObject: report, options: [.sortedKeys]), encoding: .utf8)!)
+    }
+}
+if CommandLine.arguments.count == 5 && CommandLine.arguments[1] == "--rsqrt" {
+    do { try rsqrtCapture(Array(CommandLine.arguments[2...])) } catch { fputs("\(error)\n", stderr); exit(1) }
+    exit(0)
+}
+
 let base = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
 let outDir = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : base.path + "/results", isDirectory: true)
 try FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)

@@ -98,3 +98,6 @@ The aggregate-selection fixture produces valid but numerically wrong SPIR-V with
 ## Packed three-word storage
 
 `cases/packed_uint3_stride12.metal` compiles and validates with 12-byte size and 4-byte alignment. The included kernel reads two adjacent triples starting at byte offset 4 and writes six words plus size/alignment. An external hardware harness reported all eight uint32 outputs matching on Apple M1 / Honeykrisp Mesa 26.2.5 with validation enabled. That harness and its captures are retained outside this repository, so the hardware result is not reproducible from this repository alone; the included automated checks compile and inspect the kernel. The base shim rejects the missing type. Storage and indexing only; packed-vector arithmetic is outside this change. No full-corpus coverage count is claimed.
+## Scalar precise-rsqrt compatibility
+
+The public 8,391-input fixture compares native-Metal output separately from its exact-rational mathematical oracle. On the recorded M1/Honeykrisp tuple, the old shim has 1,346 finite mismatches and the scoped correction has zero; the half-propagation fixture changes from 29 mismatches to zero. Native-FMA compilation of the correction is explicitly unsupported. See [the contract and commands](precise-rsqrt.md). This is numerical compatibility evidence, not a new whole-corpus compile-coverage count.
