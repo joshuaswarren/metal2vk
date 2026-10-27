@@ -96,6 +96,19 @@ kernel void matrix_cols(device const char* src [[buffer(0)]],
 }
 """
 
+# Independently written synthetic compile case: Metal's three-parameter spelling,
+# and the existing two-parameter shim spelling retained for compatibility.
+FILLED_MATRIX = """\
+#include <metal_stdlib>
+#include <metal_simdgroup_matrix>
+using namespace metal;
+kernel void filled_matrix(device float* out [[buffer(0)]], uint tid [[thread_position_in_grid]]) {
+  simdgroup_float8x8 a = make_filled_simdgroup_matrix<float, 8, 8>(2.0f);
+  simdgroup_float8x8 b = make_filled_simdgroup_matrix<float, 8>(3.0f);
+  out[tid] = a.thread_elements()[0] + a.thread_elements()[1] + b.thread_elements()[0];
+}
+"""
+
 SHARED_SHIM = """\
 #include <metal_stdlib>
 using namespace metal;
@@ -220,7 +233,8 @@ def main():
         src = root / "msl"
         src.mkdir()
         for n, text in (("plain.metal", PLAIN), ("template.metal", TEMPLATE), ("refused.metal", REFUSED),
-                        ("broken.metal", BROKEN), ("matrix.metal", MATRIX), ("shared_shim.metal", SHARED_SHIM)):
+                        ("broken.metal", BROKEN), ("matrix.metal", MATRIX), ("filled_matrix.metal", FILLED_MATRIX),
+                        ("shared_shim.metal", SHARED_SHIM)):
             (src / n).write_text(text)
         cache = root / "cache"
         out = root / "out"
@@ -265,6 +279,9 @@ def main():
         rc, so, se, line = run(src / "matrix.metal", out, cache)
         check(rc == 0 and bool(line) and line.get("status") == "ok", "matrix staging kernel compiles to valid SPIR-V")
         check(bool(line) and line.get("name") == "matrix_cols", "matrix kernel reflection names matrix_cols")
+        rc, so, se, line = run(src / "filled_matrix.metal", out, cache)
+        check(rc == 0 and bool(line) and line.get("status") == "ok",
+              f"filled simdgroup matrix template spellings compile ({se.strip()})")
         rc, so, se, line = run(src / "shared_shim.metal", out, cache)
         check(rc == 0 and bool(line) and line.get("status") == "ok",
               f"shared shim kernel compiles to valid SPIR-V ({se.strip()})")

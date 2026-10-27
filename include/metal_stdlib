@@ -462,6 +462,15 @@ template <typename T, int N> METAL_FUNC simdgroup_matrix<T, N, N> make_filled_si
   return r;
 }
 
+// This shim implements the 8x8 per-lane fragment layout only.
+template <typename T, int Cols, int Rows> METAL_FUNC simdgroup_matrix<T, Cols, Rows> make_filled_simdgroup_matrix(T v) {
+  static_assert(Cols == 8 && Rows == 8, "metal2vk supports only 8x8 simdgroup matrices");
+  simdgroup_matrix<T, Cols, Rows> r;
+  r.thread_elements()[0] = v;
+  r.thread_elements()[1] = v;
+  return r;
+}
+
 #ifdef M2V_NO_COOPMAT
 // Portable fallback: D = A * B + C with subgroup shuffles in the Apple fragment layout (any 32-wide subgroup device).
 template <typename TD, typename TA, typename TB, typename TC>
