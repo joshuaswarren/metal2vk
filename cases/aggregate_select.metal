@@ -9,7 +9,8 @@ using namespace metal;
 //                     (g << 5) | k instead of (g << 4) | k: a valid module with the wrong state for g > 0.
 //   select_scalar:    the same choice one field at a time. Correct.
 //   select_control:   no select, plain struct copy. Correct, so the copy alone is not the fault.
-// Synthetic input only. out = [best, index, second, sum]; m2v-test.py aggregate_select supplies states and oracle.
+// Synthetic input only. out = [best, index, second, sum]. This file supplies kernels; a hardware runner/oracle is
+// not included. For each g, select_control returns state g; the other entries choose g or g+1 by the larger best.
 struct Conf { float best; uint index; float second; float sum; };
 
 kernel void select_control(device const float* in [[buffer(0)]], device float* out [[buffer(1)]],
