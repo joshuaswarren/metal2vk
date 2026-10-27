@@ -316,6 +316,22 @@ def main():
             print("skip byte-identity (no clspv)")
 
         check_native_builtins(root)
+        # packed_uint3 (three tightly packed words, size 12, alignment 4): the case file's own static_assert guards
+        # the layout, so a native 16-byte uint3 alias or a missing type fails here. Fails at parse on the base shim:
+        # unknown type name 'packed_uint3'. The fixture also tests a hardware read at byte offset 4.
+        packed = (REPO / "cases" / "packed_uint3_stride12.metal").read_text()
+        (src / "packed.metal").write_text(packed)
+        rc, so, se, line = run(src / "packed.metal", out, cache)
+        check(rc == 0 and bool(line) and line.get("name") == "packed_uint3_stride12",
+              "packed_uint3 stride-12 kernel compiles to valid SPIR-V" + (f" ({se.strip()[:200]})" if rc else ""))
+        if rc == 0:
+            args = json.loads((out / "packed_uint3_stride12.json").read_text())["kernel"]["args"]
+            check([(a["kind"], a["binding"], a["metal_type"]) for a in args]
+                  == [("storage_buffer", 0, "device const uint*"), ("storage_buffer", 1, "device uint*")],
+                  "packed_uint3 kernel reflects two storage buffers")
+        (src / "packed_wrong.metal").write_text(packed.replace("sizeof(packed_uint3) == 12", "sizeof(packed_uint3) == 16"))
+        rc, so, se, line = run(src / "packed_wrong.metal", root / "packed_wrong_out", cache)
+        check(rc == 4 and "packed_uint3 layout" in se, f"a wrong packed_uint3 size assertion fails the compile ({rc})")
 
         # two concurrent invocations of one cold key: both succeed, one cache entry
         (src / "plain.metal").write_text(PLAIN)

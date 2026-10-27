@@ -162,6 +162,21 @@ typedef vec<char, 4> packed_char4;
 typedef vec<unsigned char, 4> packed_uchar4;
 typedef vec<short, 4> packed_short4;
 typedef vec<int, 4> packed_int4;
+// OpenCL uint3 has 16-byte size/alignment; Metal packed_uint3 is 12 bytes
+// aligned to a scalar. Keep its storage layout explicit for 12-byte strides.
+// Storage and indexing only: no vector arithmetic on this type.
+struct packed_uint3 {
+  uint values[3];
+#define M2V_PACKED_UINT3_INDEX(AS) \
+  METAL_FUNC uint operator[](int i) const AS { return values[i]; }
+  M2V_PACKED_UINT3_INDEX()
+  M2V_PACKED_UINT3_INDEX(__global)
+  M2V_PACKED_UINT3_INDEX(__constant)
+  M2V_PACKED_UINT3_INDEX(__local)
+#undef M2V_PACKED_UINT3_INDEX
+};
+static_assert(sizeof(packed_uint3) == 12 && alignof(packed_uint3) == 4,
+              "packed_uint3 must retain scalar-aligned three-word storage");
 typedef vec<uint, 4> packed_uint4;
 typedef vec<float, 2> packed_float2;
 typedef vec<float, 4> packed_float4;
