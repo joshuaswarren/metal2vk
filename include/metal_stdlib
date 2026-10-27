@@ -318,8 +318,10 @@ METAL_FUNC float exp(float x) { return ::exp(x); }
 METAL_FUNC float log(float x) { return ::log(x); }
 METAL_FUNC float sqrt(float x) { return ::sqrt(x); }
 // Metal's precise rsqrt is correctly rounded; OpenCL rsqrt lowers to GLSL InverseSqrt, which Vulkan allows 2 ulp.
-// One Newton step with an exact residual corrects that seed. The residual is exact only because clspv lowers fma to
-// its integer software emulation by default; under --use-native-builtins=fma it becomes GLSL Fma, which Vulkan does
+// This refinement matches the recorded M1/Honeykrisp corpus. Within about 2^-47 (relative) of a rounding midpoint,
+// the rounded residual can lose the deciding correction: there it depends on InverseSqrt already being correctly
+// rounded, measured on one chip/driver only. Default clspv software fma is required for the compensated residual;
+// under --use-native-builtins=fma it becomes GLSL Fma, which Vulkan does
 // not promise to fuse, and the result is wrong (unsupported). Specials are decided on the bits, so no float op ever
 // sees zero, inf, NaN, a negative or a subnormal (InverseSqrt's specials are undefined without float controls). Contract: docs/precise-rsqrt.md.
 METAL_FUNC float rsqrt(float x) {

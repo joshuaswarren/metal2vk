@@ -99,11 +99,6 @@ def exact_rsqrt_bits(bits):
             return cand
 
 
-def ulp_error(got_bits, ref_bits):
-    """Signed distance in binary32 steps; only meaningful when both are positive finite."""
-    return got_bits - ref_bits
-
-
 def fixed_and_random():
     state, out = SEED, []
     for exp in range(1, 255):

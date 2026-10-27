@@ -109,8 +109,8 @@ def rsqrt_verdict(inputs, primary, got, expected):
             "special_failures": failed, "characterized_only": characterized}
 
 
-# sha256 of lower.sh's base/a_shim/rsqrt_precise.spv: the unmodified shim, byte-identical to the Phase 0 module in
-# docs/repro/precise-rsqrt/lowering/a_shim. The old half of precise_rsqrt_fp32_old_fail_new_pass runs only this module.
+# SHA256 of the recorded old-control module rebuilt by cases/precise_rsqrt/lower.sh into base/a_shim/rsqrt_precise.spv.
+# The old half of precise_rsqrt_fp32_old_fail_new_pass runs only this module; generated SPIR-V is not checked in.
 RSQRT_OLD_SHIM_SHA256 = "272624f568ed8f01e95c6e2a5d09d57df4998850d4a356e173df47534b6dec6f"
 # Half-propagation fixture: xorshift32 seed and the sha256 of its padded s, xw and expected words, frozen at first build.
 RSQRT_HALF_SEED = 0x124F16
