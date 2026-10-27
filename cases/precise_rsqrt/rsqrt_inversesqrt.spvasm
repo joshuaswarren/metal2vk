@@ -1,0 +1,48 @@
+; Minimal Vulkan compute module for one scalar GLSL.std.450 InverseSqrt per lane over raw binary32 bits.
+; It is the reduction of what clspv emits for rsqrt (see the retained rsqrt_precise.dis): the same bindings, the same
+; bitcast-load-InverseSqrt-bitcast-store chain, and no OpFOrdGreaterThanEqual/OpSelect guard around the extended
+; instruction. Capabilities, extensions and execution modes are the same as clspv's: Shader only, no float controls.
+; The workgroup size is fixed at 64 to match m2v-test.py's --local 64 1 1 for the other two modules.
+; Assemble (SPIR-V 1.5, the version clspv is told to emit, then validated for Vulkan 1.3 by lower.sh):
+;  spirv-as --target-env vulkan1.2 rsqrt_inversesqrt.spvasm -o rsqrt_inversesqrt.spv
+               OpCapability Shader
+          %1 = OpExtInstImport "GLSL.std.450"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main "rsqrt_inversesqrt" %gid %in %out
+               OpExecutionMode %main LocalSize 64 1 1
+               OpDecorate %gid BuiltIn GlobalInvocationId
+               OpDecorate %arr ArrayStride 4
+               OpMemberDecorate %buf 0 Offset 0
+               OpDecorate %buf Block
+               OpDecorate %in DescriptorSet 0
+               OpDecorate %in Binding 0
+               OpDecorate %out DescriptorSet 0
+               OpDecorate %out Binding 1
+       %void = OpTypeVoid
+         %fn = OpTypeFunction %void
+       %uint = OpTypeInt 32 0
+      %float = OpTypeFloat 32
+     %v3uint = OpTypeVector %uint 3
+%_ptr_Input_v3uint = OpTypePointer Input %v3uint
+%_ptr_Input_uint = OpTypePointer Input %uint
+        %arr = OpTypeRuntimeArray %uint
+        %buf = OpTypeStruct %arr
+%_ptr_SB_buf = OpTypePointer StorageBuffer %buf
+%_ptr_SB_uint = OpTypePointer StorageBuffer %uint
+     %uint_0 = OpConstant %uint 0
+        %gid = OpVariable %_ptr_Input_v3uint Input
+         %in = OpVariable %_ptr_SB_buf StorageBuffer
+        %out = OpVariable %_ptr_SB_buf StorageBuffer
+       %main = OpFunction %void None %fn
+      %entry = OpLabel
+         %px = OpAccessChain %_ptr_Input_uint %gid %uint_0
+          %i = OpLoad %uint %px
+        %pin = OpAccessChain %_ptr_SB_uint %in %uint_0 %i
+       %bits = OpLoad %uint %pin
+          %x = OpBitcast %float %bits
+          %r = OpExtInst %float %1 InverseSqrt %x
+       %rbits = OpBitcast %uint %r
+       %pout = OpAccessChain %_ptr_SB_uint %out %uint_0 %i
+               OpStore %pout %rbits
+               OpReturn
+               OpFunctionEnd

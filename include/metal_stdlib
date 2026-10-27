@@ -317,7 +317,26 @@ namespace precise {
 METAL_FUNC float exp(float x) { return ::exp(x); }
 METAL_FUNC float log(float x) { return ::log(x); }
 METAL_FUNC float sqrt(float x) { return ::sqrt(x); }
-METAL_FUNC float rsqrt(float x) { return ::rsqrt(x); }
+// Metal's precise rsqrt is correctly rounded; OpenCL rsqrt lowers to GLSL InverseSqrt, which Vulkan allows 2 ulp.
+// This refinement matches the recorded M1/Honeykrisp corpus. Within about 2^-47 (relative) of a rounding midpoint,
+// the rounded residual can lose the deciding correction: there it depends on InverseSqrt already being correctly
+// rounded, measured on one chip/driver only. Default clspv software fma is required for the compensated residual;
+// under --use-native-builtins=fma it becomes GLSL Fma, which Vulkan does
+// not promise to fuse, and the result is wrong (unsupported). Specials are decided on the bits, so no float op ever
+// sees zero, inf, NaN, a negative or a subnormal (InverseSqrt's specials are undefined without float controls). Contract: docs/precise-rsqrt.md.
+METAL_FUNC float rsqrt(float x) {
+  const uint b = as_uint(x);
+  const bool normal = b - 0x00800000u < 0x7F000000u; // 0x00800000 <= b < 0x7F800000: positive normal
+  const float v = normal ? x : 1.0f;
+  const float inverse = ::rsqrt(v);
+  const float product = v * inverse;
+  const float low = ::fma(-v, inverse, product);
+  const float residual = ::fma(low, inverse, ::fma(-product, inverse, 1.0f));
+  const float refined = ::fma(0.5f * inverse, residual, inverse);
+  // +-0 and subnormals (flushed, as Metal does) -> +-inf; +inf -> +0; NaN, -inf and negatives -> quiet NaN
+  const uint special = (b & 0x7F800000u) == 0u ? (b & 0x80000000u) | 0x7F800000u : (b == 0x7F800000u ? 0u : 0x7FC00000u);
+  return as_float(normal ? as_uint(refined) : special);
+}
 METAL_FUNC float tanh(float x) { return ::tanh(x); }
 METAL_FUNC float pow(float x, float y) { return ::pow(x, y); }
 } // namespace precise
