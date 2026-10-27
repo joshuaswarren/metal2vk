@@ -1,12 +1,20 @@
 #!/usr/bin/env python3
 """metal2vk spike test driver. Run on the GPU host (one small pilot submit, then a timed batch under 20 s).
-Usage: m2v-test.py OUTDIR RUNNER SPVDIR [case ...]   cases: activation softmax tilematmul
+Usage: m2v-test.py OUTDIR RUNNER SPVDIR [case ...]   cases: activation softmax gemm tilematmul_rt tilematmul_h tilematmul
+Prints one PASS/FAIL line per result and a summary; exits 1 on a failure, 2 on an unknown case. results.json has one entry per
+result, each with a boolean ok.
 Writes OUTDIR/results.json. CPU reference is numpy float64 -> float32/16 compare."""
-import json, subprocess, sys, os, struct
+import json, subprocess, sys, os, struct, time
 import numpy as np
 
 out, runner, spvdir = sys.argv[1:4]
+ALL = ["activation", "softmax", "gemm", "tilematmul_rt", "tilematmul_h", "tilematmul"]
 cases = sys.argv[4:] or ["activation", "softmax", "tilematmul"]
+bad = [c for c in cases if c not in ALL]
+if bad:
+    print(f"m2v-test.py: unknown case {bad[0]!r}; choose from: {' '.join(ALL)}", file=sys.stderr)
+    sys.exit(2)
+T0 = time.time()
 os.makedirs(out, exist_ok=True)
 rng = np.random.default_rng(7)
 res = {}
@@ -202,6 +210,16 @@ for case in cases:
     except Exception as e:  # keep going so one failure does not hide the others
         res[case] = {"error": repr(e)}
 
+for v in res.values():
+    v["ok"] = bool(v.get("ok")) and "error" not in v
 json.dump(res, open(os.path.join(out, "results.json"), "w"), indent=1)
+KEY = ("max_rel_err", "max_abs_err", "sum_rel_err", "GFLOPs", "GBps", "us")
 for k, v in res.items():
-    print(k, json.dumps(v))
+    num = next((f"{n}={v[n]:.3g}" for n in KEY if v.get(n) is not None), "")
+    print(f"{'PASS' if v['ok'] else 'FAIL'} {k} {num}".rstrip())
+    if not v["ok"]:
+        print("  " + (v["error"] if "error" in v else f"expected {v['expected']} got {v['got']}" if "got" in v else "result differs from the reference")
+              + f"  (details: {os.path.join(out, 'results.json')})")
+failed = sum(not v["ok"] for v in res.values())
+print(f"{len(res) - failed} passed, {failed} failed in {time.time() - T0:.1f} s")
+sys.exit(1 if failed else 0)
