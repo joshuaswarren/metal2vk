@@ -13,6 +13,9 @@ pointer phi (clspv's SimplifyPointerBitcast cycles on those and the patched pass
 PR #47) or gets the byte steps wrong; the skip case fails if it rewrites a dynamic-stride phi it cannot prove.
 When PARITY_G7_DEC (or BLEND_TOOLS) points at saved sweep data, the pointer-phi case also rewrites the real
 gate_up decode IR and requires clspv to compile it with no give-up diagnostic.
+The lossless_merge_guard case fails if apply-implicit-casts-lossless-merge.py merges a GEP pair whose inner offset the
+constant-offset fold already took: threadgroup byte k must be read at (g << 4) | k, not (g << 5) | k (a valid module
+with the wrong result, cases/aggregate_select.metal). It is skipped on a clspv without that patch's v2 marker.
 """
 import os
 import pathlib
@@ -31,6 +34,35 @@ def run_pass(script, ll):
     if r.returncode != 0:
         print(f"FAIL {script} exited {r.returncode}: {(r.stderr or r.stdout).strip()[:300]}")
         return False
+    return True
+
+
+def lossless_merge_offsets_ok(spv):
+    """Every threadgroup byte access in lossless_merge_guard.ll must index (%g << 4) | k, the element's 16-byte
+    offset. (%g << 5) | k is the doubled offset of the unguarded merge: a valid module that reads the wrong bytes."""
+    r = subprocess.run([shutil.which("spirv-dis") or "spirv-dis", str(spv)], capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"FAIL lossless_merge_guard: spirv-dis failed: {r.stderr.strip()[:200]}")
+        return False
+    defs = {}
+    chains = []
+    for ln in r.stdout.splitlines():
+        m = re.match(r"\s*(%\w+) = (Op\w+) \S+ (.*)", ln)
+        if m:
+            defs[m.group(1)] = (m.group(2), m.group(3).split())
+            if m.group(2) == "OpAccessChain" and "%_ptr_Workgroup_uchar" in ln:
+                chains.append(m.group(3).split()[-1])
+    shifts = []
+    for idx in chains:
+        op, args = defs.get(idx, ("", []))
+        if op in ("OpBitwiseOr", "OpIAdd") and len(args) == 2:  # (base) | k
+            op, args = defs.get(next((a for a in args if not a.startswith("%uint_")), ""), ("", []))
+        shifts.append(args[1] if op == "OpShiftLeftLogical" and len(args) == 2 else "?")
+    if len(chains) != 4 or set(shifts) != {"%uint_4"}:
+        print(f"FAIL lossless_merge_guard: byte offsets must be (g << 4) | k for k = 0..3, got shifts {shifts}"
+              f" (%uint_5 is the doubled offset)")
+        return False
+    print("ok lossless_merge_guard: 4 threadgroup byte loads, every offset (g << 4) | k")
     return True
 
 
@@ -99,6 +131,10 @@ def verify(ll, name):
                       "apply-structured-merge-continue.py, the producer-level "
                       "merge/continue separation is not in this binary")
                 return True
+        if name == "lossless_merge_guard" and b"metal2vk:apply-implicit-casts-lossless-merge:v2" not in pathlib.Path(clspv).read_bytes():
+            # same rule as above: CI's clspv carries the v2 guard of apply-implicit-casts-lossless-merge.py
+            print("skip lossless_merge_guard: CLSPV was built without the v2 guard of apply-implicit-casts-lossless-merge.py")
+            return True
         outer_spv = ll.with_suffix(".spv")
         r = subprocess.run([clspv, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points",
                             "--spv-version=1.5", str(ll), "-o", str(outer_spv)], capture_output=True, text=True)
@@ -160,6 +196,8 @@ def verify(ll, name):
                     return False
             print(f"ok structured_merge_continue: {len(loops)} loops, {len(barriers)} "
                   f"barriers, every merge block distinct from every continue target")
+        if name == "lossless_merge_guard" and not lossless_merge_offsets_ok(outer_spv):
+            return False
         if name == "pointer_phi_to_index":
             # the real gate_up decode IR is the shape that sent SimplifyPointerBitcast into its
             # non-converging cycle: after the pass the module must compile with NO give-up
@@ -271,6 +309,7 @@ CASES = {
     "dynamic_struct_array.ll": ["flatten_single_member_structs.py"],
     "spb_tail_drift.ll": [],   # IR is ready to hand to clspv; no text pass
     "structured_merge_continue.ll": [],   # producer-level merge/continue separation
+    "lossless_merge_guard.ll": [],   # v2 guard of apply-implicit-casts-lossless-merge.py
     "pointer_phi_to_index.ll": ["pointer_phi_to_index.py"],
     "pointer_phi_skip.ll": ["pointer_phi_to_index.py"],
 }
