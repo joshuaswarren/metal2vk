@@ -44,6 +44,10 @@ known place to look (a disagreement was seen on an M1 with the Asahi Honeykrisp 
 Enable it per kernel, after checking that kernel's operand range on each chip and driver you ship to; a kernel that
 passed says nothing about another kernel, input range or chip.
 
+Do not enable `fma` for kernels using the scalar `precise::rsqrt` refinement: its compensated residual depends on
+default software-FMA semantics. See the [precise-rsqrt compatibility change](https://github.com/joshuaswarren/metal2vk/pull/103)
+for its contract and measured hardware limits.
+
 ```
 m2v-compile --msl k.metal --out out --native-builtins fma     # opt in
 m2v-compile --msl k.metal --out out                           # default recipe, unchanged
