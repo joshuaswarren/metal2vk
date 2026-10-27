@@ -110,6 +110,17 @@ kernel void shared_shim(device ulong* out [[buffer(0)]],
 }
 """
 
+# fma() with three distinct operands: software expansion by default, one native instruction with --native-builtins fma.
+FMA = """\
+#include <metal_stdlib>
+using namespace metal;
+kernel void fma_case(device const float* in [[buffer(0)]],
+                     device float* out [[buffer(1)]],
+                     uint tid [[thread_position_in_grid]]) {
+  if (tid < 16u) out[tid] = fma(in[3u * tid], in[3u * tid + 1u], in[3u * tid + 2u]);
+}
+"""
+
 fails = 0
 
 
@@ -122,15 +133,73 @@ def check(ok, msg):
         print(f"FAIL {msg}")
 
 
-def run(msl, out, cache, name=None, as_json=True):
-    cmd = [sys.executable, str(CLI), "--msl", str(msl), "--out", str(out), "--cache", str(cache)]
+def run(msl, out, cache, name=None, as_json=True, extra=(), env=None):
+    cmd = [sys.executable, str(CLI), "--msl", str(msl), "--out", str(out), "--cache", str(cache), *extra]
     if name:
         cmd += ["--name", name]
     if as_json:
         cmd += ["--json"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
     line = json.loads(r.stdout.splitlines()[-1]) if as_json and r.stdout.strip() else None
     return r.returncode, r.stdout, r.stderr, line
+
+
+def fma_ops(spv):
+    """GLSL.std.450 Fma instruction count and disassembly line count. The software recipe still emits one Fma on its
+    normal-operand fast path, wrapped in a large special-case fallback; the native recipe is the lone instruction."""
+    r = subprocess.run(["spirv-dis", str(spv)], capture_output=True, text=True)  # from PATH, as m2v-reflect.py
+    check(r.returncode == 0, f"spirv-dis reads {spv.name} {r.stderr.strip()[:120]}".rstrip())
+    return r.stdout.count(" Fma "), len(r.stdout.splitlines())
+
+
+def check_native_builtins(root):
+    """--native-builtins: separate cache entries, recorded choice, hits, rejection, and precedence over the environment."""
+    # own source directory: the cache key hashes the MSL's directory and its parent, so sibling outputs must stay out of both
+    src = root / "fma" / "src"
+    src.mkdir(parents=True)
+    (src / "fma.metal").write_text(FMA)
+    cache = root / "fma-cache"
+    base_env = {k: v for k, v in os.environ.items() if k != "M2V_NATIVE_BUILTINS"}
+    fma_env = dict(base_env, M2V_NATIVE_BUILTINS="fma")
+    results = {}
+    for label, extra, env in (("default", (), base_env), ("none", ("--native-builtins", "none"), base_env),
+                              ("fma", ("--native-builtins", "fma"), base_env),
+                              ("none under env fma", ("--native-builtins", "none"), fma_env),
+                              ("env fma", (), fma_env)):
+        rc, so, se, line = run(src / "fma.metal", root / ("o-" + label.replace(" ", "-")), cache, extra=extra, env=env)
+        check(rc == 0 and bool(line) and line["status"] == "ok", f"fma kernel compiles ({label})")
+        results[label] = line
+    if not all(results.values()):
+        return  # a compile already printed FAIL; the key checks below need every result
+    key = {k: v["key"] for k, v in results.items()}
+    check(key["default"] != key["fma"], "fma and the default recipe get different cache keys")
+    check(key["none"] == key["default"] and key["none under env fma"] == key["default"],
+          "explicit none is the default recipe, even with M2V_NATIVE_BUILTINS=fma inherited")
+    check(key["env fma"] == key["fma"], "M2V_NATIVE_BUILTINS=fma without the argument selects fma")
+    check(results["default"]["cache"] == "miss" and results["fma"]["cache"] == "miss"
+          and results["none"]["cache"] == "hit" and results["none under env fma"]["cache"] == "hit"
+          and results["env fma"]["cache"] == "hit", "each recipe misses once, then hits")
+    check(len(list((cache / "keys").iterdir())) == 2, "the cache holds exactly two entries")
+    refl = {l: json.loads((root / ("o-" + l.replace(" ", "-")) / "fma_case.json").read_text())["toolchain"]
+            for l in ("default", "fma", "none under env fma")}
+    check([refl[l]["native_builtins"] for l in ("default", "fma", "none under env fma")] == ["none", "fma", "none"],
+          "reflection records the native-builtins choice")
+    sw, sw_lines = fma_ops(root / "o-default" / "fma_case.spv")
+    nat, nat_lines = fma_ops(root / "o-fma" / "fma_case.spv")
+    check(sw == 1 and nat == 1 and nat_lines * 2 < sw_lines,
+          f"fma drops the software fallback ({sw_lines} lines by default, {nat_lines} with fma)")
+    check((root / "o-none-under-env-fma" / "fma_case.spv").read_bytes() == (root / "o-default" / "fma_case.spv").read_bytes(),
+          "explicit none under an inherited fma variable is byte-identical to the default")
+    for bad_extra, bad_env, what, named in ((("--native-builtins", "all"), base_env, "unsupported argument", "--native-builtins"),
+                                            (("--native-builtins", ""), base_env, "empty argument", "--native-builtins"),
+                                            ((), dict(base_env, M2V_NATIVE_BUILTINS="all"), "unsupported variable",
+                                             "M2V_NATIVE_BUILTINS")):
+        rc, so, se, line = run(src / "fma.metal", root / "o-bad", cache, extra=bad_extra, env=bad_env)
+        check(rc == 2 and f"error: {named} must be" in se, f"{what} exits 2 naming {named} ({rc}: {se.strip()[-80:]})")
+        check(rc != 0 and not list((root / "o-bad").glob("*.spv")), f"{what} writes no module")
+    rc, so, se, line = run(src / "fma.metal", root / "o-bad", cache, extra=("--native-builtins", "none"),
+                           env=dict(base_env, M2V_NATIVE_BUILTINS="all"))
+    check(rc == 0, "an explicit argument ignores an invalid inherited variable")
 
 
 def main():
@@ -245,6 +314,8 @@ def main():
                       "CLI SPIR-V is byte-identical to the sweep's for the same entry")
         else:
             print("skip byte-identity (no clspv)")
+
+        check_native_builtins(root)
 
         # two concurrent invocations of one cold key: both succeed, one cache entry
         (src / "plain.metal").write_text(PLAIN)

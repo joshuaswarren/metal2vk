@@ -88,3 +88,7 @@ The coverage number is posted after each class lands.
 ## Test-driver failures
 
 Unknown cases must exit 2 before dispatch; runner errors or failed comparisons must exit 1. `tools/tests/test_driver_exit.py` exercises the actual script in child processes without opening a GPU. Compile coverage is unchanged.
+
+## Explicit native-FMA selection
+
+The opt-in compiler recipe is included in cache/reflection identity. The retained default-recipe comparison produced byte-identical SPIR-V for 540/540 sweep modules; this adds no compile-coverage claim. `tools/tests/run.py` checks option precedence, invalid values and cache separation. Native arithmetic must be qualified for each operand domain and device.

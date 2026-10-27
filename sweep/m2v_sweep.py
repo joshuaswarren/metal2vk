@@ -27,7 +27,8 @@ All the other entry points of a file are dropped from the translation unit of on
 Usage: m2v_sweep.py OUTDIR [--set uzu|tf|all] [--dir PATH]... [--jobs N] [--limit N] [--only SUBSTR] [--no-spv] [--tag NAME]
 env:   UZU_ROOT (uzu checkout), TF_ROOT (TensorFold checkout), CLANG (default clang-19), CLSPV (patched clspv; spv/val skipped if absent),
        OPT (the LLVM opt of CLANG's version), M2V_OPT (clang optimisation flags; default is the typed-GEP route of compile.sh),
-       M2V_INCLUDE=DIR uses another shim include directory (a baseline run)
+       M2V_INCLUDE=DIR uses another shim include directory (a baseline run),
+       M2V_NATIVE_BUILTINS=fma compiles with clspv --use-native-builtins=fma (default: none, software)
 --dir sweeps every *.metal directly in PATH as an extra set named after the directory (include search: PATH itself and its parent), without
 any TensorFold root layout. An entry that fails and whose first diagnostic names a Metal 4 tensor op (dextents, tensor<, mpp::) gets a
 `refused` row naming the construct instead of a failure: the mpp shim emulates some of these, so only the failing diagnostic decides, and
@@ -53,6 +54,22 @@ CLSPV = os.environ.get("CLSPV", str(pathlib.Path.home() / "scratch/metal2vk/clsp
 SPIRV_VAL = os.environ.get("SPIRV_VAL", "spirv-val")
 CLSPV_TIMEOUT = int(os.environ.get("M2V_CLSPV_TIMEOUT", "90"))  # seconds per module; a loaded build host needs more
 M2V_DEFS = os.environ.get("M2V_DEFS", "").split()
+
+
+NATIVE_FLAGS = {"none": [], "fma": ["--use-native-builtins=fma"]}
+
+
+def native_builtins_choice(value):
+    """Normalise a native-builtins selection to "none" (software, the default) or "fma"; anything else is an error.
+    Native device math changes numerical semantics, so expand the set only after a bounded per-builtin qualification."""
+    value = value or "none"
+    if value not in ("none", "fma"):
+        raise ValueError(f"must be 'none' or 'fma', not {value!r}")
+    return value
+
+
+# Default for the sweep; tools/m2v-compile overrides it with --native-builtins, which beats this variable.
+M2V_NATIVE_BUILTINS = os.environ.get("M2V_NATIVE_BUILTINS", "")
 # Physical-storage-buffer mode, opt-in per case: entries whose tag contains one of these substrings are compiled as
 # 64-bit modules (clang --target=spir64, clspv --arch=spir64 --physical-storage-buffers). That is the only way to
 # express a buffer of raw device addresses (Metal `device const ExpertPtrs* table`, the kimi/experts kernels). Every
@@ -1757,7 +1774,10 @@ def process_once(setname, src_path, rel, eidx, kname, targs, outdir, include_dir
     psb_flags = ["--arch=spir64", "--physical-storage-buffers"] if psb else []
     if psb:
         row["psb"] = True
-    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", *psb_flags, str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
+    native = native_builtins_choice(M2V_NATIVE_BUILTINS)
+    if native != "none":  # like psb: only a non-default row carries it, so a default sweep's rows are unchanged
+        row["native_builtins"] = native
+    rc, out, _ = sh([CLSPV, "-x", "ir", "--cl-std=CLC++2021", "--fp16", "--inline-entry-points", "--spv-version=1.5", "--long-vector", *NATIVE_FLAGS[native], *psb_flags, str(ll), "-o", str(spv)], CLSPV_TIMEOUT)
     lines = [ln for ln in out.splitlines() if ln.strip() and not ln.startswith("warning: ")]
     if os.environ.get("M2V_KEEP_CLSPV_LOG"):
         logd = d / "clspvlog"
@@ -1850,6 +1870,10 @@ def main():
     ap.add_argument("--tag", default="")
     ap.add_argument("--retry-timeouts", metavar="RESULT.json", help="rerun only the entries whose clspv run timed out in RESULT.json and merge")
     args = ap.parse_args()
+    try:
+        native_builtins_choice(M2V_NATIVE_BUILTINS)
+    except ValueError as e:
+        ap.error(f"M2V_NATIVE_BUILTINS {e}")
     if args.set is None:
         args.set = "" if args.dir else "all"
     os.makedirs(args.out, exist_ok=True)

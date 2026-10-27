@@ -10,7 +10,7 @@ else: a module it produces is byte-identical to what the sweep produces for the 
 ## Invocation
 
 ```
-m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--timeout SEC] [--json]
+m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--timeout SEC] [--native-builtins none|fma] [--json]
 ```
 
 | argument | meaning |
@@ -20,14 +20,40 @@ m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--tim
 | `--name KERNEL_NAME` | the instantiation (host name) or kernel entry to select. Without it the file must hold exactly one entry |
 | `--cache DIR` | cache directory; default `$M2V_CACHE_DIR`, else `$XDG_CACHE_HOME/m2v-compile`, else `~/.cache/m2v-compile` when `XDG_CACHE_HOME` is unset or empty |
 | `--timeout SEC` | per-stage cap (clang, opt, clspv, spirv-val, reflection), default 120; a stage past the cap is killed and the run exits 4 |
+| `--native-builtins none\|fma` | math options below; default `none` |
 | `--json` | one JSON object on stdout describing the result |
 
 The tool is a Python 3 script with no dependencies beyond the toolchain the sweep already needs (`clang`, `opt`,
 the patched `clspv`, `spirv-tools`). Binaries come from the same environment as the sweep: `CLANG`, `OPT`,
-`CLSPV`, `SPIRV_VAL`, `M2V_OPT`, `M2V_DEFS`, `M2V_INCLUDE`.
+`CLSPV`, `SPIRV_VAL`, `M2V_OPT`, `M2V_DEFS`, `M2V_INCLUDE`, `M2V_NATIVE_BUILTINS`.
 
 Set `CLSPV` to an absolute executable path. The current fingerprint code opens that path to hash the binary.
 A bare PATH name passes tool validation but fails fingerprinting when no matching file exists in the working directory.
+
+## Math options
+
+`--native-builtins none|fma` chooses how `fma()` is translated.
+
+| value | result |
+| --- | --- |
+| `none` (default) | clspv wraps one fused instruction in a software fallback for special operands (subnormals, overflow) |
+| `fma` | `fma` uses native GLSL Fma lowering: about 6x smaller disassembly for the measured one-`fma` kernel (95 against 615 lines), with no software special-case fallback |
+
+Vulkan does not guarantee fused rounding for GLSL Fma. `fma` changes results wherever the device instruction and the software path disagree. FP32 subnormal operands are a
+known place to look (a disagreement was seen on an M1 with the Asahi Honeykrisp driver; no public reproducer here yet).
+Enable it per kernel, after checking that kernel's operand range on each chip and driver you ship to; a kernel that
+passed says nothing about another kernel, input range or chip.
+
+```
+m2v-compile --msl k.metal --out out --native-builtins fma     # opt in
+m2v-compile --msl k.metal --out out                           # default recipe, unchanged
+```
+
+The choice is in the cache key and recorded as `toolchain.native_builtins`, so the two never share an entry. An explicit
+argument beats an inherited `M2V_NATIVE_BUILTINS`; with no argument the variable is the default. Any other value exits 2:
+`error: --native-builtins must be 'none' or 'fma', not 'all'` (or `error: M2V_NATIVE_BUILTINS ...` when the variable holds it).
+An empty argument is rejected; only an unset or empty variable means `none`. Adding the field changed every cache key
+once, including the default recipe's: entries from an older `m2v-compile` are misses, not wrong hits.
 
 ## Outputs
 
@@ -67,7 +93,7 @@ Top-level fields of `<stem>.json`:
 | `uses_cooperative_matrix` | bool | the `CooperativeMatrixKHR` capability is present |
 | `workgroup_size_spec_constant_ids` | int[3] or null | the three spec ids for the x, y, z workgroup size when the size is spec-constant driven |
 | `push_constant_regions` | object | clspv's own push-constant blocks, name to `{"offset", "size"}`; the pipeline's push-constant range must cover these plus every `pod_push_constant` argument |
-| `toolchain` | object | the cache fingerprint: `clang`, `opt`, `clspv` version strings; `clspv_sha256`, `include_sha256`, `clspv_patches_sha256`, `sources_sha256` (64 hex each) |
+| `toolchain` | object | the cache fingerprint: `clang`, `opt`, `clspv` version strings; `clspv_sha256`, `include_sha256`, `clspv_patches_sha256`, `sources_sha256` (64 hex each); `native_builtins` (`none` or `fma`) |
 
 `kernel`:
 
@@ -194,7 +220,7 @@ Reading stdout to EOF before reading stderr can deadlock when the child's stderr
 Blocking pipe reads before the deadline check also leave a wedged child outside the caller's timeout.
 No C++ subprocess implementation is provided here.
 
-The child inherits `CLANG`, `OPT`, `CLSPV`, `SPIRV_VAL`, `M2V_INCLUDE`, `M2V_OPT` and `M2V_DEFS`.
+The child inherits `CLANG`, `OPT`, `CLSPV`, `SPIRV_VAL`, `M2V_INCLUDE`, `M2V_OPT`, `M2V_DEFS` and `M2V_NATIVE_BUILTINS`; pass `--native-builtins` to make the choice independent of the environment.
 Use an absolute `CLSPV` path as described above.
 `M2V_CLSPV_TIMEOUT` is ignored: `--timeout` controls the pipeline stages.
 
@@ -204,7 +230,7 @@ The key is `sha256` over: the MSL text, the requested `--name` (empty when absen
 (clang, opt and clspv versions, the clspv binary hash, sha256 of the `include/` tree, sha256 of `clspv-patches/`,
 and one hash over every regular file below the MSL's own directory and below its parent).
 The source-tree hash skips symlinks. It also skips the output and cache directories, but only when they are subdirectories below a hashed root (the MSL's directory or its parent). If `--out` or `--cache` is one of those two roots itself, its files are hashed, so the generated `.spv` and `.json` files change the next key. Keep the output and cache directories different from both roots.
-The key also includes the include directory paths and compile flags (`M2V_OPT`, `M2V_DEFS`).
+The key also includes the include directory paths and compile flags (`M2V_OPT`, `M2V_DEFS`); the native-builtins choice is in the fingerprint, so `none` and `fma` never share an entry.
 
 Layout under the cache directory:
 
@@ -235,7 +261,9 @@ Keep headers as regular files within the hashed roots, or use a fresh cache afte
 generated mlx-style kernels: a plain kernel, a template kernel with two `host_name` instantiations, a Metal 4
 `tensor<` refusal and a syntax error. It checks the JSON shape, the exit codes, cache hit after miss, the
 per-key lock under two concurrent invocations, that failures leave the output directory empty, and that every
-produced module is byte-identical to what `sweep/m2v_sweep.py --dir` compiles for the same entry. CI runs it in
+produced module is byte-identical to what `sweep/m2v_sweep.py --dir` compiles for the same entry. It also covers
+`--native-builtins` (separate cache entries, hits, recorded choice, rejection, precedence over the environment).
+CI runs it in
 the sweep job. With `M2V_SIBLING_ROOT` pointing at a TensorFold-layout checkout whose `zig/kernels/metal` holds
 the 32 sibling kernels, it also runs the sibling parity block: 30 must compile, the `dextents` kernel must exit 3,
 the invalid `wide_partial` module must exit 5, and every module must be byte-identical to the sweep's; it also
