@@ -84,3 +84,7 @@ The coverage number is posted after each class lands.
 - A row closes when the sweep shows its entries valid, not when a fix is written.
 - A class that splits gets a new row; counts are re-taken from the last sweep, so rows can change when an earlier class lands.
 - A fix that makes SPIR-V valid but wrong is a regression; the run stage (`sweep/m2v_sweep_run.py`) is where those show.
+
+## Test-driver failures
+
+Unknown cases must exit 2 before dispatch; runner errors or failed comparisons must exit 1. `tools/tests/test_driver_exit.py` exercises the actual script in child processes without opening a GPU. Compile coverage is unchanged.

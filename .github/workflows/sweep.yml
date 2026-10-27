@@ -131,6 +131,8 @@ jobs:
           OPT: opt-23
           CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
         run: python3 tools/tests/run.py
+      - name: Test-driver failure exits (no GPU)
+        run: python3 -m unittest discover -s tools/tests -p test_driver_exit.py -v
 
       - name: Sweep
         env:
