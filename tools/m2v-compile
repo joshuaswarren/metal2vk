@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """m2v-compile: one Metal kernel file in, Vulkan SPIR-V plus reflection out, through a content-addressed cache.
 
-    m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--timeout SEC] [--json]
+    m2v-compile --msl FILE.metal --out DIR [--name KERNEL_NAME] [--cache DIR] [--timeout SEC] [--native-builtins none|fma] [--json]
 
 FILE.metal is the complete assembled MSL exactly as mlx generates it: header text, one or more [[kernel]] functions
 or template kernels with `template [[host_name("...")]] [[kernel]] decltype(...)` instantiations. --name selects the
@@ -24,6 +24,7 @@ error, 5 spirv-val failure. --json prints one JSON object on stdout with status 
 miss, paths and seconds.
 
 env: CLANG, OPT, CLSPV, SPIRV_VAL, M2V_OPT, M2V_DEFS, M2V_INCLUDE (pipeline, as in sweep/m2v_sweep.py);
+     M2V_NATIVE_BUILTINS (none or fma; the default for --native-builtins, which beats it);
      M2V_CLSPV_TIMEOUT is ignored (--timeout governs every stage); M2V_CACHE_DIR (default cache directory).
 """
 import argparse
@@ -119,7 +120,7 @@ def tree_hash(root, skip=()):
     return h.hexdigest()
 
 
-def fingerprint(include_dirs, skip=()):
+def fingerprint(include_dirs, native_builtins, skip=()):
     """Toolchain identity: one hash over the versions, the clspv binary and every tree the build reads."""
     h = hashlib.sha256()
     for d in include_dirs:
@@ -132,6 +133,7 @@ def fingerprint(include_dirs, skip=()):
             "clspv_sha256": hashlib.sha256(pathlib.Path(m2v_sweep.CLSPV).read_bytes()).hexdigest(),
             "include_sha256": tree_hash(m2v_sweep.INC),
             "clspv_patches_sha256": tree_hash(REPO / "clspv-patches"),
+            "native_builtins": native_builtins,
             "sources_sha256": h.hexdigest()}
 
 
@@ -169,6 +171,9 @@ def main(argv=None):
     ap.add_argument("--cache", metavar="DIR", default=os.environ.get("M2V_CACHE_DIR"),
                     help="cache directory (default $M2V_CACHE_DIR, else $XDG_CACHE_HOME/m2v-compile)")
     ap.add_argument("--timeout", type=float, default=120.0, metavar="SEC", help="per-stage timeout, default 120")
+    ap.add_argument("--native-builtins", metavar="none|fma", default=None,
+                    help="clspv native device builtins: none (software, the default) or fma (changes numerics; opt-in). "
+                         "Beats $M2V_NATIVE_BUILTINS")
     ap.add_argument("--json", action="store_true", dest="as_json", help="one JSON result line on stdout")
     args = ap.parse_args(argv)
     args.t0 = time.time()
@@ -187,6 +192,17 @@ def main(argv=None):
     msl = pathlib.Path(args.msl)
     if not msl.is_file():
         fail(args, 2, "error", f"error: no such file: {msl}")
+    # an explicit argument beats the inherited variable, so a caller's choice never depends on its environment;
+    # only the variable may be empty (unset means none)
+    src, value = (("M2V_NATIVE_BUILTINS", m2v_sweep.M2V_NATIVE_BUILTINS) if args.native_builtins is None
+                  else ("--native-builtins", args.native_builtins))
+    try:
+        if value == "" and src[0] == "-":
+            raise ValueError("must be 'none' or 'fma', not ''")
+        native = m2v_sweep.native_builtins_choice(value)
+    except ValueError as e:
+        fail(args, 2, "error", f"error: {src} {e}")
+    m2v_sweep.M2V_NATIVE_BUILTINS = native
     if args.timeout <= 0:
         fail(args, 2, "error", "error: --timeout must be positive")
     for label, tool in (("CLANG", m2v_sweep.CLANG), ("OPT", m2v_sweep.OPT), ("CLSPV", m2v_sweep.CLSPV),
@@ -201,7 +217,7 @@ def main(argv=None):
     m2v_sweep.sh = sh_logged
     m2v_sweep.CLSPV_TIMEOUT = args.timeout
     include_dirs = [msl.parent, msl.parent.parent]
-    fp = fingerprint(include_dirs, skip=[out, cache])
+    fp = fingerprint(include_dirs, native, skip=[out, cache])
     key = cache_key(msl.read_bytes(), args.name, fp, include_dirs, {"fe": m2v_sweep.FE_OPT, "defs": m2v_sweep.M2V_DEFS})
     entry = cache / "keys" / key
 
