@@ -123,7 +123,9 @@ jobs:
           CLANG: clang-23
           OPT: opt-23
           CLSPV: ${{ github.workspace }}/clspv/build/bin/clspv
-        run: python3 sweep/tests/run.py
+        run: |
+          python3 sweep/tests/run.py
+          python3 -m unittest discover -s sweep/tests -p test_promote_ptr_arrays.py -v
 
       - name: m2v-compile CLI self-checks
         env:
