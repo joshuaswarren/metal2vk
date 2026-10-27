@@ -6,7 +6,7 @@ using namespace metal;
 // array stride decides which words thread 1 reads: stride 12 gives b0 b1 b2, a 16-byte uint3 alias gives b1 b2 sentinel.
 // out = [a0, a1, a2, b0, b1, b2, sizeof, alignof]. Constant component indices on purpose: this case tests the type's
 // layout, not index lowering. Covers storage and indexing only, not packed-vector arithmetic.
-// Tests: tools/tests/run.py (compile) and m2v-test.py packed_uint3 (hardware).
+// tools/tests/run.py compiles and validates this source. A hardware runner/oracle is not included.
 static_assert(sizeof(packed_uint3) == 12 && alignof(packed_uint3) == 4, "packed_uint3 layout");
 static_assert(__is_trivially_copyable(packed_uint3), "packed_uint3 trivial copy");
 static_assert(__is_standard_layout(packed_uint3), "packed_uint3 standard layout");
