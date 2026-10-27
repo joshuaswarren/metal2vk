@@ -325,7 +325,7 @@ def main():
         check(rc == 0 and bool(line) and line.get("name") == "packed_uint3_stride12",
               "packed_uint3 stride-12 kernel compiles to valid SPIR-V" + (f" ({se.strip()[:200]})" if rc else ""))
         if rc == 0:
-            args = json.loads((out / "packed_uint3_stride12.json").read_text())["kernel"]["args"]
+            args = json.loads((out / f"{line['name']}.json").read_text())["kernel"]["args"]
             check([(a["kind"], a["binding"], a["metal_type"]) for a in args]
                   == [("storage_buffer", 0, "device const uint*"), ("storage_buffer", 1, "device uint*")],
                   "packed_uint3 kernel reflects two storage buffers")

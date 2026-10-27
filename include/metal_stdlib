@@ -165,6 +165,7 @@ typedef vec<int, 4> packed_int4;
 // OpenCL uint3 has 16-byte size/alignment; Metal packed_uint3 is 12 bytes
 // aligned to a scalar. Keep its storage layout explicit for 12-byte strides.
 // Storage and indexing only: no vector arithmetic on this type.
+// Scalar uint storage intentionally keeps copies trivial. Indexing requires i in [0, 2], as in Metal.
 struct packed_uint3 {
   uint values[3];
 #define M2V_PACKED_UINT3_INDEX(AS) \

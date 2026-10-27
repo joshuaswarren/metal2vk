@@ -8,6 +8,8 @@ using namespace metal;
 // layout, not index lowering. Covers storage and indexing only, not packed-vector arithmetic.
 // Tests: tools/tests/run.py (compile) and m2v-test.py packed_uint3 (hardware).
 static_assert(sizeof(packed_uint3) == 12 && alignof(packed_uint3) == 4, "packed_uint3 layout");
+static_assert(__is_trivially_copyable(packed_uint3), "packed_uint3 trivial copy");
+static_assert(__is_standard_layout(packed_uint3), "packed_uint3 standard layout");
 
 kernel void packed_uint3_stride12(device const uint* source [[buffer(0)]],
                                   device uint* out [[buffer(1)]],
