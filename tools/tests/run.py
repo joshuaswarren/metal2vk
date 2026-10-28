@@ -286,6 +286,13 @@ def main():
         check(rc == 0 and bool(line) and line.get("status") == "ok",
               f"shared shim kernel compiles to valid SPIR-V ({se.strip()})")
 
+        # Two loads share one dynamically indexed pointer-array address.
+        # Previously promotion declined it and clspv failed on ptr addrspace(1).
+        (src / "pointer_array_reuse.metal").write_text((REPO / "cases" / "pointer_array_reuse.metal").read_text())
+        rc, so, se, line = run(src / "pointer_array_reuse.metal", out, cache)
+        check(rc == 0 and bool(line) and line.get("status") == "ok",
+              f"reused pointer-array address compiles to valid SPIR-V ({se.strip()})")
+
         # name selection: template kernel with two instantiations
         rc, so, se, line = run(src / "template.metal", out, cache)
         check(rc == 2, "ambiguous template without --name exits 2")
