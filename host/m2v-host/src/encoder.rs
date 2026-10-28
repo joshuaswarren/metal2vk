@@ -12,7 +12,6 @@ pub struct Encoder {
     addresses: Vec<(u32, u64)>,
     push_data: Vec<u8>,
     tg_lengths: Vec<(u32, u32)>,
-    desc_set: Option<vk::DescriptorSet>,
 }
 
 /// Single source of truth for push-vs-fallback descriptors: the queue creates
@@ -53,7 +52,6 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
             addresses: Vec::new(),
             push_data: Vec::new(),
             tg_lengths: Vec::new(),
-            desc_set: None,
         }
     }
 
@@ -63,7 +61,6 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
             self.push_data = vec![0; pipeline.push_size as usize];
             self.addresses.clear();
             self.tg_lengths.clear();
-            self.desc_set = None;
         }
         Ok(())
     }
@@ -313,7 +310,10 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
         }
         // Dynamic threadgroup memory: the lengths must be specialised into the
         // pipeline (u32 spec constants). Variant pipelines are cached on the queue.
+        // The lengths are spec ids, not declared function constants, so they
+        // travel to Pipeline::create separately; the cache key still names them.
         let mut combined = base.constants.clone();
+        let mut lengths: Vec<(u32, u32)> = Vec::with_capacity(base.threadgroup.len());
         for (arg, spec_id) in &base.threadgroup {
             let len = self
                 .tg_lengths
@@ -326,6 +326,7 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
                     ))
                 })?;
             combined.push((*spec_id, ConstantValue::U32(len)));
+            lengths.push((*spec_id, len));
         }
         // The key is every input of the Pipeline::create call below.
         let key = VariantKey {
@@ -342,7 +343,8 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
         if let Some(p) = variants.get(&key) {
             return Ok(p.clone());
         }
-        let variant = Pipeline::create(&self.cb.device, &base.library, &base.name, &combined)?;
+        let variant =
+            Pipeline::create(&self.cb.device, &base.library, &base.name, &base.constants, &lengths)?;
         variants.insert(key, variant.clone());
         Ok(variant)
     }
@@ -398,25 +400,21 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
                     &writes,
                 );
             } else if !infos.is_empty() {
-                let set = match self.desc_set {
-                    Some(s) => s,
-                    None => {
-                        let pool = self.cb.desc_pool.ok_or_else(|| {
-                            Error::Unsupported("no push descriptors and no fallback pool".into())
-                        })?;
-                        let set_layouts = [pipeline.desc_layout.expect("set layout")];
-                        let set = device
-                            .device
-                            .allocate_descriptor_sets(&vk::DescriptorSetAllocateInfo {
-                                descriptor_pool: pool,
-                                descriptor_set_count: 1,
-                                p_set_layouts: set_layouts.as_ptr(),
-                                ..vk::DescriptorSetAllocateInfo::default()
-                            })?[0];
-                        self.desc_set = Some(set);
-                        set
-                    }
-                };
+                // Every dispatch gets its own descriptor set: a set that an
+                // earlier dispatch bound is not snapshotted, so updating it
+                // for a later dispatch would change the earlier one too.
+                let pool = self.cb.desc_pool.ok_or_else(|| {
+                    Error::Unsupported("no push descriptors and no fallback pool".into())
+                })?;
+                let set_layouts = [pipeline.desc_layout.expect("set layout")];
+                let set = device
+                    .device
+                    .allocate_descriptor_sets(&vk::DescriptorSetAllocateInfo {
+                        descriptor_pool: pool,
+                        descriptor_set_count: 1,
+                        p_set_layouts: set_layouts.as_ptr(),
+                        ..vk::DescriptorSetAllocateInfo::default()
+                    })?[0];
                 let writes: Vec<vk::WriteDescriptorSet> = infos
                     .iter()
                     .zip(&pipeline.buffer_bindings)

@@ -1,0 +1,100 @@
+; Smoke kernels for the descriptor-rebind GPU test: plain Vulkan 1.3 compute,
+; laid out exactly as clspv emits it (set 0 binding = argument order, POD args
+; in push constants after the 16-byte offsets block, workgroup size in spec
+; constants 0..2, NonSemantic.ClspvReflection records). Assemble with
+;   spirv-as --target-env vulkan1.3 descriptors.spvasm -o descriptors.spv
+;   ../../../../m2v-reflect.py descriptors.spv > descriptors.json
+;   ../../../../tools/make-m2vlib.py descriptors.spv descriptors.json descriptors.m2vlib
+;
+;   kernel void add_scalar(global float* a, global float* b, float k)
+;       b[i] = a[i] + k
+;   kernel void mul_scalar(global float* a, global float* b, float k)
+;       b[i] = a[i] * k
+               OpCapability Shader
+%clspv_refl = OpExtInstImport "NonSemantic.ClspvReflection"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main_add "add_scalar" %gidx %var_a %var_b %var_pc
+               OpEntryPoint GLCompute %main_mul "mul_scalar" %gidx %var_a %var_b %var_pc
+               OpExecutionMode %main_add LocalSize 64 1 1
+               OpExecutionMode %main_mul LocalSize 64 1 1
+               OpSource OpenCL_C 300
+      %n_add = OpString "add_scalar"
+      %n_mul = OpString "mul_scalar"
+               OpDecorate %wg_x SpecId 0
+               OpDecorate %wg_y SpecId 1
+               OpDecorate %wg_z SpecId 2
+               OpDecorate %arr_f32 ArrayStride 4
+               OpDecorate %arr_u32 ArrayStride 4
+               OpMemberDecorate %ssbo_ty 0 Offset 0
+               OpDecorate %ssbo_ty Block
+               OpDecorate %var_a DescriptorSet 0
+               OpDecorate %var_a Binding 0
+               OpDecorate %var_b DescriptorSet 0
+               OpDecorate %var_b Binding 1
+               OpMemberDecorate %pc_ty 0 Offset 0
+               OpMemberDecorate %pc_ty 1 Offset 16
+               OpDecorate %pc_ty Block
+       %void = OpTypeVoid
+        %f32 = OpTypeFloat 32
+       %uint = OpTypeInt 32 0
+      %uvec3 = OpTypeVector %uint 3
+     %uint_0 = OpConstant %uint 0
+     %uint_1 = OpConstant %uint 1
+     %uint_2 = OpConstant %uint 2
+     %uint_4 = OpConstant %uint 4
+    %uint_16 = OpConstant %uint 16
+    %uint_64 = OpConstant %uint 64
+        %wg_x = OpSpecConstant %uint 64
+        %wg_y = OpSpecConstant %uint 1
+        %wg_z = OpSpecConstant %uint 1
+   %arr_f32 = OpTypeRuntimeArray %f32
+    %arr_u32 = OpTypeArray %uint %uint_4
+    %ssbo_ty = OpTypeStruct %arr_f32
+      %pc_ty = OpTypeStruct %arr_u32 %f32
+   %fn_void = OpTypeFunction %void
+    %ptr_f32 = OpTypePointer StorageBuffer %f32
+  %ptr_f32_pc = OpTypePointer PushConstant %f32
+   %ptr_ssbo = OpTypePointer StorageBuffer %ssbo_ty
+     %ptr_pc = OpTypePointer PushConstant %pc_ty
+%ptr_in_uvec3 = OpTypePointer Input %uvec3
+       %gidx = OpVariable %ptr_in_uvec3 Input
+      %var_a = OpVariable %ptr_ssbo StorageBuffer
+      %var_b = OpVariable %ptr_ssbo StorageBuffer
+     %var_pc = OpVariable %ptr_pc PushConstant
+   %main_add = OpFunction %void None %fn_void
+  %entry_add = OpLabel
+        %gid = OpLoad %uvec3 %gidx
+       %idx = OpCompositeExtract %uint %gid 0
+         %pa = OpAccessChain %ptr_f32 %var_a %uint_0 %idx
+         %pb = OpAccessChain %ptr_f32 %var_b %uint_0 %idx
+         %va = OpLoad %f32 %pa
+         %pk = OpAccessChain %ptr_f32_pc %var_pc %uint_1
+          %k = OpLoad %f32 %pk
+        %sum = OpFAdd %f32 %va %k
+               OpStore %pb %sum
+               OpReturn
+               OpFunctionEnd
+   %main_mul = OpFunction %void None %fn_void
+  %entry_mul = OpLabel
+       %gid2 = OpLoad %uvec3 %gidx
+      %idx2 = OpCompositeExtract %uint %gid2 0
+        %pa2 = OpAccessChain %ptr_f32 %var_a %uint_0 %idx2
+        %pb2 = OpAccessChain %ptr_f32 %var_b %uint_0 %idx2
+        %va2 = OpLoad %f32 %pa2
+        %pk2 = OpAccessChain %ptr_f32_pc %var_pc %uint_1
+         %k2 = OpLoad %f32 %pk2
+        %prd = OpFMul %f32 %va2 %k2
+               OpStore %pb2 %prd
+               OpReturn
+               OpFunctionEnd
+      %r_add = OpExtInst %void %clspv_refl 1 %main_add %n_add
+      %r_mul = OpExtInst %void %clspv_refl 1 %main_mul %n_mul
+               %rec2 = OpExtInst %void %clspv_refl 3 %r_add %uint_0 %uint_0 %uint_0
+               %rec3 = OpExtInst %void %clspv_refl 3 %r_add %uint_1 %uint_0 %uint_1
+               %rec4 = OpExtInst %void %clspv_refl 7 %r_add %uint_2 %uint_16 %uint_4
+               %rec5 = OpExtInst %void %clspv_refl 24 %r_add %uint_64 %uint_1 %uint_1
+               %rec7 = OpExtInst %void %clspv_refl 3 %r_mul %uint_0 %uint_0 %uint_0
+               %rec8 = OpExtInst %void %clspv_refl 3 %r_mul %uint_1 %uint_0 %uint_1
+               %rec9 = OpExtInst %void %clspv_refl 7 %r_mul %uint_2 %uint_16 %uint_4
+               %rec10 = OpExtInst %void %clspv_refl 24 %r_mul %uint_64 %uint_1 %uint_1
+               %rec12 = OpExtInst %void %clspv_refl 20 %uint_0 %uint_16

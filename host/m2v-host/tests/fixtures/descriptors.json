@@ -1,0 +1,18 @@
+{
+ "module": "descriptors.spv",
+ "capabilities": ["Shader"],
+ "extensions": [],
+ "uses_cooperative_matrix": false,
+ "workgroup_size_spec_constant_ids": null,
+ "push_constant_regions": {"PushConstantRegionGroupOffset": {"offset": 0, "size": 16}},
+ "kernels": [
+  {"name": "add_scalar", "workgroup_size": [64, 1, 1], "args": [
+   {"ordinal": 0, "kind": "storage_buffer", "set": 0, "binding": 0},
+   {"ordinal": 1, "kind": "storage_buffer", "set": 0, "binding": 1},
+   {"ordinal": 2, "kind": "pod_push_constant", "offset": 16, "size": 4}]},
+  {"name": "mul_scalar", "workgroup_size": [64, 1, 1], "args": [
+   {"ordinal": 0, "kind": "storage_buffer", "set": 0, "binding": 0},
+   {"ordinal": 1, "kind": "storage_buffer", "set": 0, "binding": 1},
+   {"ordinal": 2, "kind": "pod_push_constant", "offset": 16, "size": 4}]}
+ ]
+}

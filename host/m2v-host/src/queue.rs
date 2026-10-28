@@ -244,13 +244,13 @@ impl Queue {
                         (!crate::encoder::use_push_descriptors(q.device.as_ref())).then(|| {
                         let sizes = [vk::DescriptorPoolSize {
                             ty: vk::DescriptorType::STORAGE_BUFFER,
-                            descriptor_count: 256,
+                            descriptor_count: 2048,
                         }];
                         q.device
                             .device
                             .create_descriptor_pool(
                                 &vk::DescriptorPoolCreateInfo {
-                                    max_sets: 64,
+                                    max_sets: 256,
                                     pool_size_count: 1,
                                     p_pool_sizes: sizes.as_ptr(),
                                     ..Default::default()
@@ -397,6 +397,20 @@ fn waiter_loop(device: Arc<DeviceInner>, rx: Receiver<SubmitJob>) {
                     "m2v: submit exceeded the {:.1}s limit (M2V_MAX_SUBMIT_MS); waiting idle",
                     deadline_ns as f64 / 1e9
                 );
+                // A submit that waits on a timeline value nobody signals can
+                // not be waited out: the queue stays blocked and the device
+                // wait below would never return. Cancel those waits (signal
+                // the value the submit asked for) so the queue drains, then
+                // wait for the device as usual.
+                for (semaphore, value) in &waits {
+                    let _ = unsafe {
+                        device.device.signal_semaphore(
+                            &vk::SemaphoreSignalInfo::default()
+                                .semaphore(*semaphore)
+                                .value(*value),
+                        )
+                    };
+                }
                 let _ = unsafe { device.device.device_wait_idle() };
                 Some(Error::Invalid(format!(
                     "submit exceeded M2V_MAX_SUBMIT_MS ({:.1}s)",

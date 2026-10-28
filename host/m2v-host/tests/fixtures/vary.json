@@ -1,0 +1,13 @@
+{
+ "module": "vary.spv",
+ "capabilities": ["Shader"],
+ "extensions": [],
+ "uses_cooperative_matrix": false,
+ "workgroup_size_spec_constant_ids": null,
+ "push_constant_regions": {},
+ "kernels": [
+  {"name": "vary", "workgroup_size": [64, 1, 1], "args": [
+   {"ordinal": 0, "kind": "storage_buffer", "set": 0, "binding": 0},
+   {"ordinal": 1, "kind": "workgroup_memory", "spec_id": 4, "elem_size": 4}]}
+ ]
+}
