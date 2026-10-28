@@ -174,8 +174,9 @@ impl Library {
     }
 }
 
-/// Parse the container, checking structure only (no device needed).
-/// Split out for GPU-free tests and for the C ABI's pre-validation.
+/// Parse the container, checking its structure and the reflection metadata the host
+/// consumes (no device needed). Split out for GPU-free tests and for the C ABI's
+/// pre-validation, so both paths reject the same inputs.
 pub(crate) fn parse_container(bytes: &[u8]) -> Result<M2vLibJson> {
     if bytes.len() < 12 {
         return Err(Error::Invalid(format!(
@@ -228,8 +229,60 @@ pub(crate) fn parse_container(bytes: &[u8]) -> Result<M2vLibJson> {
                 f.name
             )));
         }
+        check_reflection(f)?;
     }
     Ok(json)
+}
+
+/// Reflection metadata that pipeline creation and the encoder trust: buffers use set 0
+/// (the only set the pipeline layout creates) with distinct bindings, push words lie
+/// inside the declared push block (the encoder slices the push buffer with them), and
+/// no argument slot appears twice in a lookup table (`set_address` / `set_bytes`).
+fn check_reflection(f: &FunctionJson) -> Result<()> {
+    let name = &f.name;
+    for (i, b) in f.buffers.iter().enumerate() {
+        if b.set != 0 {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: buffer argument {} uses descriptor set {} (the host supports set 0 only)",
+                b.arg, b.set
+            )));
+        }
+        let earlier = &f.buffers[..i];
+        if let Some(prev) = earlier.iter().find(|p| p.arg == b.arg) {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: buffer argument {} is declared twice (bindings {} and {})",
+                b.arg, prev.binding, b.binding
+            )));
+        }
+        if let Some(prev) = earlier.iter().find(|p| (p.set, p.binding) == (b.set, b.binding)) {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: buffer arguments {} and {} both map to set {} binding {}",
+                prev.arg, b.arg, b.set, b.binding
+            )));
+        }
+    }
+    let block = f.push.size;
+    for (i, w) in f.push.words.iter().enumerate() {
+        let Some(end) = w.offset.checked_add(w.size) else {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: push word for argument {} at offset {}, size {} overflows u32",
+                w.arg, w.offset, w.size
+            )));
+        };
+        if end > block {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: push word for argument {} at offset {}, size {} ends past the {block}-byte push block",
+                w.arg, w.offset, w.size
+            )));
+        }
+        if let Some(prev) = f.push.words[..i].iter().find(|p| p.arg == w.arg) {
+            return Err(Error::Invalid(format!(
+                "m2vlib: function {name:?}: push-constant argument {} is declared twice (offsets {} and {})",
+                w.arg, prev.offset, w.offset
+            )));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -260,7 +313,7 @@ mod tests {
         r#"{"functions":[{"name":"add","entry":"add","spv":{"offset":OFF,"len":LEN},
             "workgroup_size":[32,1,1],"workgroup_size_spec_ids":null,
             "buffers":[{"arg":0,"binding":0,"set":0},{"arg":1,"binding":1,"set":0}],
-            "push":{"size":16,"words":[{"arg":2,"offset":16,"size":4}]},
+            "push":{"size":20,"words":[{"arg":2,"offset":16,"size":4}]},
             "constants":[{"index":0,"spec_id":3,"type":"f32"}],
             "threadgroup":[],"uses_coopmat":false}]}"#
             .replace("OFF", &spv_off.to_string())
@@ -286,6 +339,7 @@ mod tests {
         assert_eq!(lib.function_names(), vec!["add".to_string()]);
         let f = lib.function("add").unwrap();
         assert_eq!(f.workgroup_size, [32, 1, 1]);
+        assert_eq!(f.push.size, 20);
         assert_eq!(f.push.words[0].offset, 16);
         assert_eq!(f.constants[0].ty, ConstantType::F32);
         assert_eq!(lib.spv_blob(f).unwrap(), spv.as_slice());
@@ -367,5 +421,149 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(err.contains("aligned"), "{err}");
+    }
+
+    /// One valid function: buffer arguments 0 and 1 at set 0 bindings 0 and 1, a 20-byte
+    /// push block with one POD word (argument 2, offset 16, size 4).
+    fn fixture() -> FunctionJson {
+        FunctionJson {
+            name: "fixture".into(),
+            entry: "fixture".into(),
+            spv: SpvRange { offset: 0, len: 0 },
+            workgroup_size: [32, 1, 1],
+            workgroup_size_spec_ids: None,
+            buffers: vec![
+                BufferBindingJson { arg: 0, binding: 0, set: 0 },
+                BufferBindingJson { arg: 1, binding: 1, set: 0 },
+            ],
+            push: PushJson { size: 20, words: vec![PushWordJson { arg: 2, offset: 16, size: 4 }] },
+            constants: vec![],
+            threadgroup: vec![],
+            uses_coopmat: false,
+            gate: GateJson::default(),
+        }
+    }
+
+    /// Container for `f` with the SPIR-V offset recomputed for the final JSON, so the
+    /// byte envelope (aligned, in-range blob) stays valid and only the metadata varies.
+    fn fixture_container(mut f: FunctionJson) -> Vec<u8> {
+        let spv = fake_spv(128);
+        f.spv = SpvRange { offset: 0, len: spv.len() as u64 };
+        for _ in 0..8 {
+            let json = serde_json::to_string(&M2vLibJson { functions: vec![f.clone()] }).unwrap();
+            let off = (12 + json.len()).next_multiple_of(4) as u64;
+            if off == f.spv.offset {
+                return container(&json, &spv);
+            }
+            f.spv.offset = off;
+        }
+        panic!("SPIR-V offset did not converge");
+    }
+
+    /// Both parse paths must refuse `f` with `Error::Invalid`; returns the diagnostic.
+    fn invalid(f: FunctionJson) -> String {
+        let bytes = fixture_container(f);
+        let msg = match parse_container(&bytes) {
+            Err(Error::Invalid(msg)) => msg,
+            Err(e) => panic!("expected Error::Invalid, got {e}"),
+            Ok(_) => panic!("inconsistent metadata accepted"),
+        };
+        match Library::from_bytes_inner(&bytes) {
+            Err(Error::Invalid(m)) => assert_eq!(m, msg),
+            Err(e) => panic!("expected Error::Invalid, got {e}"),
+            Ok(_) => panic!("library returned for inconsistent metadata"),
+        }
+        msg
+    }
+
+    fn push_layout(f: &FunctionJson) -> (u32, Vec<(u32, u32, u32)>) {
+        (f.push.size, f.push.words.iter().map(|w| (w.arg, w.offset, w.size)).collect())
+    }
+
+    fn buffer_layout(f: &FunctionJson) -> Vec<(u32, u32, u32)> {
+        f.buffers.iter().map(|b| (b.arg, b.set, b.binding)).collect()
+    }
+
+    #[test]
+    fn push_word_exactly_at_block_end_is_valid() {
+        let lib = Library::from_bytes_inner(&fixture_container(fixture())).expect("word ending at byte 20 is valid");
+        let f = lib.function("fixture").unwrap();
+        // The word ends exactly at the declared block end; no trailing padding is required.
+        assert_eq!(push_layout(f), (20, vec![(2, 16, 4)]));
+        assert_eq!(lib.spv_blob(f).unwrap(), fake_spv(128).as_slice());
+    }
+
+    #[test]
+    fn push_word_outside_block_is_invalid() {
+        // (16, 16, 4) is the old round-trip fixture's shape.
+        for (block, offset, size) in [(16, 16, 4), (20, 20, 4), (20, 24, 4)] {
+            let mut f = fixture();
+            f.push = PushJson { size: block, words: vec![PushWordJson { arg: 2, offset, size }] };
+            let err = invalid(f);
+            for id in [
+                "function \"fixture\"".to_string(),
+                "push word for argument 2".to_string(),
+                format!("offset {offset}, size {size}"),
+                format!("{block}-byte push block"),
+            ] {
+                assert!(err.contains(&id), "({block}, {offset}, {size}): {id:?} missing from {err}");
+            }
+        }
+    }
+
+    #[test]
+    fn push_word_extent_overflow_is_invalid() {
+        let mut f = fixture();
+        f.push.words[0].offset = 4294967292;
+        f.push.words[0].size = 8;
+        let err = invalid(f);
+        for id in ["function \"fixture\"", "push word for argument 2", "offset 4294967292, size 8", "overflows"] {
+            assert!(err.contains(id), "{id:?} missing from {err}");
+        }
+    }
+
+    #[test]
+    fn descriptor_set_outside_host_contract_is_invalid() {
+        let mut f = fixture();
+        f.buffers[1].set = 1;
+        let err = invalid(f);
+        for id in ["function \"fixture\"", "buffer argument 1", "descriptor set 1"] {
+            assert!(err.contains(id), "{id:?} missing from {err}");
+        }
+    }
+
+    #[test]
+    fn conflicting_descriptor_bindings_are_invalid() {
+        let lib = Library::from_bytes_inner(&fixture_container(fixture())).expect("bindings 0 and 1 are valid");
+        assert_eq!(buffer_layout(lib.function("fixture").unwrap()), vec![(0, 0, 0), (1, 0, 1)]);
+
+        let mut f = fixture();
+        f.buffers[1].binding = 0;
+        let err = invalid(f);
+        for id in ["function \"fixture\"", "buffer arguments 0 and 1", "set 0 binding 0"] {
+            assert!(err.contains(id), "{id:?} missing from {err}");
+        }
+    }
+
+    #[test]
+    fn duplicate_argument_slots_are_invalid() {
+        // Distinct bindings must not hide a duplicate buffer slot.
+        let mut f = fixture();
+        f.buffers[1].arg = 0;
+        let err = invalid(f);
+        for id in ["function \"fixture\"", "buffer argument 0", "declared twice"] {
+            assert!(err.contains(id), "{id:?} missing from {err}");
+        }
+
+        // Distinct in-block extents must not hide a duplicate push-constant slot.
+        let mut f = fixture();
+        f.push = PushJson {
+            size: 24,
+            words: vec![PushWordJson { arg: 2, offset: 16, size: 4 }, PushWordJson { arg: 2, offset: 20, size: 4 }],
+        };
+        let err = invalid(f);
+        for id in ["function \"fixture\"", "push-constant argument 2", "declared twice"] {
+            assert!(err.contains(id), "{id:?} missing from {err}");
+        }
     }
 }
