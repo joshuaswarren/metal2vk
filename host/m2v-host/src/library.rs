@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
@@ -239,30 +240,34 @@ pub(crate) fn parse_container(bytes: &[u8]) -> Result<M2vLibJson> {
 /// inside the declared push block (the encoder slices the push buffer with them), and
 /// no argument slot appears twice in a lookup table (`set_address` / `set_bytes`).
 fn check_reflection(f: &FunctionJson) -> Result<()> {
+    // Hash maps, not scans of the earlier entries: parse_container validates untrusted bytes
+    // (the C ABI pre-validation), so the cost must stay linear in the entry count.
     let name = &f.name;
-    for (i, b) in f.buffers.iter().enumerate() {
+    let mut buffer_by_arg = HashMap::with_capacity(f.buffers.len());
+    let mut buffer_by_slot = HashMap::with_capacity(f.buffers.len());
+    for b in &f.buffers {
         if b.set != 0 {
             return Err(Error::Invalid(format!(
                 "m2vlib: function {name:?}: buffer argument {} uses descriptor set {} (the host supports set 0 only)",
                 b.arg, b.set
             )));
         }
-        let earlier = &f.buffers[..i];
-        if let Some(prev) = earlier.iter().find(|p| p.arg == b.arg) {
+        if let Some(prev_binding) = buffer_by_arg.insert(b.arg, b.binding) {
             return Err(Error::Invalid(format!(
                 "m2vlib: function {name:?}: buffer argument {} is declared twice (bindings {} and {})",
-                b.arg, prev.binding, b.binding
+                b.arg, prev_binding, b.binding
             )));
         }
-        if let Some(prev) = earlier.iter().find(|p| (p.set, p.binding) == (b.set, b.binding)) {
+        if let Some(prev_arg) = buffer_by_slot.insert((b.set, b.binding), b.arg) {
             return Err(Error::Invalid(format!(
                 "m2vlib: function {name:?}: buffer arguments {} and {} both map to set {} binding {}",
-                prev.arg, b.arg, b.set, b.binding
+                prev_arg, b.arg, b.set, b.binding
             )));
         }
     }
     let block = f.push.size;
-    for (i, w) in f.push.words.iter().enumerate() {
+    let mut push_by_arg = HashMap::with_capacity(f.push.words.len());
+    for w in &f.push.words {
         let Some(end) = w.offset.checked_add(w.size) else {
             return Err(Error::Invalid(format!(
                 "m2vlib: function {name:?}: push word for argument {} at offset {}, size {} overflows u32",
@@ -275,10 +280,10 @@ fn check_reflection(f: &FunctionJson) -> Result<()> {
                 w.arg, w.offset, w.size
             )));
         }
-        if let Some(prev) = f.push.words[..i].iter().find(|p| p.arg == w.arg) {
+        if let Some(prev_offset) = push_by_arg.insert(w.arg, w.offset) {
             return Err(Error::Invalid(format!(
                 "m2vlib: function {name:?}: push-constant argument {} is declared twice (offsets {} and {})",
-                w.arg, prev.offset, w.offset
+                w.arg, prev_offset, w.offset
             )));
         }
     }
@@ -565,5 +570,31 @@ mod tests {
         for id in ["function \"fixture\"", "push-constant argument 2", "declared twice"] {
             assert!(err.contains(id), "{id:?} missing from {err}");
         }
+    }
+
+    #[test]
+    fn large_valid_and_duplicated_tables_validate_in_linear_time() {
+        const N: u32 = 50_000;
+        let mut f = fixture();
+        f.buffers = (0..N).map(|i| BufferBindingJson { arg: i, binding: i, set: 0 }).collect();
+        f.push = PushJson {
+            size: 4 * N,
+            words: (0..N).map(|i| PushWordJson { arg: N + i, offset: 4 * i, size: 4 }).collect(),
+        };
+        let bytes = fixture_container(f.clone());
+        let start = std::time::Instant::now();
+        Library::from_bytes_inner(&bytes).expect("a large consistent table is valid");
+        // A quadratic scan takes tens of seconds at this size even in a debug build.
+        assert!(start.elapsed() < std::time::Duration::from_secs(5), "validation took {:?}", start.elapsed());
+
+        // A duplicate in the last entry of each table is still found.
+        let mut dup_buffer = f.clone();
+        dup_buffer.buffers[(N - 1) as usize].arg = 0;
+        let err = invalid(dup_buffer);
+        assert!(err.contains("buffer argument 0") && err.contains("declared twice"), "{err}");
+        let mut dup_word = f;
+        dup_word.push.words[(N - 1) as usize].arg = N;
+        let err = invalid(dup_word);
+        assert!(err.contains("push-constant argument 50000") && err.contains("declared twice"), "{err}");
     }
 }
