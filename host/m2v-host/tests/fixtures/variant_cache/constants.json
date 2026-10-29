@@ -1,0 +1,10 @@
+{
+ "variant": [
+  {"index": 7, "spec_id": 7, "type": "u32"},
+  {"index": 9, "spec_id": 9, "type": "u32"}
+ ],
+ "variant_alt": [
+  {"index": 7, "spec_id": 7, "type": "u32"},
+  {"index": 9, "spec_id": 9, "type": "u32"}
+ ]
+}

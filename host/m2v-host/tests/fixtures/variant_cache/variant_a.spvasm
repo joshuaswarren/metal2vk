@@ -1,0 +1,146 @@
+; Library A of the pipeline-variant cache fixture (tests/pipeline_variants.rs). Two entry points, same layout:
+;
+;   variant:      out[i] = FACTOR * shared[i % (LENGTH_BYTES / 4)] + 0
+;   variant_alt:  out[i] = FACTOR * shared[i % (LENGTH_BYTES / 4)] + 500
+;   shared[j] = j + 1 (filled by each workgroup)
+;
+; `variant` differs from library B's `variant` only in BIAS: the literal in the final OpIAdd (B adds 1000).
+; `variant_alt` gives one library two functions with identical constants and lengths, so the cache key must
+; also separate function names.
+;
+; Argument 0: storage buffer, set 0 binding 0 (64 u32 outputs, 2 workgroups of 32).
+; Argument 1: threadgroup u32 array of LENGTH_BYTES / 4 elements.
+; SpecIds: 0, 1, 2 workgroup size (defaults 1, 1, 1, as clspv emits them); 7 FACTOR (u32); 9 LENGTH_BYTES (u32).
+; The NonSemantic.ClspvReflection records are what m2v-reflect.py reads; build.sh assembles, validates and packs.
+; This is a host-cache fixture, not translator output.
+               OpCapability Shader
+               OpExtension "SPV_KHR_non_semantic_info"
+       %refl = OpExtInstImport "NonSemantic.ClspvReflection.5"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %variant "variant" %gid %lid %out %shared
+               OpEntryPoint GLCompute %variant_alt "variant_alt" %gid %lid %out %shared
+               OpSource OpenCL_C 120
+        %str = OpString "variant"
+    %str_alt = OpString "variant_alt"
+               OpName %factor "FACTOR"
+               OpName %length_bytes "LENGTH_BYTES"
+               OpDecorate %gid BuiltIn GlobalInvocationId
+               OpDecorate %lid BuiltIn LocalInvocationId
+               OpDecorate %wgsize BuiltIn WorkgroupSize
+               OpDecorate %wg_x SpecId 0
+               OpDecorate %wg_y SpecId 1
+               OpDecorate %wg_z SpecId 2
+               OpDecorate %factor SpecId 7
+               OpDecorate %length_bytes SpecId 9
+               OpDecorate %rt ArrayStride 4
+               OpMemberDecorate %block 0 Offset 0
+               OpDecorate %block Block
+               OpDecorate %out DescriptorSet 0
+               OpDecorate %out Binding 0
+       %void = OpTypeVoid
+       %bool = OpTypeBool
+       %uint = OpTypeInt 32 0
+     %v3uint = OpTypeVector %uint 3
+       %fnty = OpTypeFunction %void
+     %uint_0 = OpConstant %uint 0
+     %uint_1 = OpConstant %uint 1
+     %uint_2 = OpConstant %uint 2
+     %uint_4 = OpConstant %uint 4
+     %uint_9 = OpConstant %uint 9
+    %uint_32 = OpConstant %uint 32
+   %uint_264 = OpConstant %uint 264
+   %uint_500 = OpConstant %uint 500
+       %wg_x = OpSpecConstant %uint 1
+       %wg_y = OpSpecConstant %uint 1
+       %wg_z = OpSpecConstant %uint 1
+     %wgsize = OpSpecConstantComposite %v3uint %wg_x %wg_y %wg_z
+     %factor = OpSpecConstant %uint 1
+%length_bytes = OpSpecConstant %uint 4
+       %n_tg = OpSpecConstantOp %uint UDiv %length_bytes %uint_4
+         %rt = OpTypeRuntimeArray %uint
+      %block = OpTypeStruct %rt
+%ptr_sb_block = OpTypePointer StorageBuffer %block
+%ptr_sb_uint = OpTypePointer StorageBuffer %uint
+     %tg_arr = OpTypeArray %uint %n_tg
+ %ptr_wg_arr = OpTypePointer Workgroup %tg_arr
+%ptr_wg_uint = OpTypePointer Workgroup %uint
+  %ptr_in_v3 = OpTypePointer Input %v3uint
+%ptr_in_uint = OpTypePointer Input %uint
+        %gid = OpVariable %ptr_in_v3 Input
+        %lid = OpVariable %ptr_in_v3 Input
+        %out = OpVariable %ptr_sb_block StorageBuffer
+     %shared = OpVariable %ptr_wg_arr Workgroup
+
+    %variant = OpFunction %void None %fnty
+      %entry = OpLabel
+     %lid_px = OpAccessChain %ptr_in_uint %lid %uint_0
+         %lx = OpLoad %uint %lid_px
+               OpBranch %header
+     %header = OpLabel
+          %j = OpPhi %uint %lx %entry %j_next %continue
+       %more = OpULessThan %bool %j %n_tg
+               OpLoopMerge %merge %continue None
+               OpBranchConditional %more %body %merge
+       %body = OpLabel
+       %slot = OpAccessChain %ptr_wg_uint %shared %j
+      %j_one = OpIAdd %uint %j %uint_1
+               OpStore %slot %j_one
+               OpBranch %continue
+   %continue = OpLabel
+     %j_next = OpIAdd %uint %j %wg_x
+               OpBranch %header
+      %merge = OpLabel
+               OpControlBarrier %uint_2 %uint_2 %uint_264
+     %gid_px = OpAccessChain %ptr_in_uint %gid %uint_0
+          %i = OpLoad %uint %gid_px
+        %idx = OpUMod %uint %i %n_tg
+        %src = OpAccessChain %ptr_wg_uint %shared %idx
+          %s = OpLoad %uint %src
+     %scaled = OpIMul %uint %factor %s
+     %result = OpIAdd %uint %scaled %uint_0
+        %dst = OpAccessChain %ptr_sb_uint %out %uint_0 %i
+               OpStore %dst %result
+               OpReturn
+               OpFunctionEnd
+
+%variant_alt = OpFunction %void None %fnty
+  %entry_alt = OpLabel
+ %lid_px_alt = OpAccessChain %ptr_in_uint %lid %uint_0
+     %lx_alt = OpLoad %uint %lid_px_alt
+               OpBranch %header_alt
+ %header_alt = OpLabel
+      %j_alt = OpPhi %uint %lx_alt %entry_alt %j_next_alt %continue_alt
+   %more_alt = OpULessThan %bool %j_alt %n_tg
+               OpLoopMerge %merge_alt %continue_alt None
+               OpBranchConditional %more_alt %body_alt %merge_alt
+   %body_alt = OpLabel
+   %slot_alt = OpAccessChain %ptr_wg_uint %shared %j_alt
+  %j_one_alt = OpIAdd %uint %j_alt %uint_1
+               OpStore %slot_alt %j_one_alt
+               OpBranch %continue_alt
+%continue_alt = OpLabel
+ %j_next_alt = OpIAdd %uint %j_alt %wg_x
+               OpBranch %header_alt
+  %merge_alt = OpLabel
+               OpControlBarrier %uint_2 %uint_2 %uint_264
+ %gid_px_alt = OpAccessChain %ptr_in_uint %gid %uint_0
+      %i_alt = OpLoad %uint %gid_px_alt
+    %idx_alt = OpUMod %uint %i_alt %n_tg
+    %src_alt = OpAccessChain %ptr_wg_uint %shared %idx_alt
+      %s_alt = OpLoad %uint %src_alt
+ %scaled_alt = OpIMul %uint %factor %s_alt
+ %result_alt = OpIAdd %uint %scaled_alt %uint_500
+    %dst_alt = OpAccessChain %ptr_sb_uint %out %uint_0 %i_alt
+               OpStore %dst_alt %result_alt
+               OpReturn
+               OpFunctionEnd
+
+          %k = OpExtInst %void %refl Kernel %variant %str %uint_2
+       %arg0 = OpExtInst %void %refl ArgumentStorageBuffer %k %uint_0 %uint_0 %uint_0
+       %arg1 = OpExtInst %void %refl ArgumentWorkgroup %k %uint_1 %uint_9 %uint_4
+       %reqd = OpExtInst %void %refl PropertyRequiredWorkgroupSize %k %uint_32 %uint_1 %uint_1
+      %k_alt = OpExtInst %void %refl Kernel %variant_alt %str_alt %uint_2
+   %arg0_alt = OpExtInst %void %refl ArgumentStorageBuffer %k_alt %uint_0 %uint_0 %uint_0
+   %arg1_alt = OpExtInst %void %refl ArgumentWorkgroup %k_alt %uint_1 %uint_9 %uint_4
+   %reqd_alt = OpExtInst %void %refl PropertyRequiredWorkgroupSize %k_alt %uint_32 %uint_1 %uint_1
+     %wgspec = OpExtInst %void %refl SpecConstantWorkgroupSize %uint_0 %uint_1 %uint_2
