@@ -157,12 +157,18 @@ fn child_unsatisfied_timeline_wait_bounded() {
 /// Releasing a GPU-side timeline wait from this same queue is not possible
 /// (a signalling submit queues behind the waiting submit, so the wait can
 /// never be satisfied from its own stream), so the in-flight window comes
-/// from the test-only waiter delay hook (`--features test-hooks`).
+/// from the test-only waiter delay hook. Run with
+/// `cargo test -p m2v-host --features test-hooks`: without the feature the
+/// window does not exist and this test fails instead of passing vacuously.
 #[test]
 fn child_queue_drop_while_job_inflight() {
     if !common::is_child("child_queue_drop_while_job_inflight") {
         return;
     }
+    assert!(
+        cfg!(feature = "test-hooks"),
+        "needs --features test-hooks (the waiter delay hook)"
+    );
     let device = Device::new().expect("device");
     let queue = device.create_queue().expect("queue");
 

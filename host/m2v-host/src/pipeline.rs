@@ -194,11 +194,12 @@ unsafe fn create_pipeline(
         })
         .collect();
     bindings.sort_by_key(|b| b.binding);
-    let needs_set0 = !bindings.is_empty() || device.has_push_descriptor;
+    let use_push = crate::encoder::use_push_descriptors(device);
+    let needs_set0 = !bindings.is_empty() || use_push;
     let desc_layout = if needs_set0 {
         Some(device.device.create_descriptor_set_layout(
             &vk::DescriptorSetLayoutCreateInfo {
-                flags: if device.has_push_descriptor {
+                flags: if use_push {
                     vk::DescriptorSetLayoutCreateFlags::PUSH_DESCRIPTOR_KHR
                 } else {
                     vk::DescriptorSetLayoutCreateFlags::empty()
@@ -334,5 +335,26 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(e.contains("F32") && e.contains("U32"), "{e}");
+    }
+
+    #[test]
+    fn threadgroup_lengths_pack_by_spec_id_after_the_constants() {
+        let available = [c(0, 7, ConstantType::F32)];
+        let (entries, data) = pack_spec_data(
+            [1, 1, 1],
+            None,
+            &available,
+            &[(0, ConstantValue::F32(2.0))],
+            &[(11, 256), (12, 64)],
+        )
+        .unwrap();
+        assert_eq!(entries.len(), 6);
+        assert_eq!(data.len(), 24);
+        assert_eq!((entries[4].constant_id, entries[4].offset), (11, 16));
+        assert_eq!((entries[5].constant_id, entries[5].offset), (12, 20));
+        assert_eq!(u32::from_le_bytes(data[16..20].try_into().unwrap()), 256);
+        assert_eq!(u32::from_le_bytes(data[20..24].try_into().unwrap()), 64);
+        // A threadgroup id that is not a declared constant index is still accepted.
+        assert!(pack_spec_data([1, 1, 1], None, &[], &[], &[(99, 8)]).is_ok());
     }
 }

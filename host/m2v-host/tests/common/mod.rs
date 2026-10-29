@@ -113,6 +113,8 @@ pub fn run_child(test_name: &str, env: &[(&str, &str)], deadline: Duration) -> C
     };
     let output = std::fs::read_to_string(&log).unwrap_or_default();
     let _ = std::fs::remove_file(&log);
-    let success = matches!(status, Some(s) if s.success());
+    // `--exact` with a name that matches nothing exits 0 with "0 passed".
+    let ran_one = output.contains("1 passed");
+    let success = ran_one && matches!(status, Some(s) if s.success());
     ChildOutcome { success, timed_out, output }
 }
