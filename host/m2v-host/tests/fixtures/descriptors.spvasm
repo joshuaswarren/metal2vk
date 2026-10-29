@@ -4,7 +4,7 @@
 ; constants 0..2, NonSemantic.ClspvReflection records). Assemble with
 ;   spirv-as --target-env vulkan1.3 descriptors.spvasm -o descriptors.spv
 ;   ../../../../m2v-reflect.py descriptors.spv > descriptors.json
-;   ../../../../tools/make-m2vlib.py descriptors.spv descriptors.json descriptors.m2vlib
+;   ../../../tools/make-m2vlib.py descriptors.spv descriptors.json descriptors.m2vlib
 ;
 ;   kernel void add_scalar(global float* a, global float* b, float k)
 ;       b[i] = a[i] + k
@@ -23,6 +23,7 @@
                OpDecorate %wg_x SpecId 0
                OpDecorate %wg_y SpecId 1
                OpDecorate %wg_z SpecId 2
+               OpDecorate %gidx BuiltIn GlobalInvocationId
                OpDecorate %arr_f32 ArrayStride 4
                OpDecorate %arr_u32 ArrayStride 4
                OpMemberDecorate %ssbo_ty 0 Offset 0

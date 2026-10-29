@@ -26,6 +26,8 @@
                OpDecorate %wg_x SpecId 0
                OpDecorate %wg_y SpecId 1
                OpDecorate %wg_z SpecId 2
+               OpDecorate %gidx BuiltIn GlobalInvocationId
+               OpDecorate %lidx BuiltIn LocalInvocationId
                OpDecorate %arr_f32 ArrayStride 4
                OpDecorate %kc SpecId 5
                OpDecorate %tlen SpecId 4
