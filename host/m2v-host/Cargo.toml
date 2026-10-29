@@ -18,3 +18,8 @@ serde_json = { workspace = true }
 [build-dependencies]
 cbindgen = "0.29"
 
+# Test-only: compiles the waiter delay hook used by the queue lifecycle
+# tests. Never enabled in release builds.
+[features]
+test-hooks = []
+

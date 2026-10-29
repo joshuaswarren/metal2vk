@@ -7,9 +7,10 @@
 
 mod common;
 
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use metal2vk::{Device, Fallback};
+use metal2vk::{Completion, Device, Fallback};
 
 const DEADLINE: Duration = Duration::from_secs(120);
 const SUBMIT_LIMIT_MS: &str = "1500";
@@ -148,6 +149,63 @@ fn child_unsatisfied_timeline_wait_bounded() {
     drop(device);
 }
 
+/// A queue dropped while its submit is still in flight: the waiter thread
+/// ends up as the last owner of the queue state, and the teardown must not
+/// try to join the waiter from the waiter itself. The child must exit
+/// normally, which also proves the pools were destroyed without incident.
+///
+/// Releasing a GPU-side timeline wait from this same queue is not possible
+/// (a signalling submit queues behind the waiting submit, so the wait can
+/// never be satisfied from its own stream), so the in-flight window comes
+/// from the test-only waiter delay hook (`--features test-hooks`).
+#[test]
+fn child_queue_drop_while_job_inflight() {
+    if !common::is_child("child_queue_drop_while_job_inflight") {
+        return;
+    }
+    let device = Device::new().expect("device");
+    let queue = device.create_queue().expect("queue");
+
+    let cb = queue.new_command_buffer().expect("command buffer");
+    {
+        let enc = cb.begin().expect("encoder");
+        enc.end().expect("encoder end");
+    }
+    cb.end().expect("command buffer end");
+
+    let completion: Arc<Mutex<Option<Completion>>> = Arc::new(Mutex::new(None));
+    let slot = completion.clone();
+    std::env::set_var("M2V_TEST_WAITER_DELAY_MS", "400");
+    queue
+        .submit(&[&cb], Some(Box::new(move |c| {
+            *slot.lock().unwrap() = Some(c);
+        })))
+        .expect("submit");
+
+    // The waiter picks the job up and parks inside the delay hook; dropping
+    // the caller's handle here leaves the waiter's Arc as the last strong one.
+    std::thread::sleep(Duration::from_millis(150));
+    drop(queue);
+
+    // The job must still complete normally before the child exits.
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        match completion.lock().unwrap().take() {
+            Some(c) => {
+                assert!(c.error.is_none(), "GPU error: {:?}", c.error);
+                break;
+            }
+            None => {
+                assert!(Instant::now() < deadline, "completion never arrived");
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
+    }
+
+    drop(cb);
+    drop(device);
+}
+
 /// Parent: an empty queue must drop and exit normally.
 #[test]
 fn empty_queue_drop_exits_cleanly() {
@@ -156,6 +214,18 @@ fn empty_queue_drop_exits_cleanly() {
         return;
     }
     let outcome = common::run_child("child_empty_queue_drop", &[], DEADLINE);
+    assert!(!outcome.timed_out, "child timed out:\n{}", outcome.output);
+    assert!(outcome.success, "child did not exit normally:\n{}", outcome.output);
+}
+
+/// Parent: a queue dropped mid-flight still exits cleanly.
+#[test]
+fn queue_drop_while_job_inflight_exits_cleanly() {
+    if !common::gpu_enabled() {
+        eprintln!("SKIP queue lifecycle tests (set M2V_GPU=1 on a GPU host)");
+        return;
+    }
+    let outcome = common::run_child("child_queue_drop_while_job_inflight", &[], DEADLINE);
     assert!(!outcome.timed_out, "child timed out:\n{}", outcome.output);
     assert!(outcome.success, "child did not exit normally:\n{}", outcome.output);
 }

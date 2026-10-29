@@ -477,3 +477,36 @@ impl Drop for Encoder {
         st.encoder_open = false;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::constant_bits;
+    use crate::ConstantValue;
+
+    /// Pins the 32-bit spec-constant packing: f32 keeps its IEEE bit pattern
+    /// (0.5/-0.0 must not collapse onto small or zero integers), bool packs
+    /// like u32, i32 wraps onto the same word.
+    #[test]
+    fn constant_bits_pack_exact_words() {
+        assert_ne!(
+            constant_bits(&ConstantValue::F32(0.5)),
+            constant_bits(&ConstantValue::F32(0.25))
+        );
+        assert_ne!(
+            constant_bits(&ConstantValue::F32(-0.0)),
+            constant_bits(&ConstantValue::F32(0.0))
+        );
+        assert_eq!(
+            constant_bits(&ConstantValue::Bool(true)),
+            constant_bits(&ConstantValue::U32(1))
+        );
+        assert_eq!(
+            constant_bits(&ConstantValue::Bool(false)),
+            constant_bits(&ConstantValue::U32(0))
+        );
+        assert_eq!(
+            constant_bits(&ConstantValue::I32(-1)),
+            constant_bits(&ConstantValue::U32(u32::MAX))
+        );
+    }
+}
