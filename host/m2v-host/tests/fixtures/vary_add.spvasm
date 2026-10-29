@@ -1,0 +1,87 @@
+; Variant kernel for the dynamic-threadgroup GPU test: plain Vulkan 1.3 compute
+; laid out the way clspv lays a kernel out (set 0 binding = argument order, POD
+; and function constants in spec constants, NonSemantic.ClspvReflection
+; records). The scratch length is a spec constant, so a stale pipeline variant
+; shows up in the numbers.
+;
+; The dynamic threadgroup length (spec id 4) is the same spec constant the host
+; specialises from Encoder::set_threadgroup_memory_length; the kernel consumes
+; it directly so that a stale pipeline variant shows up in the numbers. The
+; scratch array is a fixed 64-float workgroup array (one slot per lane of the
+; 64-wide workgroup), because a spec-sized workgroup array would need
+; VK_KHR_workgroup_memory_explicit_layout, which the host does not enable.
+;
+;   kernel void vary(global float* out, local float* scr, constant float k)
+;       scr[lid] = out[gid]; barrier; out[gid] = scr[lid] OP k + length_bytes
+;
+; Assemble:
+;   spirv-as --target-env vulkan1.3 vary_add.spvasm -o vary_add.spv
+               OpCapability Shader
+%clspv_refl = OpExtInstImport "NonSemantic.ClspvReflection"
+               OpMemoryModel Logical GLSL450
+               OpEntryPoint GLCompute %main_vary "vary" %gidx %lidx %var_out %var_scr
+               OpExecutionMode %main_vary LocalSize 64 1 1
+               OpSource OpenCL_C 300
+      %n_vary = OpString "vary"
+               OpDecorate %wg_x SpecId 0
+               OpDecorate %wg_y SpecId 1
+               OpDecorate %wg_z SpecId 2
+               OpDecorate %gidx BuiltIn GlobalInvocationId
+               OpDecorate %lidx BuiltIn LocalInvocationId
+               OpDecorate %arr_f32 ArrayStride 4
+               OpDecorate %kc SpecId 5
+               OpDecorate %tlen SpecId 4
+               OpMemberDecorate %ssbo_ty 0 Offset 0
+               OpDecorate %ssbo_ty Block
+               OpDecorate %var_out DescriptorSet 0
+               OpDecorate %var_out Binding 0
+       %void = OpTypeVoid
+        %f32 = OpTypeFloat 32
+       %uint = OpTypeInt 32 0
+      %uvec3 = OpTypeVector %uint 3
+     %uint_0 = OpConstant %uint 0
+     %uint_1 = OpConstant %uint 1
+     %uint_2 = OpConstant %uint 2
+     %uint_4 = OpConstant %uint 4
+     %uint_64 = OpConstant %uint 64
+   %uint_264 = OpConstant %uint 264
+   %arr_f32 = OpTypeRuntimeArray %f32
+    %wg_arr = OpTypeArray %f32 %uint_64
+    %ssbo_ty = OpTypeStruct %arr_f32
+   %fn_void = OpTypeFunction %void
+    %ptr_f32 = OpTypePointer StorageBuffer %f32
+   %ptr_ssbo = OpTypePointer StorageBuffer %ssbo_ty
+    %ptr_wg_f = OpTypePointer Workgroup %f32
+  %ptr_wg_arr = OpTypePointer Workgroup %wg_arr
+%ptr_in_uvec3 = OpTypePointer Input %uvec3
+        %wg_x = OpSpecConstant %uint 64
+        %wg_y = OpSpecConstant %uint 1
+        %wg_z = OpSpecConstant %uint 1
+        %kc = OpSpecConstant %f32 1.0
+      %tlen = OpSpecConstant %uint 256
+       %gidx = OpVariable %ptr_in_uvec3 Input
+       %lidx = OpVariable %ptr_in_uvec3 Input
+    %var_out = OpVariable %ptr_ssbo StorageBuffer
+    %var_scr = OpVariable %ptr_wg_arr Workgroup
+  %main_vary = OpFunction %void None %fn_void
+ %entry_vary = OpLabel
+        %gid = OpLoad %uvec3 %gidx
+       %idx = OpCompositeExtract %uint %gid 0
+        %lid = OpLoad %uvec3 %lidx
+       %lane = OpCompositeExtract %uint %lid 0
+         %po = OpAccessChain %ptr_f32 %var_out %uint_0 %idx
+         %in = OpLoad %f32 %po
+         %ps = OpAccessChain %ptr_wg_f %var_scr %lane
+               OpStore %ps %in
+               OpControlBarrier %uint_2 %uint_2 %uint_264
+         %vs = OpLoad %f32 %ps
+        %lenf = OpConvertUToF %f32 %tlen
+       %res1 = OpFAdd %f32 %vs %kc
+        %res = OpFAdd %f32 %res1 %lenf
+               OpStore %po %res
+               OpReturn
+               OpFunctionEnd
+      %r_vary = OpExtInst %void %clspv_refl 1 %main_vary %n_vary
+     %rec2 = OpExtInst %void %clspv_refl 3 %r_vary %uint_0 %uint_0 %uint_0
+     %rec3 = OpExtInst %void %clspv_refl 11 %r_vary %uint_1 %uint_4 %uint_4
+     %rec4 = OpExtInst %void %clspv_refl 24 %r_vary %uint_64 %uint_1 %uint_1

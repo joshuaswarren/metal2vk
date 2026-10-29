@@ -22,6 +22,9 @@ pub struct DeviceInner {
     /// Loader for VK_KHR_push_descriptor; `Some` iff the extension is enabled.
     pub(crate) push_descriptor: Option<ash::khr::push_descriptor::Device>,
     pub(crate) debug_utils: ash::ext::debug_utils::Device,
+    /// Validation messenger, kept alive for the life of the device.
+    #[allow(dead_code)]
+    pub(crate) debug_messenger: Option<vk::DebugUtilsMessengerEXT>,
     pub(crate) map: Arc<AddressMap>,
 }
 
@@ -29,6 +32,42 @@ impl std::ops::Deref for Device {
     type Target = DeviceInner;
     fn deref(&self) -> &DeviceInner {
         &self.inner
+    }
+}
+
+/// Validation messages go to stderr, prefixed so a test can find them.
+unsafe extern "system" fn validation_callback(
+    _severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    _types: vk::DebugUtilsMessageTypeFlagsEXT,
+    data: *const vk::DebugUtilsMessengerCallbackDataEXT,
+    _user_data: *mut std::ffi::c_void,
+) -> vk::Bool32 {
+    if !data.is_null() && !(*data).p_message.is_null() {
+        let text = std::ffi::CStr::from_ptr((*data).p_message).to_string_lossy();
+        eprintln!("m2v-validation: {text}");
+    }
+    vk::FALSE
+}
+
+/// The C pointer array Vulkan wants for extension names. A `&[&CStr]` cannot be
+/// passed directly: `&CStr` is a fat pointer (address and length), so reading it
+/// as `*const c_char` entries makes every second name the length of the first.
+fn c_string_ptrs(names: &[&std::ffi::CStr]) -> Vec<*const std::ffi::c_char> {
+    names.iter().map(|n| n.as_ptr()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::c_string_ptrs;
+
+    #[test]
+    fn extension_name_pointers_are_one_per_name() {
+        let names = [c"VK_KHR_cooperative_matrix", c"VK_KHR_push_descriptor"];
+        let ptrs = c_string_ptrs(&names);
+        assert_eq!(ptrs.len(), 2);
+        for (ptr, name) in ptrs.iter().zip(names) {
+            assert_eq!(unsafe { std::ffi::CStr::from_ptr(*ptr) }, name);
+        }
     }
 }
 
@@ -98,6 +137,19 @@ impl Device {
         let entry = ash::Entry::load().map_err(|e| Error::Invalid(format!("vulkan loader: {e}")))?;
         let instance_exts = available_instance_exts(&entry)?;
         let debug_utils_flag = instance_exts.iter().any(|e| e.as_c_str() == ext::debug_utils::NAME);
+        // M2V_VALIDATION=1 turns on the Khronos validation layer; its messages
+        // go to stderr with a "m2v-validation:" prefix.
+        let validation_layer = c"VK_LAYER_KHRONOS_validation";
+        let validation_flag = std::env::var_os("M2V_VALIDATION").is_some()
+            && debug_utils_flag
+            && entry
+                .enumerate_instance_layer_properties()
+                .map(|props| {
+                    props.iter().any(|p| p.layer_name_as_c_str().is_ok_and(|name| name == validation_layer))
+                })
+                .unwrap_or(false);
+        let layer_names = [validation_layer.as_ptr()];
+        let instance_ext_names = [ext::debug_utils::NAME.as_ptr()];
         let create = vk::InstanceCreateInfo {
             p_application_info: &vk::ApplicationInfo {
                 api_version: vk::API_VERSION_1_3,
@@ -105,13 +157,38 @@ impl Device {
             },
             enabled_extension_count: u32::try_from(if debug_utils_flag { 1 } else { 0 }).unwrap(),
             pp_enabled_extension_names: if debug_utils_flag {
-                [ext::debug_utils::NAME.as_ptr()].as_ptr()
+                instance_ext_names.as_ptr()
+            } else {
+                std::ptr::null()
+            },
+            enabled_layer_count: u32::try_from(if validation_flag { 1 } else { 0 }).unwrap(),
+            pp_enabled_layer_names: if validation_flag {
+                layer_names.as_ptr()
             } else {
                 std::ptr::null()
             },
             ..Default::default()
         };
         let instance = entry.create_instance(&create, None)?;
+        let debug_messenger = if validation_flag {
+            let info = vk::DebugUtilsMessengerCreateInfoEXT::default()
+                .message_severity(
+                    vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                        | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING,
+                )
+                .message_type(
+                    vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+                )
+                .pfn_user_callback(Some(validation_callback));
+            let loader = ash::ext::debug_utils::Instance::new(&entry, &instance);
+            let messenger = unsafe { loader.create_debug_utils_messenger(&info, None) }.ok();
+            eprintln!("m2v: {} enabled", validation_layer.to_string_lossy());
+            messenger
+        } else {
+            None
+        };
 
         let physicals = instance.enumerate_physical_devices()?;
         let mut candidates = Vec::new();
@@ -185,6 +262,7 @@ impl Device {
         f13.shader_demote_to_helper_invocation = f13.shader_demote_to_helper_invocation.min(vk::TRUE);
         f13.maintenance4 = f13.maintenance4.min(vk::TRUE);
         cm_features.cooperative_matrix = cm_features.cooperative_matrix.min(vk::TRUE);
+        let enabled_ext_ptrs = c_string_ptrs(&enabled_exts);
 
         let queue_family = instance
             .get_physical_device_queue_family_properties(physical_device)
@@ -204,8 +282,8 @@ impl Device {
             p_next: &mut f2 as *mut _ as *mut std::ffi::c_void,
             queue_create_info_count: 1,
             p_queue_create_infos: &queue_create,
-            enabled_extension_count: enabled_exts.len() as u32,
-            pp_enabled_extension_names: enabled_exts.as_ptr().cast(),
+            enabled_extension_count: enabled_ext_ptrs.len() as u32,
+            pp_enabled_extension_names: enabled_ext_ptrs.as_ptr(),
             ..Default::default()
         };
         let device = instance.create_device(physical_device, &device_create, None)?;
@@ -232,6 +310,7 @@ impl Device {
         let inner = Arc::new(DeviceInner {
             _entry: entry,
             debug_utils,
+            debug_messenger,
             push_descriptor,
             instance,
             physical_device,
@@ -307,7 +386,7 @@ impl Device {
         // pipeline. A fallback route is an error here; callers that want the fallback ask `route_kernel` first.
         match self.route_kernel(library, name)? {
             crate::Route::Translated | crate::Route::TranslatedChecked { .. } => {
-                Pipeline::create(self.inner(), library, name, constants)
+                Pipeline::create(self.inner(), library, name, constants, &[])
             }
             crate::Route::Fallback(fb) => Err(Error::Refused(format!(
                 "kernel '{name}' is routed to fallback {fb:?}; dispatch the fallback, no translated pipeline is created"

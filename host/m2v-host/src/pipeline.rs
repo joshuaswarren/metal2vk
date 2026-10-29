@@ -74,10 +74,11 @@ impl Pipeline {
         library: &Arc<Library>,
         name: &str,
         constants: &[(u32, ConstantValue)],
+        threadgroup: &[(u32, u32)],
     ) -> Result<Arc<Pipeline>> {
         let f = library.function(name)?;
         let spv = library.spv_blob(f)?;
-        unsafe { create_pipeline(device, library, f, spv, constants) }
+        unsafe { create_pipeline(device, library, f, spv, constants, threadgroup) }
     }
 }
 
@@ -88,6 +89,7 @@ pub(crate) fn pack_spec_data(
     workgroup_size_spec_ids: Option<[u32; 3]>,
     available: &[crate::ConstantJson],
     requested: &[(u32, ConstantValue)],
+    threadgroup: &[(u32, u32)],
 ) -> Result<(Vec<vk::SpecializationMapEntry>, Vec<u8>)> {
     // clspv always emits spec constants 0..2 for the workgroup size (defaults 1,1,1).
     let wg_ids = workgroup_size_spec_ids.unwrap_or([0, 1, 2]);
@@ -133,6 +135,14 @@ pub(crate) fn pack_spec_data(
         }
         entries.push(vk::SpecializationMapEntry { constant_id: c.spec_id, offset: off, size: 4 });
     }
+    // Dynamic threadgroup memory lengths are raw spec constants specialised by
+    // spec id. They are not Metal function constants and must not go through
+    // the declared-constants table.
+    for (spec_id, value) in threadgroup {
+        let off = data.len() as u32;
+        data.extend_from_slice(&value.to_le_bytes());
+        entries.push(vk::SpecializationMapEntry { constant_id: *spec_id, offset: off, size: 4 });
+    }
     Ok((entries, data))
 }
 
@@ -142,12 +152,14 @@ unsafe fn create_pipeline(
     f: &FunctionJson,
     spv: &[u8],
     constants: &[(u32, ConstantValue)],
+    threadgroup: &[(u32, u32)],
 ) -> Result<Arc<Pipeline>> {
     let (spec_entries, spec_data) = pack_spec_data(
         f.workgroup_size,
         f.workgroup_size_spec_ids,
         &f.constants,
         constants,
+        threadgroup,
     )?;
     let spec_info = vk::SpecializationInfo {
         map_entry_count: spec_entries.len() as u32,
@@ -182,11 +194,12 @@ unsafe fn create_pipeline(
         })
         .collect();
     bindings.sort_by_key(|b| b.binding);
-    let needs_set0 = !bindings.is_empty() || device.has_push_descriptor;
+    let use_push = crate::encoder::use_push_descriptors(device);
+    let needs_set0 = !bindings.is_empty() || use_push;
     let desc_layout = if needs_set0 {
         Some(device.device.create_descriptor_set_layout(
             &vk::DescriptorSetLayoutCreateInfo {
-                flags: if device.has_push_descriptor {
+                flags: if use_push {
                     vk::DescriptorSetLayoutCreateFlags::PUSH_DESCRIPTOR_KHR
                 } else {
                     vk::DescriptorSetLayoutCreateFlags::empty()
@@ -279,7 +292,7 @@ mod tests {
 
     #[test]
     fn workgroup_size_is_always_packed_at_ids_0_to_2() {
-        let (entries, data) = pack_spec_data([32, 4, 1], None, &[], &[]).unwrap();
+        let (entries, data) = pack_spec_data([32, 4, 1], None, &[], &[], &[]).unwrap();
         assert_eq!(entries.len(), 3);
         assert_eq!(u32::from_le_bytes(data[0..4].try_into().unwrap()), 32);
         assert_eq!(u32::from_le_bytes(data[4..8].try_into().unwrap()), 4);
@@ -298,6 +311,7 @@ mod tests {
             None,
             &available,
             &[(3, ConstantValue::I32(-5)), (0, ConstantValue::F32(1.5))],
+            &[],
         )
         .unwrap();
         assert_eq!(entries.len(), 5);
@@ -312,14 +326,35 @@ mod tests {
     #[test]
     fn unknown_or_mistyped_constants_are_clear_errors() {
         let available = [c(0, 7, ConstantType::F32)];
-        let e = pack_spec_data([1, 1, 1], None, &available, &[(5, ConstantValue::U32(1))])
+        let e = pack_spec_data([1, 1, 1], None, &available, &[(5, ConstantValue::U32(1))], &[])
             .unwrap_err()
             .to_string();
         assert!(e.contains("not declared"), "{e}");
         assert!(e.contains("5"), "{e}");
-        let e = pack_spec_data([1, 1, 1], None, &available, &[(0, ConstantValue::U32(1))])
+        let e = pack_spec_data([1, 1, 1], None, &available, &[(0, ConstantValue::U32(1))], &[])
             .unwrap_err()
             .to_string();
         assert!(e.contains("F32") && e.contains("U32"), "{e}");
+    }
+
+    #[test]
+    fn threadgroup_lengths_pack_by_spec_id_after_the_constants() {
+        let available = [c(0, 7, ConstantType::F32)];
+        let (entries, data) = pack_spec_data(
+            [1, 1, 1],
+            None,
+            &available,
+            &[(0, ConstantValue::F32(2.0))],
+            &[(11, 256), (12, 64)],
+        )
+        .unwrap();
+        assert_eq!(entries.len(), 6);
+        assert_eq!(data.len(), 24);
+        assert_eq!((entries[4].constant_id, entries[4].offset), (11, 16));
+        assert_eq!((entries[5].constant_id, entries[5].offset), (12, 20));
+        assert_eq!(u32::from_le_bytes(data[16..20].try_into().unwrap()), 256);
+        assert_eq!(u32::from_le_bytes(data[20..24].try_into().unwrap()), 64);
+        // A threadgroup id that is not a declared constant index is still accepted.
+        assert!(pack_spec_data([1, 1, 1], None, &[], &[], &[(99, 8)]).is_ok());
     }
 }

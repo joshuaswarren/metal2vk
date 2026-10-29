@@ -149,7 +149,13 @@ impl Drop for QueueInner {
         // before releasing anything so it never touches a half-dropped queue.
         drop(self.tx.take());
         if let Some(h) = self.waiter.take() {
-            let _ = h.join();
+            // The last strong reference can be the waiter's own while a job is
+            // still in flight, so this can run on the waiter thread; joining
+            // it there is EDEADLK and kills the waiter. The channel close
+            // above ends the loop right after, so the thread still exits.
+            if h.thread().id() != std::thread::current().id() {
+                let _ = h.join();
+            }
         }
         let pool = *self.pool.lock();
         let frees: Vec<FreeCb> = self.free_cbs.lock().drain(..).collect();
@@ -244,13 +250,13 @@ impl Queue {
                         (!crate::encoder::use_push_descriptors(q.device.as_ref())).then(|| {
                         let sizes = [vk::DescriptorPoolSize {
                             ty: vk::DescriptorType::STORAGE_BUFFER,
-                            descriptor_count: 256,
+                            descriptor_count: 2048,
                         }];
                         q.device
                             .device
                             .create_descriptor_pool(
                                 &vk::DescriptorPoolCreateInfo {
-                                    max_sets: 64,
+                                    max_sets: 256,
                                     pool_size_count: 1,
                                     p_pool_sizes: sizes.as_ptr(),
                                     ..Default::default()
@@ -350,6 +356,14 @@ impl Queue {
 fn waiter_loop(device: Arc<DeviceInner>, rx: Receiver<SubmitJob>) {
     while let Ok(job) = rx.recv() {
         let queue = job.cbs[0].queue.upgrade();
+        // Test-only delay so lifecycle tests can land a caller-side drop while
+        // a job is in flight. Compiled only with --features test-hooks.
+        #[cfg(feature = "test-hooks")]
+        if let Ok(ms) = std::env::var("M2V_TEST_WAITER_DELAY_MS") {
+            if let Ok(ms) = ms.parse::<u64>() {
+                std::thread::sleep(Duration::from_millis(ms));
+            }
+        }
         let deadline_ns = device.submit_seconds_ns();
         let fence = unsafe { device.device.create_fence(&vk::FenceCreateInfo::default(), None) };
         let fence = match fence {
@@ -397,6 +411,20 @@ fn waiter_loop(device: Arc<DeviceInner>, rx: Receiver<SubmitJob>) {
                     "m2v: submit exceeded the {:.1}s limit (M2V_MAX_SUBMIT_MS); waiting idle",
                     deadline_ns as f64 / 1e9
                 );
+                // A submit that waits on a timeline value nobody signals can
+                // not be waited out: the queue stays blocked and the device
+                // wait below would never return. Cancel those waits (signal
+                // the value the submit asked for) so the queue drains, then
+                // wait for the device as usual.
+                for (semaphore, value) in &waits {
+                    let _ = unsafe {
+                        device.device.signal_semaphore(
+                            &vk::SemaphoreSignalInfo::default()
+                                .semaphore(*semaphore)
+                                .value(*value),
+                        )
+                    };
+                }
                 let _ = unsafe { device.device.device_wait_idle() };
                 Some(Error::Invalid(format!(
                     "submit exceeded M2V_MAX_SUBMIT_MS ({:.1}s)",
