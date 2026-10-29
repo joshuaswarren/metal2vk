@@ -99,9 +99,10 @@ pub struct QueueInner {
     /// Timeline waits applied to the next submit (Queue::wait_event).
     pub(crate) pending_waits: Mutex<Vec<(vk::Semaphore, u64)>>,
     /// Pipeline variants specialised for dynamic threadgroup lengths, keyed by
-    /// canonical bytes (name + constants + lengths). See Encoder::dispatch_threadgroups.
-    pub(crate) variants: Mutex<HashMap<Vec<u8>, Arc<crate::Pipeline>>>,
-    tx: Sender<SubmitJob>,
+    /// library, function name, base constants and lengths. See Encoder::resolve_pipeline.
+    pub(crate) variants: Mutex<HashMap<crate::encoder::VariantKey, Arc<crate::Pipeline>>>,
+    /// Closed (taken) by Drop before the waiter is joined.
+    tx: Option<Sender<SubmitJob>>,
     waiter: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -144,8 +145,9 @@ pub struct CbInner {
 
 impl Drop for QueueInner {
     fn drop(&mut self) {
-        // tx (a field, dropped after drop()) closes the channel; join first so
-        // the waiter never touches a half-dropped queue.
+        // Close the channel so the waiter drains the queued jobs and exits; join
+        // before releasing anything so it never touches a half-dropped queue.
+        drop(self.tx.take());
         if let Some(h) = self.waiter.take() {
             let _ = h.join();
         }
@@ -191,7 +193,7 @@ impl Queue {
                     free_cbs: Mutex::new(Vec::new()),
                     pending_waits: Mutex::new(Vec::new()),
                     variants: Mutex::new(HashMap::new()),
-                    tx,
+                    tx: Some(tx),
                     waiter: Some(waiter),
                 }),
             }))
@@ -300,6 +302,8 @@ impl Queue {
         };
         self.inner
             .tx
+            .as_ref()
+            .ok_or_else(|| Error::Invalid("queue is shutting down".into()))?
             .send(job)
             .map_err(|_| Error::Invalid("queue thread is gone".into()))
     }

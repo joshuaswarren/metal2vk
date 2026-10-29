@@ -22,6 +22,29 @@ pub(crate) fn use_push_descriptors(device: &DeviceInner) -> bool {
     device.has_push_descriptor && std::env::var_os("M2V_NO_PUSH_DESCRIPTOR").is_none()
 }
 
+/// Queue cache key for a dynamic-threadgroup pipeline variant: the library, the
+/// function name and the full specialization list (base function constants, then
+/// threadgroup lengths) that `Pipeline::create` receives.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(crate) struct VariantKey {
+    /// Address of the base pipeline's library. Each cached variant holds an `Arc`
+    /// of that library, so no other library can reuse the address while the
+    /// entry exists.
+    library: usize,
+    name: String,
+    /// (constant index, 32-bit value as packed into the specialization data).
+    constants: Vec<(u32, u32)>,
+}
+
+fn constant_bits(value: &ConstantValue) -> u32 {
+    match *value {
+        ConstantValue::Bool(b) => b as u32,
+        ConstantValue::U32(v) => v,
+        ConstantValue::I32(v) => v as u32,
+        ConstantValue::F32(v) => v.to_bits(),
+    }
+}
+
 impl Encoder {
 pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
         Encoder {
@@ -291,9 +314,6 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
         // Dynamic threadgroup memory: the lengths must be specialised into the
         // pipeline (u32 spec constants). Variant pipelines are cached on the queue.
         let mut combined = base.constants.clone();
-        let mut key = Vec::with_capacity(64);
-        key.extend_from_slice(base.name.as_bytes());
-        key.push(0);
         for (arg, spec_id) in &base.threadgroup {
             let len = self
                 .tg_lengths
@@ -306,9 +326,13 @@ pub(crate) fn new(cb: Arc<crate::queue::CbInner>) -> Self {
                     ))
                 })?;
             combined.push((*spec_id, ConstantValue::U32(len)));
-            key.extend_from_slice(&[*arg as u8, 0, 0, 0]);
-            key.extend_from_slice(&len.to_le_bytes());
         }
+        // The key is every input of the Pipeline::create call below.
+        let key = VariantKey {
+            library: Arc::as_ptr(&base.library) as usize,
+            name: base.name.clone(),
+            constants: combined.iter().map(|(index, value)| (*index, constant_bits(value))).collect(),
+        };
         let queue = self
             .cb
             .queue
