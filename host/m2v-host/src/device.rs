@@ -23,7 +23,6 @@ pub struct DeviceInner {
     pub(crate) push_descriptor: Option<ash::khr::push_descriptor::Device>,
     pub(crate) debug_utils: ash::ext::debug_utils::Device,
     /// Validation messenger, kept alive for the life of the device.
-    /// Validation messenger; kept alive for the life of the device.
     #[allow(dead_code)]
     pub(crate) debug_messenger: Option<vk::DebugUtilsMessengerEXT>,
     pub(crate) map: Arc<AddressMap>,
@@ -48,6 +47,28 @@ unsafe extern "system" fn validation_callback(
         eprintln!("m2v-validation: {text}");
     }
     vk::FALSE
+}
+
+/// The C pointer array Vulkan wants for extension names. A `&[&CStr]` cannot be
+/// passed directly: `&CStr` is a fat pointer (address and length), so reading it
+/// as `*const c_char` entries makes every second name the length of the first.
+fn c_string_ptrs(names: &[&std::ffi::CStr]) -> Vec<*const std::ffi::c_char> {
+    names.iter().map(|n| n.as_ptr()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::c_string_ptrs;
+
+    #[test]
+    fn extension_name_pointers_are_one_per_name() {
+        let names = [c"VK_KHR_cooperative_matrix", c"VK_KHR_push_descriptor"];
+        let ptrs = c_string_ptrs(&names);
+        assert_eq!(ptrs.len(), 2);
+        for (ptr, name) in ptrs.iter().zip(names) {
+            assert_eq!(unsafe { std::ffi::CStr::from_ptr(*ptr) }, name);
+        }
+    }
 }
 
 /// Static device properties, best effort (`0`/`false` when unknown).
@@ -128,6 +149,7 @@ impl Device {
                 })
                 .unwrap_or(false);
         let layer_names = [validation_layer.as_ptr()];
+        let instance_ext_names = [ext::debug_utils::NAME.as_ptr()];
         let create = vk::InstanceCreateInfo {
             p_application_info: &vk::ApplicationInfo {
                 api_version: vk::API_VERSION_1_3,
@@ -135,7 +157,7 @@ impl Device {
             },
             enabled_extension_count: u32::try_from(if debug_utils_flag { 1 } else { 0 }).unwrap(),
             pp_enabled_extension_names: if debug_utils_flag {
-                [ext::debug_utils::NAME.as_ptr()].as_ptr()
+                instance_ext_names.as_ptr()
             } else {
                 std::ptr::null()
             },
@@ -240,6 +262,7 @@ impl Device {
         f13.shader_demote_to_helper_invocation = f13.shader_demote_to_helper_invocation.min(vk::TRUE);
         f13.maintenance4 = f13.maintenance4.min(vk::TRUE);
         cm_features.cooperative_matrix = cm_features.cooperative_matrix.min(vk::TRUE);
+        let enabled_ext_ptrs = c_string_ptrs(&enabled_exts);
 
         let queue_family = instance
             .get_physical_device_queue_family_properties(physical_device)
@@ -259,8 +282,8 @@ impl Device {
             p_next: &mut f2 as *mut _ as *mut std::ffi::c_void,
             queue_create_info_count: 1,
             p_queue_create_infos: &queue_create,
-            enabled_extension_count: enabled_exts.len() as u32,
-            pp_enabled_extension_names: enabled_exts.as_ptr().cast(),
+            enabled_extension_count: enabled_ext_ptrs.len() as u32,
+            pp_enabled_extension_names: enabled_ext_ptrs.as_ptr(),
             ..Default::default()
         };
         let device = instance.create_device(physical_device, &device_create, None)?;
