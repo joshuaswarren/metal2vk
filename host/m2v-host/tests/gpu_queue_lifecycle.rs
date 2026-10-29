@@ -7,7 +7,6 @@
 
 mod common;
 
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use metal2vk::{Completion, Device, Fallback};
@@ -179,12 +178,11 @@ fn child_queue_drop_while_job_inflight() {
     }
     cb.end().expect("command buffer end");
 
-    let completion: Arc<Mutex<Option<Completion>>> = Arc::new(Mutex::new(None));
-    let slot = completion.clone();
+    let (tx, rx) = std::sync::mpsc::channel::<Completion>();
     std::env::set_var("M2V_TEST_WAITER_DELAY_MS", "400");
     queue
         .submit(&[&cb], Some(Box::new(move |c| {
-            *slot.lock().unwrap() = Some(c);
+            let _ = tx.send(c);
         })))
         .expect("submit");
 
@@ -194,19 +192,8 @@ fn child_queue_drop_while_job_inflight() {
     drop(queue);
 
     // The job must still complete normally before the child exits.
-    let deadline = Instant::now() + Duration::from_secs(15);
-    loop {
-        match completion.lock().unwrap().take() {
-            Some(c) => {
-                assert!(c.error.is_none(), "GPU error: {:?}", c.error);
-                break;
-            }
-            None => {
-                assert!(Instant::now() < deadline, "completion never arrived");
-                std::thread::sleep(Duration::from_millis(10));
-            }
-        }
-    }
+    let c = rx.recv_timeout(Duration::from_secs(15)).expect("completion never arrived");
+    assert!(c.error.is_none(), "GPU error: {:?}", c.error);
 
     drop(cb);
     drop(device);
