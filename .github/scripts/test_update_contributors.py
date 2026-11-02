@@ -182,8 +182,6 @@ class EndToEndTests(unittest.TestCase):
         os.remove(target)
 
 
-if __name__ == "__main__":
-    unittest.main()
 
 
 class EnvModeTests(unittest.TestCase):
@@ -380,3 +378,8 @@ class BotTypeTests(unittest.TestCase):
     def test_registry_states_anonymous_boundary(self):
         registry = uc.render_registry(["alice"])
         self.assertIn("Anonymous (email-only)", registry)
+
+
+
+if __name__ == "__main__":
+    unittest.main()
