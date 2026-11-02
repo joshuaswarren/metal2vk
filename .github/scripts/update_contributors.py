@@ -45,8 +45,10 @@ def _fetch(get_json, url):
 
 
 def fetch_all(get_json, path):
-    """Collect every page. Full page without a next Link, or a short page
-    with one, is treated as a truncated/inconsistent listing and fails."""
+    """Collect every page. GitHub sends a Link rel="next" header whenever
+    another page exists, so a full page with no next link is a complete
+    listing (total is an exact multiple of the page size). A SHORT page
+    carrying a next link is inconsistent and fails closed."""
     separator = "&" if "?" in path else "?"
     url = "%s/%s%sper_page=%d" % (API_ROOT, path, separator, PER_PAGE)
     items = []
@@ -58,14 +60,28 @@ def fetch_all(get_json, path):
                 raise ApiError("%s: short page with a next link" % path)
             return items
         if not nxt:
-            raise ApiError(
-                "%s: full page without a next link; refusing a possibly truncated list" % path
-            )
+            return items
         url = nxt
 
 
 def _login(entry):
-    return entry["login"] if isinstance(entry, dict) else entry
+    if isinstance(entry, dict):
+        return entry.get("login")
+    return entry
+
+
+def _is_bot(entry):
+    """Bot detection from the API's own type field where present, else the
+    documented [bot] login suffix. Real humans are never guessed at."""
+    if isinstance(entry, dict) and entry.get("type") == "Bot":
+        return True
+    login = _login(entry)
+    return bool(login) and login.casefold().endswith(BOT_SUFFIX)
+
+
+def _entry_login(entry):
+    login = _login(entry)
+    return login if isinstance(login, str) else None
 
 
 def collect_authors(contributors, pr_authors, owner, extra_exclude=()):
@@ -75,9 +91,11 @@ def collect_authors(contributors, pr_authors, owner, extra_exclude=()):
     seen = {}
     for source in (contributors, pr_authors):
         for entry in source:
-            login = _login(entry)
+            login = _entry_login(entry)
+            if not login or _is_bot(entry):
+                continue
             key = login.casefold()
-            if key in seen or key in excluded or key.endswith(BOT_SUFFIX):
+            if key in seen or key in excluded:
                 continue
             seen[key] = login
     return [seen[key] for key in sorted(seen)]
@@ -86,7 +104,12 @@ def collect_authors(contributors, pr_authors, owner, extra_exclude=()):
 def render_registry(entries):
     lines = ["- [@%s](https://github.com/%s)" % (name, name) for name in entries]
     body = "\n".join(lines) if lines else EMPTY_REGISTRY_LINE
-    return "%s\n\n%s\n\n%s" % (BEGIN_MARKER, body, END_MARKER)
+    note = (
+        "\n_Listed are GitHub accounts only. Anonymous (email-only) commit authors\n"
+        "cannot be enumerated through the GitHub API and are credited by hand in\n"
+        "the sections above where known._"
+    )
+    return "%s\n\n%s\n%s\n\n%s" % (BEGIN_MARKER, body, note, END_MARKER)
 
 
 def update_contributors_md(existing, registry):
@@ -107,6 +130,19 @@ def update_contributors_md(existing, registry):
     return new_text, new_text != existing
 
 
+def _next_link(header_value):
+    """Extract the rel="next" URL from a GitHub Link header, else None."""
+    if not header_value:
+        return None
+    for part in header_value.split(","):
+        segment = part.strip()
+        if segment.endswith('rel="next"'):
+            url = segment[:-len('rel="next"')].strip().rstrip(";").strip()
+            if url.startswith("<") and url.endswith(">"):
+                return url[1:-1]
+    return None
+
+
 def http_get_json(url, token):
     request = urllib.request.Request(url)
     request.add_header("Authorization", "Bearer %s" % token)
@@ -114,7 +150,11 @@ def http_get_json(url, token):
     request.add_header("X-GitHub-Api-Version", "2022-11-28")
     try:
         with urllib.request.urlopen(request, timeout=60) as response:
-            return response.status, json.loads(response.read()), response.headers.get("Link")
+            return (
+                response.status,
+                json.loads(response.read()),
+                _next_link(response.headers.get("Link")),
+            )
     except urllib.error.HTTPError as error:
         return error.code, {}, None
 
@@ -140,10 +180,24 @@ def _load_existing(path):
         return handle.read()
 
 
+def _pr_author_logins(pulls):
+    """PR objects carry the author under user.login. Only MERGED pull
+    requests count; rejected/closed-unmerged authors are not contributors.
+    Ghosted users are skipped."""
+    logins = []
+    for pull in pulls:
+        if not isinstance(pull, dict) or not pull.get("merged_at"):
+            continue
+        user = pull.get("user")
+        if isinstance(user, dict) and user.get("login"):
+            logins.append(user["login"])
+    return logins
+
+
 def _registry_from_api(get_json, owner, repo, extra_exclude):
     contributors = fetch_all(get_json, "repos/%s/%s/contributors?anon=false" % (owner, repo))
-    pr_authors = fetch_all(get_json, "repos/%s/%s/pulls?state=closed" % (owner, repo))
-    entries = collect_authors(contributors, pr_authors, owner, extra_exclude)
+    pulls = fetch_all(get_json, "repos/%s/%s/pulls?state=closed" % (owner, repo))
+    entries = collect_authors(contributors, _pr_author_logins(pulls), owner, extra_exclude)
     return render_registry(entries), entries
 
 

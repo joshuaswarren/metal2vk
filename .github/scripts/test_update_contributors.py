@@ -76,10 +76,10 @@ class FetchAllTests(unittest.TestCase):
         self.assertEqual(len(items), 201)
         self.assertEqual(items.count({"login": "c"}), 1)
 
-    def test_full_page_without_next_link_fails_closed(self):
+    def test_full_page_without_next_link_is_complete(self):
         api = FakeApi([page([{"login": "a"}] * 100)])
-        with self.assertRaises(uc.ApiError):
-            uc.fetch_all(api.get_json, "repos/o/r/x")
+        items = uc.fetch_all(api.get_json, "repos/o/r/x")
+        self.assertEqual(len(items), 100)
 
     def test_http_error_fails_closed(self):
         api = FakeApi([(403, {"message": "rate limited"}, None)])
@@ -151,7 +151,7 @@ class EndToEndTests(unittest.TestCase):
     def test_main_check_mode_reports_change_without_writing(self):
         api = FakeApi([
             page([{"login": "alice"}]),
-            page([{"login": "joshuaswarren"}], None),
+            page([{"user": {"login": "joshuaswarren"}, "merged_at": "2026-01-01T00:00:00Z"}]),
             page([{"login": "alice"}]),
             page([{"login": "bob"}]),
         ])
@@ -169,13 +169,17 @@ class EndToEndTests(unittest.TestCase):
     def test_main_updates_file(self):
         api = FakeApi([
             page([{"login": "alice"}]),
-            page([{"login": "bob"}]),
+            page([{"user": {"login": "bob"}, "merged_at": "2026-01-01T00:00:00Z"}]),
         ])
-        rc, text, changed = uc.main(["prog"], api.get_json, existing_text=None,
+        target = os.path.join(tempfile.mkdtemp(), "CONTRIBUTORS.md")
+        rc, text, changed = uc.main(["prog"], api.get_json,
                                     repo="r", owner="joshuaswarren",
-                                    write_to=os.devnull)
+                                    contributors_path=target, write_to=target)
         self.assertEqual((rc, changed), (0, True))
         self.assertIn("alice", text)
+        self.assertIn("bob", text)
+        import contextlib, io
+        os.remove(target)
 
 
 if __name__ == "__main__":
@@ -269,10 +273,18 @@ class RefinementTests(unittest.TestCase):
     def test_partial_repository_env_fails(self):
         old = os.environ.copy()
         os.environ["GITHUB_REPOSITORY"] = "joshuaswarren/"
+        os.environ.pop("GITHUB_TOKEN", None)
+
+        def forbidden(*_args, **_kwargs):
+            raise AssertionError("fetch_all must not run for an invalid repository")
+
+        orig = uc.fetch_all
+        uc.fetch_all = forbidden
         try:
             with self.assertRaises(SystemExit):
                 uc.main()
         finally:
+            uc.fetch_all = orig
             os.environ.clear()
             os.environ.update(old)
 
@@ -296,7 +308,7 @@ class RefinementTests(unittest.TestCase):
         import io
         api = FakeApi([
             page([{"login": "alice"}]),
-            page([{"login": "bob"}]),
+            page([{"user": {"login": "bob"}, "merged_at": "2026-01-01T00:00:00Z"}]),
         ])
         existing = "x\n" + uc.render_registry(["alice", "bob"]) + "\n"
         buffer = io.StringIO()
@@ -320,3 +332,51 @@ class RefinementTests(unittest.TestCase):
                                      existing_text=existing, repo="r", owner="joshuaswarren")
         self.assertEqual((rc, changed), (1, True))
         self.assertIn("registry drift detected", buffer.getvalue())
+
+
+class LinkHeaderTests(unittest.TestCase):
+    def test_next_link_parsed_from_github_header_format(self):
+        header = '<https://api.github.com/repositories/1/contributors?anon=false&per_page=100&page=2>; rel="next", ' \
+                 '<https://api.github.com/repositories/1/contributors?anon=false&per_page=100&page=5>; rel="last"'
+        self.assertEqual(
+            uc._next_link(header),
+            "https://api.github.com/repositories/1/contributors?anon=false&per_page=100&page=2",
+        )
+
+    def test_next_link_absent(self):
+        self.assertIsNone(uc._next_link(None))
+        self.assertIsNone(uc._next_link('<https://x?page=1>; rel="prev"'))
+
+
+class GhostIdentityTests(unittest.TestCase):
+    def test_ghost_pr_author_and_blank_login_skipped(self):
+        pulls = [
+            {"user": {"login": "realone"}, "merged_at": "2026-01-01T00:00:00Z"},
+            {"user": None, "merged_at": "2026-01-01T00:00:00Z"},
+            {"body": "no user", "merged_at": "2026-01-01T00:00:00Z"},
+        ]
+        contributors = [{"contributions": 5}, {"login": "realone"}]
+        out = uc.collect_authors(contributors, uc._pr_author_logins(pulls), "o", set())
+        self.assertEqual(out, ["realone"])
+
+    def test_closed_unmerged_pr_authors_excluded(self):
+        pulls = [
+            {"user": {"login": "rejected"}, "merged_at": None},
+            {"user": {"login": "accepted"}, "merged_at": "2026-01-01T00:00:00Z"},
+        ]
+        self.assertEqual(uc._pr_author_logins(pulls), ["accepted"])
+
+
+class BotTypeTests(unittest.TestCase):
+    def test_api_type_bot_field_excluded(self):
+        contributors = [{"login": "ServoBot", "type": "Bot"}, {"login": "NotBot", "type": "User"}]
+        out = uc.collect_authors(contributors, [], "o", set())
+        self.assertEqual(out, ["NotBot"])
+
+    def test_suffixed_login_without_type_field_excluded(self):
+        out = uc.collect_authors([{"login": "someapp[bot]"}], [], "o", set())
+        self.assertEqual(out, [])
+
+    def test_registry_states_anonymous_boundary(self):
+        registry = uc.render_registry(["alice"])
+        self.assertIn("Anonymous (email-only)", registry)
