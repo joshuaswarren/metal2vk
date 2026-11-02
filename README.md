@@ -10,20 +10,21 @@ The fast local AI software for Apple Silicon gets its speed from GPU kernels. Th
 
 ## What works today
 
-Measured, with the account of how in [docs/what-this-enables.md](docs/what-this-enables.md):
+Reported results, with the account of how in [docs/what-this-enables.md](docs/what-this-enables.md).
+Source-count snapshot: [coverage at 83880cb](https://github.com/joshuaswarren/metal2vk/blob/83880cba8d6d29a5fbdc0476284b915b6600eed2/docs/coverage.md), fetched at **2026-11-02 00:58:47 UTC**. These are retained results, not a fresh sweep or an x86 GPU measurement.
 
-| Measured | Result |
-|---|---|
-| Kernels from uzu and TensorFold that compile to valid Vulkan programs | 610 of 610 (606 by default, 4 in an opt-in 64-bit mode) |
-| uzu kernels that compile | 121 of 121 |
-| oMLX, mlx-lm, mlx-vlm kernels sampled: compile | 31 of 32 |
-| Same kernels, run on an M1 and checked against a reference | 31 of 31 agree (5 values of about 9,200 differ by 2 to 3 units in the last place in one kernel; about 0.4% of the values in one attention kernel differ by at most 0.02% of their row's largest value) |
-| Refused | 1 kernel needs the M5 chip's tensor operations |
-| Simple tiled matrix multiply, M1 Max | 4.27 TFLOP/s (hand-tuned Vulkan: 4.07) |
-| uzu tiled matrix multiply, M1 Max | about 0.3 times the hand-tuned kernel |
-| Translated kernels against MLX's own kernels on the same GPU, M2 Max, two runs (Mesa git 6543eeb7df7, load 1.30 at the start) | softmax f32 takes 0.75 and 0.76 of the MLX time, softmax f16 0.91 and 0.92. The 4x4 register-tiled matrix multiply, 1024³, takes 1.28 and 1.22 times the MLX time (4.77 and 4.76 TFLOP/s against 6.11 and 5.80). The SiLU kernel takes 0.44 and 0.45 of the unfused MLX time in f32 and 2.0 times the fused MLX time in f16. The runs differ by 1.2% or less on softmax and by 5% on the MLX matmul time |
-| Compile time per kernel | 1.8 s first time, 0.8 s cached |
-| Whole-model speed through this route | not measured yet |
+| Status | Path or measurement | Result |
+|---|---|---|
+| Measured | Kernels from uzu and TensorFold that compile to valid Vulkan programs (compile only) | 610 of 610 (606 by default, 4 in an opt-in 64-bit mode) |
+| Measured | uzu kernels that compile (compile only) | 121 of 121 |
+| Measured | oMLX, mlx-lm, mlx-vlm kernels sampled: compile only | 31 of 32 |
+| Measured | Same kernels, run on an M1 and checked against a reference | 31 of 31 agree (5 values of about 9,200 differ by 2 to 3 units in the last place in one kernel; about 0.4% of the values in one attention kernel differ by at most 0.02% of their row's largest value) |
+| Measured | Compiler refusal | 1 kernel needs the M5 chip's tensor operations |
+| Measured | Simple tiled matrix multiply, M1 Max | 4.27 TFLOP/s (hand-tuned Vulkan: 4.07) |
+| Measured | uzu tiled matrix multiply, M1 Max | about 0.3 times the hand-tuned kernel |
+| Measured | Translated kernels against MLX's own kernels on the same GPU, M2 Max, two runs (Mesa git 6543eeb7df7, load 1.30 at the start) | softmax f32 takes 0.75 and 0.76 of the MLX time, softmax f16 0.91 and 0.92. The 4x4 register-tiled matrix multiply, 1024³, takes 1.28 and 1.22 times the MLX time (4.77 and 4.76 TFLOP/s against 6.11 and 5.80). The SiLU kernel takes 0.44 and 0.45 of the unfused MLX time in f32 and 2.0 times the fused MLX time in f16. The runs differ by 1.2% or less on softmax and by 5% on the MLX matmul time |
+| Measured | Compile time per kernel, retained compiler result (not GPU execution) | 1.8 s first time, 0.8 s cached |
+| Not measured | Whole-model speed through this route, on any GPU | No tokens-per-second result |
 
 A kernel that fails to translate or fails its check is never run. It falls back to the older route or stops with an error that names the kernel. The reference for a check is the original translator's output where it had one. Otherwise it is a step-by-step Python model of the Metal source.
 
@@ -77,6 +78,36 @@ cc -O2 m2v-run.c -lvulkan -o m2v-run
 python3 m2v-test.py results ./m2v-run out activation softmax     # writes results/results.json
 ```
 
+### x86_64 Linux: AMD, Intel and NVIDIA
+
+Use the same source build in steps 0–2 on an x86_64 Linux host, including Omarchy. No Apple hardware is needed to translate kernels. This is a path to try on a compatible Vulkan device, not a claim that these cards have passed.
+
+| Host / path | Status | Exact scope |
+|---|---|---|
+| x86_64 CPU build/client checks | Measured | [Recorded host-library build and unit checks](host/STATUS.md#gpu-free-test-results); GPU cases skipped without `M2V_GPU`. This is not a card run or an inference result. |
+| x86_64 + AMD GPU | Not measured | No real-card correctness or timing result for this start path is recorded here. |
+| x86_64 + Intel GPU | Not measured | No real-card correctness or timing result for this start path is recorded here. |
+| x86_64 + NVIDIA GPU | Not measured | No real-card correctness or timing result for this start path is recorded here. |
+| Whole-model inference through metal2vk on x86_64 | Not measured | Compiling SPIR-V or passing a kernel check does not establish a working engine or a token rate. |
+
+The activation/softmax sample uses f32 and f16. Before running, check that the selected physical GPU and driver expose Vulkan 1.3, a compute queue, **32-wide subgroups**, FP16 arithmetic and 16-bit buffer storage. The C runner does not request a subgroup width; a driver offering selectable widths is not enough if its default is not 32. A vendor name or a Vulkan 1.3 version alone is not a compatibility check. Stop if these requirements are missing.
+
+After step 2, from `m2v/metal2vk/`, validate both modules before running the existing CPU-reference checks:
+
+```bash
+spirv-val --target-env vulkan1.3 out/activation.spv &&
+spirv-val --target-env vulkan1.3 out/softmax.spv &&
+cc -O2 m2v-run.c -lvulkan -o m2v-run &&
+M2V_DEV=0 M2V_STDERR_FILE="$PWD/results-x86-device.txt" \
+  python3 m2v-test.py results-x86 ./m2v-run out activation softmax
+```
+
+`M2V_DEV` is this C runner's zero-based Vulkan device index, not a PCI address. Use only an index confirmed by your Vulkan device listing; the default is 0. Select the real AMD, Intel or NVIDIA card, not a CPU/software Vulkan device. The separate Rust host library uses `M2V_DEVICE`, not `M2V_DEV`.
+
+Use fresh result and log paths for each card/driver. Keep `results-x86/results.json`, the device/subgroup log, the exact GPU model and driver version, and the compiler/source revisions. A nonzero exit or a `FAIL` row is a failed check, not a supported card. Passing these samples would cover only their inputs and types on that card/driver; it would not qualify other kernels, cooperative matrix or whole models.
+
+These two samples do not need `VK_KHR_cooperative_matrix`. The matrix paths have extra extension, shape and lane-layout requirements; see [how it works](docs/how-it-works.md). Apple-attached eGPU results from another engine, CPU tests and software rendering are not x86-host metal2vk GPU measurements.
+
 ### Translate one Metal file
 
 After the toolchain setup above, compile your own assembled `kernel.metal` from the repository root:
@@ -103,7 +134,7 @@ Third, a patched clspv turns the IR into Vulkan 1.3 compute SPIR-V. Cooperative 
 
 Fourth, `spirv-val` checks the module. A pass that had to give up makes the build fail instead of keeping wrong code.
 
-Fifth, the module runs on any Vulkan 1.3 device with 32-wide subgroups, storage buffers and push constants. The target is Honeykrisp, Mesa's driver for Apple silicon.
+Fifth, a compatible module can run on a Vulkan 1.3 device with the features and subgroup layout that kernel requires. The measured GPU paths above are on Apple Silicon; Vulkan portability alone does not qualify AMD, Intel or NVIDIA cards.
 
 See [docs/how-it-works.md](docs/how-it-works.md) for the details and the reasons for each choice.
 
