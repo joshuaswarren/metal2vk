@@ -175,3 +175,7 @@ Every bit of support helps keep metal2vk alive and free. If you are able, [spons
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Contributors
+
+Everyone credited so far: [CONTRIBUTORS.md](CONTRIBUTORS.md).
